@@ -41,20 +41,11 @@ class EnglishVoiceTutor {
     // 绑定连接按钮事件
     this.elements.connectBtn.addEventListener('click', () => this.handleConnect());
 
-    // 麦克风按钮 - 支持触摸和鼠标
-    this.elements.micButton.addEventListener('mousedown', (e) => this.startRecording(e));
-    this.elements.micButton.addEventListener('mouseup', () => this.stopRecording());
-    this.elements.micButton.addEventListener('mouseleave', () => this.stopRecording());
-    
-    this.elements.micButton.addEventListener('touchstart', (e) => {
+    // 麦克风按钮 - 点击切换模式
+    this.elements.micButton.addEventListener('click', (e) => {
       e.preventDefault();
-      this.startRecording(e);
+      this.toggleRecording();
     });
-    this.elements.micButton.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      this.stopRecording();
-    });
-    this.elements.micButton.addEventListener('touchcancel', () => this.stopRecording());
 
     // 测试按钮
     this.elements.testBtn.addEventListener('click', () => this.sendTestMessage());
@@ -113,14 +104,15 @@ class EnglishVoiceTutor {
     this.elements.testBtn.style.display = 'block';
     this.elements.testBtn.disabled = false;
     
-    this.elements.voiceHint.textContent = '按住说话，松开发送';
+    this.elements.voiceHint.textContent = '点击麦克风开始对话';
     
-    this.showMessage('已连接！按住麦克风说英语 🎉', 'system');
+    this.showMessage('已连接！点击麦克风开始对话 🎉', 'system');
     this.hideEmptyState();
   }
 
   onDisconnected() {
     this.isConnected = false;
+    this.isRecording = false;
     this.updateStatus('disconnected');
     
     // 显示连接按钮，隐藏其他
@@ -129,8 +121,10 @@ class EnglishVoiceTutor {
     this.elements.connectBtn.textContent = '重新连接';
     this.elements.micButton.style.display = 'none';
     this.elements.micButton.disabled = true;
+    this.elements.micButton.classList.remove('recording');
     this.elements.testBtn.style.display = 'none';
     this.elements.testBtn.disabled = true;
+    this.elements.visualizer.classList.remove('active');
     
     this.elements.voiceHint.textContent = '连接已断开';
     
@@ -185,28 +179,40 @@ class EnglishVoiceTutor {
     // AI 开始说话 - 重置当前消息
     this.currentAssistantMessage = null;
     this.currentAssistantText = '';
-    this.updateStatus('speaking');
+    if (this.isRecording) {
+      this.updateStatus('speaking');
+    }
   }
 
   onTTSEnd() {
     // AI 说完了 - 结束当前消息
     this.currentAssistantMessage = null;
     this.currentAssistantText = '';
-    if (this.isConnected) {
+    if (this.isConnected && this.isRecording) {
+      this.updateStatus('recording');
+    } else if (this.isConnected) {
       this.updateStatus('connected');
     }
   }
 
-  async startRecording(event) {
+  // 切换录音状态
+  toggleRecording() {
+    if (this.isRecording) {
+      this.stopRecording();
+    } else {
+      this.startRecording();
+    }
+  }
+
+  async startRecording() {
     if (!this.isConnected || this.isRecording) return;
     
-    event.preventDefault();
     this.isRecording = true;
     
     // 更新 UI
     this.elements.micButton.classList.add('recording');
     this.elements.visualizer.classList.add('active');
-    this.elements.voiceHint.textContent = '录音中...';
+    this.elements.voiceHint.textContent = '对话中，点击停止';
     this.updateStatus('recording');
     
     // 清空 ASR 显示
@@ -224,6 +230,7 @@ class EnglishVoiceTutor {
           this.realtimeClient.sendAudio(audioData);
         }
       });
+      console.log('[App] Recording started - continuous mode');
     } catch (error) {
       console.error('Recording error:', error);
       this.showMessage(`录音失败: ${error.message}`, 'system');
@@ -239,13 +246,15 @@ class EnglishVoiceTutor {
     // 更新 UI
     this.elements.micButton.classList.remove('recording');
     this.elements.visualizer.classList.remove('active');
-    this.elements.voiceHint.textContent = '按住说话，松开发送';
+    this.elements.voiceHint.textContent = '点击麦克风开始对话';
     this.updateStatus('connected');
     
     // 停止录音
     if (this.audioHandler) {
       this.audioHandler.stopRecording();
     }
+    
+    console.log('[App] Recording stopped');
   }
 
   // 发送测试文本消息
@@ -270,11 +279,12 @@ class EnglishVoiceTutor {
         badge.classList.add('connected');
         break;
       case 'recording':
-        badge.textContent = '录音中';
+        badge.textContent = '对话中';
         badge.classList.add('recording');
         break;
       case 'speaking':
         badge.textContent = 'AI说话中';
+        badge.classList.add('recording');
         break;
       case 'connecting':
         badge.textContent = '连接中...';
@@ -305,6 +315,7 @@ class EnglishVoiceTutor {
 
   // 清理资源
   dispose() {
+    this.stopRecording();
     if (this.audioHandler) {
       this.audioHandler.dispose();
     }

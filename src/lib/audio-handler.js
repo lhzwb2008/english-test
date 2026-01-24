@@ -9,6 +9,7 @@ export class AudioHandler {
     this.audioContext = null;
     this.mediaStream = null;
     this.workletNode = null;
+    this.sourceNode = null;
     this.isRecording = false;
     this.onAudioData = null;
     
@@ -20,7 +21,7 @@ export class AudioHandler {
   }
 
   /**
-   * 初始化音频上下文
+   * 初始化音频上下文并预先获取麦克风权限
    */
   async init() {
     // 录音用的 AudioContext (16kHz - 豆包输入要求)
@@ -31,6 +32,30 @@ export class AudioHandler {
     
     // 注册 AudioWorklet 处理器
     await this.registerWorklet();
+    
+    // 预先获取麦克风权限，避免每次录音时延迟
+    await this.initMicrophone();
+  }
+
+  /**
+   * 初始化麦克风
+   */
+  async initMicrophone() {
+    try {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      console.log('[Audio] Microphone initialized');
+    } catch (error) {
+      console.error('[Audio] Failed to get microphone:', error);
+      throw error;
+    }
   }
 
   /**
@@ -84,16 +109,10 @@ export class AudioHandler {
     this.onAudioData = onAudioData;
 
     try {
-      // 请求麦克风权限
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      // 如果麦克风未初始化，重新初始化
+      if (!this.mediaStream || this.mediaStream.getTracks().every(t => t.readyState === 'ended')) {
+        await this.initMicrophone();
+      }
 
       // 确保 AudioContext 是运行状态
       if (this.audioContext.state === 'suspended') {
@@ -101,7 +120,7 @@ export class AudioHandler {
       }
 
       // 创建音频源
-      const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+      this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
 
       // 创建 AudioWorklet 节点
       this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
@@ -114,9 +133,8 @@ export class AudioHandler {
       };
 
       // 连接节点
-      source.connect(this.workletNode);
+      this.sourceNode.connect(this.workletNode);
       // 不需要连接到 destination，避免回声
-      // this.workletNode.connect(this.audioContext.destination);
 
       this.isRecording = true;
       console.log('[Audio] Recording started (16kHz, 20ms packets)');
@@ -127,21 +145,22 @@ export class AudioHandler {
   }
 
   /**
-   * 停止录音
+   * 停止录音（保持麦克风连接，只断开音频处理节点）
    */
   stopRecording() {
     this.isRecording = false;
+
+    if (this.sourceNode) {
+      this.sourceNode.disconnect();
+      this.sourceNode = null;
+    }
 
     if (this.workletNode) {
       this.workletNode.disconnect();
       this.workletNode = null;
     }
 
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach(track => track.stop());
-      this.mediaStream = null;
-    }
-
+    // 不关闭 mediaStream，保持麦克风权限以便下次快速启动
     console.log('[Audio] Recording stopped');
   }
 
@@ -206,6 +225,12 @@ export class AudioHandler {
   dispose() {
     this.stopRecording();
     this.stopPlayback();
+    
+    // 关闭麦克风
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(track => track.stop());
+      this.mediaStream = null;
+    }
     
     if (this.audioContext) {
       this.audioContext.close();

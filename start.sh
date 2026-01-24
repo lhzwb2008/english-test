@@ -48,9 +48,10 @@ echo -e "  ${GREEN}✓ 进程已停止${NC}"
 
 # 检查依赖
 echo -e "${YELLOW}[2/4] 检查依赖...${NC}"
-if [ ! -d "node_modules" ]; then
+if [ ! -d "node_modules" ] || [ ! -d "node_modules/ws" ] || [ ! -d "node_modules/vite" ]; then
   echo "  - 安装依赖..."
   npm install
+  echo -e "  ${GREEN}✓ 依赖安装完成${NC}"
 else
   echo -e "  ${GREEN}✓ 依赖已存在${NC}"
 fi

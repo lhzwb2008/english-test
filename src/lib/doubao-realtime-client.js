@@ -200,11 +200,18 @@ export class DoubaoRealtimeClient {
    */
   sendAudio(audioData) {
     if (!this.isConnected || !this.isSessionStarted) {
+      console.warn('[Doubao] Cannot send audio - not ready', { isConnected: this.isConnected, isSessionStarted: this.isSessionStarted });
       return;
     }
 
     const frame = this.buildFrame(0x02, 200, audioData, this.sessionId);
     this.ws.send(frame);
+    
+    // 每秒打印一次日志，避免刷屏
+    if (!this._lastAudioLog || Date.now() - this._lastAudioLog > 1000) {
+      console.log('[Doubao] Sending audio data, size:', audioData.byteLength);
+      this._lastAudioLog = Date.now();
+    }
   }
 
   /**
