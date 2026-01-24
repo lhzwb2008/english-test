@@ -126,7 +126,7 @@ wss.on('connection', (clientWs, req) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PROXY_PORT || 3001;
 
 server.listen(PORT, () => {
   console.log(`[Proxy] WebSocket proxy server running on ws://localhost:${PORT}/ws`);
