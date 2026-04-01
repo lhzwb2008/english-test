@@ -1,77 +1,34 @@
-# English Voice Tutor 英语发音助手
+# Coze Prompt Lab
 
-基于 Gemini Live API 的英语发音学习助手，帮助你练习和纠正英语发音。
+本地维护多个 Coze 智能体的 Prompt 文案（Markdown），并通过开放平台 Chat API 按 `bot_id` 发消息调试。
 
-## 功能特点
+## 准备
 
-- 🎙️ 实时语音对话 - 使用 Gemini 原生音频模型
-- 🗣️ 发音纠正 - AI 会识别你的发音问题并给出纠正建议
-- 🔊 标准示范 - AI 会用正确的发音示范单词和句子
-- 📱 移动端适配 - 专为手机使用优化的界面
+1. 在 [Coze 扣子](https://www.coze.cn) 创建智能体，**发布为 API 服务**，记下 **Bot ID**。
+2. 在开放平台获取 **访问令牌**（PAT 或你提供的 Service Token），写入根目录 `.env` 中的 `COZE_API_TOKEN`（勿提交 Git；可参考 `.env.example`）。
 
-## 快速开始
-
-### 1. 获取 Gemini API Key
-
-1. 访问 [Google AI Studio](https://aistudio.google.com/apikey)
-2. 登录 Google 账号
-3. 点击 "Create API Key" 创建免费的 API Key
-4. 复制你的 API Key
-
-### 2. 安装和运行
+## 使用
 
 ```bash
-# 进入项目目录
-cd english-voice-tutor
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
 ```
 
-### 3. 在手机上使用
+- 浏览器打开 Vite 提示的地址（一般为 `http://127.0.0.1:5173`）。
+- **登记** `bot_id`，在右侧编辑并**保存**本地 Prompt 副本（`prompts/<bot_id>.md`），在控制台与线上人设保持同步仍由你手动完成（后续可接 Bot 更新 API）。
+- **调试对话**会向 `POST /api/debug/chat` 转发到 Coze `chat.createAndPoll`。
 
-启动后，终端会显示局域网地址（如 `http://192.168.x.x:3000`），确保手机和电脑在同一 WiFi 下，用手机浏览器打开这个地址即可。
+## 目录
 
-## 使用方法
+- `server/` — Express API（Coze SDK、读写 `prompts/`）。
+- `prompts/registry.json` — 已登记的智能体列表。
+- `prompts/*.md` — 各智能体 Prompt 本地副本。
 
-1. 打开应用，输入你的 Gemini API Key
-2. 点击"连接"按钮
-3. 连接成功后，**按住**麦克风按钮说英语
-4. **松开**按钮后，AI 会分析你的发音并给出反馈
-5. 建议使用耳机，避免 AI 回复时产生回声
+## 环境变量
 
-## 练习建议
-
-- 从简单的单词开始，如 "hello", "thank you", "apple"
-- 特别练习中国人容易发错的音：
-  - "th" 音：think, this, that
-  - "r/l" 音：right/light, read/lead
-  - "v/w" 音：very/well, vest/west
-- 可以用中文问问题，AI 会用英语回答
-
-## 技术说明
-
-- **前端**: 原生 JavaScript + Vite
-- **API**: Gemini Live API (WebSocket)
-- **音频**: Web Audio API (16kHz 录音, 24kHz 播放)
-
-## 注意事项
-
-- 需要允许浏览器访问麦克风
-- API Key 会保存在浏览器本地存储中
-- Gemini API 有免费额度限制，日常学习足够使用
-- 建议使用 Chrome 或 Safari 浏览器
-
-## 常见问题
-
-**Q: 为什么要用 Gemini 而不是 OpenRouter？**
-A: OpenRouter 目前不支持实时语音 WebSocket，只支持上传音频文件。Gemini Live API 是真正的原生音频模型，可以实现实时对话。
-
-**Q: API Key 安全吗？**
-A: API Key 只保存在你的浏览器本地，不会上传到任何服务器。但建议不要在公共设备上使用。
-
-**Q: 为什么需要用耳机？**
-A: 如果用外放，AI 的回复声音可能会被麦克风录入，导致 AI 听到自己的声音并中断回复。
+| 变量 | 说明 |
+|------|------|
+| `COZE_API_TOKEN` | 必填，开放平台令牌 |
+| `COZE_BASE_URL` | 默认 `https://api.coze.cn` |
+| `COZE_DEBUG_USER_ID` | 调试时的 `user_id` |
+| `PORT` | API 端口，默认 `3847` |
