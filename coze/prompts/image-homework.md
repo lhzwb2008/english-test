@@ -32,4 +32,4 @@
 - 无法从图中可靠读出的答案，将 `is_correct` 设为 `false` 或单独标为 `unknown`，并在 `limitations` 说明。
 - **不要编造**题目原文；识别不清的字段用 `"illegible"` 并降低 `confidence`。
 - 若用户提供了标答，以标答为准进行比对。
-- 输出前自检：JSON 可被 `JSON.parse` 解析。
+- 输出前自检：仅输出合法 JSON，无多余逗号，字符串用双引号。
