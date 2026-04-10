@@ -1,0 +1,21 @@
+{
+  "space_id": "7522025257893412902",
+  "created_at": "2026-04-10T07:30:28.492Z",
+  "bots": [
+    {
+      "name": "英语学习-计划生成",
+      "bot_id": "7627028738093596712",
+      "prompt_file": "coze/prompts/learning-plan.md"
+    },
+    {
+      "name": "英语学习-图片批改",
+      "bot_id": "7627028840921219091",
+      "prompt_file": "coze/prompts/image-homework.md"
+    },
+    {
+      "name": "英语学习-口语批改",
+      "bot_id": "7627028747031642150",
+      "prompt_file": "coze/prompts/oral-homework.md"
+    }
+  ]
+}
