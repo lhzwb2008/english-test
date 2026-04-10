@@ -7,7 +7,13 @@
   "scripts": {
     "coze:create": "node scripts/create-english-bots.mjs",
     "coze:spaces": "node scripts/list-workspaces.mjs",
-    "test:smoke": "node tests/smoke-chat.mjs"
+    "test:smoke": "node tests/smoke-chat.mjs",
+    "test:e2e": "node tests/e2e-three-bots.mjs",
+    "verify": "node scripts/quick-verify.mjs",
+    "coze:push-plan": "node scripts/push-learning-plan-prompt.mjs",
+    "coze:push-oral": "node scripts/push-oral-prompt.mjs",
+    "coze:push-image": "node scripts/push-image-prompt.mjs",
+    "test:oral-audio": "node scripts/test-oral-audio-only.mjs"
   },
   "dependencies": {
     "@coze/api": "^1.3.9",
