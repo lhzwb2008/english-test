@@ -101,9 +101,13 @@
 
 `POST https://api.coze.cn/v1/files/upload`，`multipart/form-data`，字段名 **`file`**。文档：[上传文件](https://www.coze.cn/docs/developer_guides/upload_files?_lang=zh)
 
+**`file_id` 与 URL**：成功响应里通常有 **`data.id`**（即 **`file_id`**）。**对话接入不需要、也不要自己拼「下载地址」**：在 **`/v3/chat`** 里用 **`object_string`** 带上 **`image`/`audio` + `file_id`** 即可，平台会在对话侧解析该资源。`file_id` **不是**「把 id 填进某个固定 `https://…` 模板就能长期公网访问」的那种链接；若官方响应里另有临时 **`url`** 等字段，以**当前接口文档**为准，且多为短期有效，不宜当作持久素材地址。若业务必须在 App 里展示用户上传图/音的**长期可访问 URL**，应使用**自有对象存储**或产品文档推荐方式，而不是依赖「用 `file_id` 拼 URL」。
+
 ### `object_string` 与空文字
 
 `content_type` 为 `object_string` 时，图片/口语都需 **`text` + `image`/`audio`** 两段；无额外说明时 **`text` 可为 `""`**。
+
+**只有公网 URL、没有 `file_id` 时**：对话接口里图片/音频字段**以 `file_id` 为准**，**不要**指望把自建 OSS、CDN 上的 `https://…` 直接塞进 `object_string` 当作官方支持的入参（与「扣子上传接口返回的临时 `url`」同理——**调 Chat 仍应用上传得到的 `id` 作为 `file_id`**）。若素材只存在于你的 URL，**由服务端拉取该 URL 的文件流，再 `POST /v1/files/upload`**，用返回的 **`id`** 发对话。是否支持其它字段名（如 `url`），以**当前** [Chat v3](https://www.coze.cn/docs/developer_guides/chat_v3?_lang=zh) / `object_string` 说明为准；未在文档中出现则按不支持处理。
 
 ### Node SDK 示例（读取助手 JSON）
 
