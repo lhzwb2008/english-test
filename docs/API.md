@@ -66,7 +66,7 @@
 
 **bot_id**：`7627028747031642150`
 
-**调用**：`POST /v3/chat`，**`stream: true`**（与计划/图片不同，**必须开流**）。
+**调用**：`POST /v3/chat`，**`stream: true`**（与计划/图片不同）。**含 `audio` 时接口强制要求 `stream: true`**：若设为 `stream: false`，会返回错误（例如 `code` 4000，`msg` 含 *audio message, the stream=true field is required*），**无法**用「关流式」来简化取 JSON。
 
 **入参**：先上传音频得 **`file_id`**；**`object_string`** 中同时包含 **`text`**（可空）与 **`audio` + `file_id`**。平台对音频格式通常仅支持 **`wav` / `ogg_opus`**，其它格式需先转码。
 
@@ -86,7 +86,8 @@
 
 ### 接入 Tips（口语专项）
 
-- **`stream: false` 不适合带音频的多模态**：请固定使用 **`stream: true`**，否则易出现与流式协议不一致的行为。
+- **为何不能改成 `stream: false`**：最终 JSON 是在**对话结束后**从 **`message/list`** 里取的，与是否流式「传输助手正文」无关；但**只要消息里带音频**，OpenAPI 就**不允许** `stream: false`，只能 **`stream: true`** 发请求，再在流结束（或轮询 `retrieve` 至 `completed`）后拉 **`message/list`**。SSE 里可忽略大量 `delta`/`verbose`，以 **`answer` 的完整 `content`** 为准。
+- **SSE 里出现 `event:conversation.audio.delta`、且 `content_type` 为 `audio`**：这是**助手侧语音合成（TTS）**分片，**不是**用户上传的音频被原样回传。`content` 里长串多为 **Base64 编码的播报音频**；若你只需要批改 JSON，**不要**把它当成「用户录音」，直接忽略该事件即可。控制台里 **「音视频」** 多为**选择音色**，未必有显式「关闭语音 API」开关；若找不到关闭项，**在对接侧过滤 `conversation.audio.delta` 即可**（与官方文档是否列出该事件、随版本更新有关）。
 - **先上传再对话**：`POST /v1/files/upload`，响应里的 **`id`** 即 **`file_id`**，再拼进 **`object_string`**；不要把上传得到的 **`file_id` 当成可浏览器打开的 http 链接**。
 - **`object_string` 结构**：`content` 本体是**字符串**，其值为 **JSON 数组的字符串形式**（注意转义）；数组里至少要有 **`{"type":"text","text":""}`** 与 **`{"type":"audio","file_id":"..."}`**。
 - **取结果**：消费 **SSE 直到结束**，用返回的 **`conversation_id`** 与 **`chat_id`**（或 SDK 事件里的等价字段）调 **`GET /v3/chat/message/list`**，在消息列表里找 **`type === "answer"`**，对 **`content`** 做 **`JSON.parse`**。若模型偶发在 JSON 外夹杂 Markdown，业务侧需容错或重试。
