@@ -50,14 +50,21 @@ async function main() {
       console.error('stream error', evt.data);
       process.exit(1);
     }
-    if (evt.event === ChatEventType.CONVERSATION_CHAT_COMPLETED) {
-      convId = evt.data.conversation_id;
-      chatId = evt.data.id;
+    const d = evt.data;
+    // 仅用 chat.created / chat.completed 里的 id 作为 chat_id；delta 里的 id 是 message id，误用会导致 message/list 404
+    if (
+      (evt.event === ChatEventType.CONVERSATION_CHAT_CREATED ||
+        evt.event === ChatEventType.CONVERSATION_CHAT_COMPLETED) &&
+      d?.conversation_id &&
+      d?.id
+    ) {
+      convId = d.conversation_id;
+      chatId = d.id;
     }
   }
 
   if (!convId || !chatId) {
-    console.error('未收到 completed');
+    console.error('流结束仍未解析到 conversation_id / chat_id');
     process.exit(1);
   }
 

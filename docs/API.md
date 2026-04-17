@@ -75,14 +75,14 @@
 | 字段 | 类型 | 含义 |
 |------|------|------|
 | `reference_text` | string \| null | 参考句；无则为 `null` |
-| `transcript` | string | 英文转写 |
-| `pronunciation.holistic_score_1_to_5` | number \| null | 1～5 粗分 |
-| `pronunciation.holistic_note_en` | string | 发音综合说明（英文） |
-| `pronunciation.mispronounced_or_weak_words` | string[] | 弱读/易错词 |
-| `language.grammar_issues` | array | 语法问题列表 |
-| `language.lexical_suggestions_en` | string[] | 词汇建议 |
-| `coaching_tips_en` | string[] | 练习建议 |
-| `limitations` | string[] | 限制说明 |
+| `transcript` | string | 学生口语的**英文**转写 |
+| `pronunciation.holistic_score_1_to_5` | number \| null | 1～5 粗分（**仅数字**） |
+| `pronunciation.holistic_note_zh` | string | 发音与整体印象（**中文**） |
+| `pronunciation.mispronounced_or_weak_words` | string[] | 易错发音/用词提醒（**中文**为主，可夹英文词） |
+| `language.grammar_issues` | array | 语法问题（**中文**说明；结构以智能体输出为准） |
+| `language.lexical_suggestions_zh` | string[] | 词汇建议（**中文**） |
+| `coaching_tips_zh` | string[] | 练习建议（**中文**） |
+| `limitations` | string[] | 限制说明（**中文**） |
 
 ### 接入 Tips（口语专项）
 
