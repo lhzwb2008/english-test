@@ -96,10 +96,11 @@ async function main() {
 ${chatJson}
 CHATJSON`);
 
-  printSection('② 自动执行：chat.stream（不打印 SSE 正文，仅等待结束）');
-  process.stderr.write('流式传输中… ');
+  printSection('② 自动执行：chat.stream（仅输出消息的 content 文本，便于直接看到生成结果）');
   let convId;
   let chatId;
+  let streamEventCount = 0;
+  let gotMessageDelta = false;
   for await (const evt of client.chat.stream({
     bot_id: ORAL_BOT_ID,
     user_id: USER_ID,
@@ -114,12 +115,28 @@ CHATJSON`);
       },
     ],
   })) {
+    streamEventCount += 1;
+
     if (evt.event === ChatEventType.ERROR) {
-      process.stderr.write('\n');
       console.error('stream error:', evt.data);
       process.exit(1);
     }
+
     const d = evt.data;
+
+    // 只打印 ChatV3Message 的 content（助手回复的正文）；不打印整段 JSON
+    if (evt.event === ChatEventType.CONVERSATION_MESSAGE_DELTA) {
+      const c = typeof d?.content === 'string' ? d.content : '';
+      if (c) {
+        gotMessageDelta = true;
+        process.stdout.write(c);
+      }
+    } else if (evt.event === ChatEventType.CONVERSATION_MESSAGE_COMPLETED) {
+      const c = typeof d?.content === 'string' ? d.content : '';
+      // 若服务端只推 completed、无 delta，则在这里输出全文，避免与 delta 重复打印
+      if (c && !gotMessageDelta) process.stdout.write(c);
+    }
+
     if (
       (evt.event === ChatEventType.CONVERSATION_CHAT_CREATED ||
         evt.event === ChatEventType.CONVERSATION_CHAT_COMPLETED) &&
@@ -130,7 +147,8 @@ CHATJSON`);
       chatId = d.id;
     }
   }
-  process.stderr.write('结束\n');
+  if (streamEventCount > 0) process.stdout.write('\n');
+  console.log(`流式结束，共 ${streamEventCount} 个 SSE 事件\n`);
   console.log('conversation_id:', convId);
   console.log('chat_id:', chatId);
 
