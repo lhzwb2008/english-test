@@ -19,19 +19,19 @@
 
 | 字段 | 类型 | 含义 |
 |------|------|------|
-| `meta.student_label` | string | 学生摘要标签 |
+| `meta.student_label` | string | 学生摘要标签（**中文**） |
 | `meta.horizon_weeks` | number | 规划周数 |
-| `meta.assumptions` | string[] | 信息不足时的假设 |
+| `meta.assumptions` | string[] | 信息不足时的假设（**中文**） |
 | `weekly_plans` | array | 分周计划 |
 | `weekly_plans[].week_index` | number | 第几周 |
-| `weekly_plans[].focus` | string | 本周重点（英文） |
+| `weekly_plans[].focus_zh` | string | 本周重点（**中文**） |
 | `weekly_plans[].sessions` | array | 按天/按次 |
 | `weekly_plans[].sessions[].tasks` | array | 任务列表 |
-| `weekly_plans[].sessions[].tasks[].title_en` | string | 任务标题 |
-| `weekly_plans[].sessions[].tasks[].detail_en` | string | 任务说明 |
-| `weekly_plans[].sessions[].tasks[].source_ref` | string | 任务来源引用 |
+| `weekly_plans[].sessions[].tasks[].title_zh` | string | 任务标题（**中文**） |
+| `weekly_plans[].sessions[].tasks[].detail_zh` | string | 任务说明（**中文**） |
+| `weekly_plans[].sessions[].tasks[].source_ref` | string | 任务来源引用（可含英文节点名） |
 | `weekly_plans[].sessions[].tasks[].priority` | string | `must` / `optional` |
-| `review_and_adjust` | string[] | 如何复盘与调整（英文） |
+| `review_and_adjust_zh` | string[] | 如何复盘与调整（**中文**） |
 
 ---
 

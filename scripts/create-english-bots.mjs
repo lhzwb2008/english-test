@@ -22,7 +22,7 @@ const BOTS = [
   {
     name: '英语学习-计划生成',
     description:
-      '根据学生档案与原子任务池生成英文学习计划（JSON）。一期 MVP。',
+      '根据学生档案与原子任务池生成学习计划 JSON（说明文字为简体中文）。一期 MVP。',
     promptFile: 'coze/prompts/learning-plan.md',
   },
   {

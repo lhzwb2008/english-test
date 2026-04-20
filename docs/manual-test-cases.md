@@ -19,7 +19,7 @@
 请按你的人设输出学习计划 JSON。
 ```
 
-**预期**：回复为一段可解析的 JSON，任务 `source_ref` 应落在内置 THINK1 节点（如 `Welcome-Part…` / `U1-L…`）上。
+**预期**：回复为一段可解析的 JSON；`meta` 与各周任务说明为**简体中文**；任务 `source_ref` 应落在内置 THINK1 节点（如 `Welcome-Part…` / `U1-L…`）上。
 
 ---
 
