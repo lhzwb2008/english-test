@@ -1,0 +1,443 @@
+{
+  "bot": "英语学习-计划生成",
+  "bot_id": "7627028738093596712",
+  "request": {
+    "method": "POST /v3/chat (createAndPoll, stream:false)",
+    "additional_messages": [
+      {
+        "role": "user",
+        "content": "student_profile:\n学生：吴同学，三年级，女，无锡市大桥小学。\n英语基础：剑桥体系，从 KIDS BOX1 学到目前 THINK1 第一单元 Reading 阶段；每周六下午一次线下课，每次一个半小时；学校译林教材，每天英语课。能完成作业、自觉背默单词，但性格比较拖拉。\n学习目标：小学三年级暑假 KET 达到卓越；小学五年级暑假 PET 达到优秀。\n每天可学英语 30–60 分钟。\nstart_date: 2026-05-08（周五）\nperiod_hint: 先排两周（连续 14 个学习日）。\n\n请仅输出 JSON 学习计划，schedule_mode 设为 by_date 并包含 days[].date。",
+        "content_type": "text"
+      }
+    ]
+  },
+  "chat_status": "completed",
+  "raw_response_text": "{\n    \"meta\": {\n        \"student_label\": \"无锡大桥小学三年级吴同学，THINK1 U1 Reading阶段，目标三年级暑假KET卓越、五年级暑假PET优秀，每日可学30-60分钟\",\n        \"curriculum\": \"think1\",\n        \"assumptions\": [\n            \"当前进度为THINK1第一单元Reading阶段，对齐内置库U1-L1-Reading1作为起始课\",\n            \"每周六有线下THINK1课，当天任务适配课后巩固需求，因目标进度较紧未跳过周末\",\n            \"每日任务量控制在30-60分钟，选做任务可根据当日时间灵活调整\",\n            \"14个连续学习日对应日期为2026-05-08至2026-05-21\"\n        ],\n        \"schedule_mode\": \"by_date\"\n    },\n    \"days\": [\n        {\n            \"day_index\": 1,\n            \"date\": \"2026-05-08\",\n            \"unit_zh\": \"Unit1 阅读1\",\n            \"lesson_code\": \"U1-L1-Reading1\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"P8知识清单单词(1-19)背记和认读、句子朗读\",\n                    \"source_ref\": \"P8\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"P10 quiz完成单词和句子自默（1-27题）\",\n                    \"source_ref\": \"P10\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：分享自己喜欢或讨厌的一项活动，谈谈感受\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"P9根据文章完成思维导图、P10 Practice填空\",\n                    \"source_ref\": \"P9/P10\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 2,\n            \"date\": \"2026-05-09\",\n            \"unit_zh\": \"Unit1 语法1词汇1\",\n            \"lesson_code\": \"U1-L2-Grammar1Vocabulary1\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P10 1-4题、P12 1题\",\n                    \"source_ref\": \"P10/P12\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"Hobbies单词短语背记、自默，Present simple语法规则背记和例句朗读\",\n                    \"source_ref\": \"P2/P4/P6\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：扮演双人对话，互相询问对方爱好相关问题\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P10 5题、P12 2/3题\",\n                    \"source_ref\": \"P10/P12\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 3,\n            \"date\": \"2026-05-10\",\n            \"unit_zh\": \"Unit1 听力1\",\n            \"lesson_code\": \"U1-L3-Listening1\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P12 4题、P16 1题（听力T03）\",\n                    \"source_ref\": \"P12/P16\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"have固定搭配背记、自默\",\n                    \"source_ref\": \"P2/P6\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：学生用书p15 Speaking 1-6题自问自答\",\n                    \"source_ref\": \"学生用书P15\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P12 5题\",\n                    \"source_ref\": \"P12\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 4,\n            \"date\": \"2026-05-11\",\n            \"unit_zh\": \"Unit1 阅读2\",\n            \"lesson_code\": \"U1-L4-Reading2\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P14 reading 1-4题\",\n                    \"source_ref\": \"P14\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"P11知识清单单词(1-29)背记和认读、句子朗读，P15-16 quiz完成单词和句子自默（1-42题）\",\n                    \"source_ref\": \"P11/P15/P16\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"P13-14根据文章完成思维导图、P16 Practice填空\",\n                    \"source_ref\": \"P13/P14/P16\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 5,\n            \"date\": \"2026-05-12\",\n            \"unit_zh\": \"Unit1 语法2写作1\",\n            \"lesson_code\": \"U1-L5-Grammar2writing1\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P11 7/9/10题和GET IT RIGHT、P15 1/2题\",\n                    \"source_ref\": \"P11/P15\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"频率副词背记、自默，Like+-ing语法规则背记和例句朗读\",\n                    \"source_ref\": \"P2/P4/P6\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：询问做某件事情的频率并回答\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P11 8/11题、P15 3题\",\n                    \"source_ref\": \"P11/P15\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 6,\n            \"date\": \"2026-05-13\",\n            \"unit_zh\": \"Unit1 口语拓展\",\n            \"lesson_code\": \"U1-L6-Developspeaking\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P16 2/4/5题（听力1.04/1.05）\",\n                    \"source_ref\": \"P16\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"Develop writing、Function、Writing短语、句子背诵\",\n                    \"source_ref\": \"P5\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：模拟提醒他人注意安全的场景，自编自演双人对话\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 1\",\n                    \"priority\": \"must\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 7,\n            \"date\": \"2026-05-14\",\n            \"unit_zh\": \"Unit2 阅读1\",\n            \"lesson_code\": \"U2-L1-Reading1\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"P26知识清单单词(1-22)背记和认读、句子朗读，P27 quiz完成单词和句子自默（1-34题）\",\n                    \"source_ref\": \"P26/P27\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：自编自演双人对话，讨论物品价格及渴望拥有的物品\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成P28 A/B大题、C大题（挑战题）\",\n                    \"source_ref\": \"P28\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 8,\n            \"date\": \"2026-05-15\",\n            \"unit_zh\": \"Unit2 语法1词汇1\",\n            \"lesson_code\": \"U2-L2-Grammar1Vocabulary1\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P18 1-3题、P20 1-2题\",\n                    \"source_ref\": \"P18/P20\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"Shops单词短语背记、自默，Present continuous语法规则背记和例句朗读\",\n                    \"source_ref\": \"P19/P21/P24\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：分享常去以及从不去的商店及原因\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P18 4题\",\n                    \"source_ref\": \"P18\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 9,\n            \"date\": \"2026-05-16\",\n            \"unit_zh\": \"Unit2 语法2听力\",\n            \"lesson_code\": \"U2-L3-Grammar2Listening\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P19 5题、P24 1-2题（听力T03）\",\n                    \"source_ref\": \"P19/P24\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"感官动词语法规则背记和例句朗读\",\n                    \"source_ref\": \"P21-22\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P19 6题\",\n                    \"source_ref\": \"P19\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 10,\n            \"date\": \"2026-05-17\",\n            \"unit_zh\": \"Unit2 词汇2阅读2\",\n            \"lesson_code\": \"U2-L4-Vocabulary2Reading2有音频\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P20 4/5/7题、P22 Reading 1题\",\n                    \"source_ref\": \"P20/P22\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"Clothes单词短语背记、自默，P29知识清单单词(1-25)背记和认读、句子朗读，P31-32完成单词短语自默（1-25题）\",\n                    \"source_ref\": \"P19/P24/P29/P31\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：模拟购物场景，自编自演双人对话\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P20 6题、P22 2题，P31思维导图、P32句子自默26-32题、Practice A-C题\",\n                    \"source_ref\": \"P20/P22/P31/P32\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 11,\n            \"date\": \"2026-05-18\",\n            \"unit_zh\": \"Unit2 语法3口语\",\n            \"lesson_code\": \"U2-L5-Grammar3speaking\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P19 7题\",\n                    \"source_ref\": \"P19\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"一般现在时VS现在进行时语法规则背记和例句朗读\",\n                    \"source_ref\": \"P22\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：介绍学生用书图片中人物的身份、职业及正在做的事\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P19 8题、Get it right部分\",\n                    \"source_ref\": \"P19\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 12,\n            \"date\": \"2026-05-19\",\n            \"unit_zh\": \"Unit2 文化与写作\",\n            \"lesson_code\": \"U2-L6-Culture:writing\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P23 1/2题\",\n                    \"source_ref\": \"P23\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"Banknotes单词短语背记、自默，P34知识清单单词(1-26)背记和认读，P35 quiz完成单词自默（1-26题）\",\n                    \"source_ref\": \"P20/P24/P34/P35\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P23 3/4题，P23写作思维导图背诵、P36-37思维导图\",\n                    \"source_ref\": \"P23/P36/P37\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 13,\n            \"date\": \"2026-05-20\",\n            \"unit_zh\": \"Unit2 KET模拟与单元测试\",\n            \"lesson_code\": \"Unit2-Lesson7-Ket&test1:2\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"完成练习册P25、P26 1/3/4题、P27 6题（听力2.4-2.7）\",\n                    \"source_ref\": \"P25/P26/P27\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成Unit2单元测试\",\n                    \"source_ref\": \"单元测试卷\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成练习册P26 2题、P27 5/7题，Unit2语法/词汇专项练习\",\n                    \"source_ref\": \"P26/P27\",\n                    \"unit_ref\": \"Unit 2\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        },\n        {\n            \"day_index\": 14,\n            \"date\": \"2026-05-21\",\n            \"unit_zh\": \"Unit3 阅读1\",\n            \"lesson_code\": \"U3-L1-Reading1有单词音频\",\n            \"tasks\": [\n                {\n                    \"detail_zh\": \"P48知识清单单词(1-32)背记和认读、句子朗读，P52 quiz完成单词和句子自默（1-42题）\",\n                    \"source_ref\": \"P48/P52\",\n                    \"unit_ref\": \"Unit 3\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"口语练习：分享自己常吃/偶尔吃/从不吃的食物，用频率副词表达\",\n                    \"source_ref\": \"\",\n                    \"unit_ref\": \"Unit 3\",\n                    \"priority\": \"must\"\n                },\n                {\n                    \"detail_zh\": \"完成P50-51思维导图、P53 A/B/C大题\",\n                    \"source_ref\": \"P50/P51/P53\",\n                    \"unit_ref\": \"Unit 3\",\n                    \"priority\": \"optional\"\n                }\n            ]\n        }\n    ],\n    \"review_and_adjust_zh\": [\n        \"每周日复盘本周单词背默正确率，低于80%的单词加入下周晨读背记清单\",\n        \"每周复盘听力、阅读错题，整理对应知识点到错题本，同类错题超过3道的针对性补充专项练习\",\n        \"每完成1个单元的学习，做一套KET对应模块真题，检测掌握情况，调整后续进度松紧\"\n    ]\n}",
+  "parsed_ok": true,
+  "parsed_data": {
+    "meta": {
+      "student_label": "无锡大桥小学三年级吴同学，THINK1 U1 Reading阶段，目标三年级暑假KET卓越、五年级暑假PET优秀，每日可学30-60分钟",
+      "curriculum": "think1",
+      "assumptions": [
+        "当前进度为THINK1第一单元Reading阶段，对齐内置库U1-L1-Reading1作为起始课",
+        "每周六有线下THINK1课，当天任务适配课后巩固需求，因目标进度较紧未跳过周末",
+        "每日任务量控制在30-60分钟，选做任务可根据当日时间灵活调整",
+        "14个连续学习日对应日期为2026-05-08至2026-05-21"
+      ],
+      "schedule_mode": "by_date"
+    },
+    "days": [
+      {
+        "day_index": 1,
+        "date": "2026-05-08",
+        "unit_zh": "Unit1 阅读1",
+        "lesson_code": "U1-L1-Reading1",
+        "tasks": [
+          {
+            "detail_zh": "P8知识清单单词(1-19)背记和认读、句子朗读",
+            "source_ref": "P8",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "P10 quiz完成单词和句子自默（1-27题）",
+            "source_ref": "P10",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：分享自己喜欢或讨厌的一项活动，谈谈感受",
+            "source_ref": "",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "P9根据文章完成思维导图、P10 Practice填空",
+            "source_ref": "P9/P10",
+            "unit_ref": "Unit 1",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 2,
+        "date": "2026-05-09",
+        "unit_zh": "Unit1 语法1词汇1",
+        "lesson_code": "U1-L2-Grammar1Vocabulary1",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P10 1-4题、P12 1题",
+            "source_ref": "P10/P12",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "Hobbies单词短语背记、自默，Present simple语法规则背记和例句朗读",
+            "source_ref": "P2/P4/P6",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：扮演双人对话，互相询问对方爱好相关问题",
+            "source_ref": "",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P10 5题、P12 2/3题",
+            "source_ref": "P10/P12",
+            "unit_ref": "Unit 1",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 3,
+        "date": "2026-05-10",
+        "unit_zh": "Unit1 听力1",
+        "lesson_code": "U1-L3-Listening1",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P12 4题、P16 1题（听力T03）",
+            "source_ref": "P12/P16",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "have固定搭配背记、自默",
+            "source_ref": "P2/P6",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：学生用书p15 Speaking 1-6题自问自答",
+            "source_ref": "学生用书P15",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P12 5题",
+            "source_ref": "P12",
+            "unit_ref": "Unit 1",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 4,
+        "date": "2026-05-11",
+        "unit_zh": "Unit1 阅读2",
+        "lesson_code": "U1-L4-Reading2",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P14 reading 1-4题",
+            "source_ref": "P14",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "P11知识清单单词(1-29)背记和认读、句子朗读，P15-16 quiz完成单词和句子自默（1-42题）",
+            "source_ref": "P11/P15/P16",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "P13-14根据文章完成思维导图、P16 Practice填空",
+            "source_ref": "P13/P14/P16",
+            "unit_ref": "Unit 1",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 5,
+        "date": "2026-05-12",
+        "unit_zh": "Unit1 语法2写作1",
+        "lesson_code": "U1-L5-Grammar2writing1",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P11 7/9/10题和GET IT RIGHT、P15 1/2题",
+            "source_ref": "P11/P15",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "频率副词背记、自默，Like+-ing语法规则背记和例句朗读",
+            "source_ref": "P2/P4/P6",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：询问做某件事情的频率并回答",
+            "source_ref": "",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P11 8/11题、P15 3题",
+            "source_ref": "P11/P15",
+            "unit_ref": "Unit 1",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 6,
+        "date": "2026-05-13",
+        "unit_zh": "Unit1 口语拓展",
+        "lesson_code": "U1-L6-Developspeaking",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P16 2/4/5题（听力1.04/1.05）",
+            "source_ref": "P16",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "Develop writing、Function、Writing短语、句子背诵",
+            "source_ref": "P5",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：模拟提醒他人注意安全的场景，自编自演双人对话",
+            "source_ref": "",
+            "unit_ref": "Unit 1",
+            "priority": "must"
+          }
+        ]
+      },
+      {
+        "day_index": 7,
+        "date": "2026-05-14",
+        "unit_zh": "Unit2 阅读1",
+        "lesson_code": "U2-L1-Reading1",
+        "tasks": [
+          {
+            "detail_zh": "P26知识清单单词(1-22)背记和认读、句子朗读，P27 quiz完成单词和句子自默（1-34题）",
+            "source_ref": "P26/P27",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：自编自演双人对话，讨论物品价格及渴望拥有的物品",
+            "source_ref": "",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成P28 A/B大题、C大题（挑战题）",
+            "source_ref": "P28",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 8,
+        "date": "2026-05-15",
+        "unit_zh": "Unit2 语法1词汇1",
+        "lesson_code": "U2-L2-Grammar1Vocabulary1",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P18 1-3题、P20 1-2题",
+            "source_ref": "P18/P20",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "Shops单词短语背记、自默，Present continuous语法规则背记和例句朗读",
+            "source_ref": "P19/P21/P24",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：分享常去以及从不去的商店及原因",
+            "source_ref": "",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P18 4题",
+            "source_ref": "P18",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 9,
+        "date": "2026-05-16",
+        "unit_zh": "Unit2 语法2听力",
+        "lesson_code": "U2-L3-Grammar2Listening",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P19 5题、P24 1-2题（听力T03）",
+            "source_ref": "P19/P24",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "感官动词语法规则背记和例句朗读",
+            "source_ref": "P21-22",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P19 6题",
+            "source_ref": "P19",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 10,
+        "date": "2026-05-17",
+        "unit_zh": "Unit2 词汇2阅读2",
+        "lesson_code": "U2-L4-Vocabulary2Reading2有音频",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P20 4/5/7题、P22 Reading 1题",
+            "source_ref": "P20/P22",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "Clothes单词短语背记、自默，P29知识清单单词(1-25)背记和认读、句子朗读，P31-32完成单词短语自默（1-25题）",
+            "source_ref": "P19/P24/P29/P31",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：模拟购物场景，自编自演双人对话",
+            "source_ref": "",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P20 6题、P22 2题，P31思维导图、P32句子自默26-32题、Practice A-C题",
+            "source_ref": "P20/P22/P31/P32",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 11,
+        "date": "2026-05-18",
+        "unit_zh": "Unit2 语法3口语",
+        "lesson_code": "U2-L5-Grammar3speaking",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P19 7题",
+            "source_ref": "P19",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "一般现在时VS现在进行时语法规则背记和例句朗读",
+            "source_ref": "P22",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：介绍学生用书图片中人物的身份、职业及正在做的事",
+            "source_ref": "",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P19 8题、Get it right部分",
+            "source_ref": "P19",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 12,
+        "date": "2026-05-19",
+        "unit_zh": "Unit2 文化与写作",
+        "lesson_code": "U2-L6-Culture:writing",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P23 1/2题",
+            "source_ref": "P23",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "Banknotes单词短语背记、自默，P34知识清单单词(1-26)背记和认读，P35 quiz完成单词自默（1-26题）",
+            "source_ref": "P20/P24/P34/P35",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P23 3/4题，P23写作思维导图背诵、P36-37思维导图",
+            "source_ref": "P23/P36/P37",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 13,
+        "date": "2026-05-20",
+        "unit_zh": "Unit2 KET模拟与单元测试",
+        "lesson_code": "Unit2-Lesson7-Ket&test1:2",
+        "tasks": [
+          {
+            "detail_zh": "完成练习册P25、P26 1/3/4题、P27 6题（听力2.4-2.7）",
+            "source_ref": "P25/P26/P27",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成Unit2单元测试",
+            "source_ref": "单元测试卷",
+            "unit_ref": "Unit 2",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成练习册P26 2题、P27 5/7题，Unit2语法/词汇专项练习",
+            "source_ref": "P26/P27",
+            "unit_ref": "Unit 2",
+            "priority": "optional"
+          }
+        ]
+      },
+      {
+        "day_index": 14,
+        "date": "2026-05-21",
+        "unit_zh": "Unit3 阅读1",
+        "lesson_code": "U3-L1-Reading1有单词音频",
+        "tasks": [
+          {
+            "detail_zh": "P48知识清单单词(1-32)背记和认读、句子朗读，P52 quiz完成单词和句子自默（1-42题）",
+            "source_ref": "P48/P52",
+            "unit_ref": "Unit 3",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "口语练习：分享自己常吃/偶尔吃/从不吃的食物，用频率副词表达",
+            "source_ref": "",
+            "unit_ref": "Unit 3",
+            "priority": "must"
+          },
+          {
+            "detail_zh": "完成P50-51思维导图、P53 A/B/C大题",
+            "source_ref": "P50/P51/P53",
+            "unit_ref": "Unit 3",
+            "priority": "optional"
+          }
+        ]
+      }
+    ],
+    "review_and_adjust_zh": [
+      "每周日复盘本周单词背默正确率，低于80%的单词加入下周晨读背记清单",
+      "每周复盘听力、阅读错题，整理对应知识点到错题本，同类错题超过3道的针对性补充专项练习",
+      "每完成1个单元的学习，做一套KET对应模块真题，检测掌握情况，调整后续进度松紧"
+    ]
+  }
+}

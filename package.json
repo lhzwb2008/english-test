@@ -11,6 +11,8 @@
     "coze:spaces": "node scripts/list-workspaces.mjs",
     "test:smoke": "node tests/smoke-chat.mjs",
     "test:e2e": "node tests/e2e-three-bots.mjs",
+    "test:refresh-api": "node tests/refresh-api-examples.mjs",
+    "make-mock-image": "python3 scripts/make-mock-homework-image.py",
     "verify": "node scripts/quick-verify.mjs",
     "coze:push-plan": "npm run coze:build-plan --silent && node scripts/push-learning-plan-prompt.mjs",
     "coze:push-oral": "node scripts/push-oral-prompt.mjs",

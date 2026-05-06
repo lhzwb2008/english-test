@@ -1,0 +1,135 @@
+{
+  "bot": "英语学习-图片批改",
+  "bot_id": "7627028840921219091",
+  "request": {
+    "method": "POST /v1/files/upload + POST /v3/chat (createAndPoll, stream:false)",
+    "uploaded_file_id": "7636684734344609826",
+    "uploaded_file_local": "tests/fixtures/mock_homework.png",
+    "additional_messages_object_string": [
+      {
+        "type": "text",
+        "text": "教材：THINK1 Unit 1 — Reading & Practice（合成测试图）\n题号：A1-A2 阅读、B3-B4 填空、C 写作\n本页阅读 passage（与图中一致，便于你判分时引用）：\n\"\"\"\nMy name is Anna. I am twelve years old. I live in a small town with my family.\nI have got a brother and a sister. My brother plays football every weekend. My sister\nlikes painting. I like reading books and playing the guitar. I never play computer\ngames on weekdays because I think they are boring. On Saturdays my whole family\ngoes to the park. I usually take my camera with me to take photos of birds.\n\"\"\"\nanswer_key:\n1. B\n2. A\n3. plays\n4. like\ncomposition_rubric:\n- 内容（25%）：是否说明了爱好、频率、地点和感受\n- 结构（25%）：是否有连贯的开头-展开-结尾\n- 语言（30%）：动词三单/时态/动名词搭配\n- 卷面（20%）：拼写与标点\n\n请仅输出 JSON。"
+      },
+      {
+        "type": "image",
+        "file_id": "7636684734344609826"
+      }
+    ]
+  },
+  "chat_status": "completed",
+  "raw_response_text": "{\n    \"image_summary_zh\": \"本页为THINK1 Unit1的阅读与练习作业，包含2道阅读理解选择题、2道语法填空题，以及1篇主题为个人爱好的30词左右小作文。\",\n    \"items\": [\n        {\n            \"id\": \"A1\",\n            \"item_type\": \"reading\",\n            \"reading_subtype\": \"detail\",\n            \"passage_quote\": \"I like reading books and playing the guitar.\",\n            \"passage_translation_zh\": \"我喜欢读书和弹吉他。\",\n            \"evidence_quote\": \"I like reading books and playing the guitar.\",\n            \"evidence_translation_zh\": \"我喜欢读书和弹吉他。\",\n            \"student_answer\": \"B\",\n            \"correct_answer\": \"B\",\n            \"is_correct\": true,\n            \"confidence\": 1.0,\n            \"reasoning_zh\": \"作答与原文表述一致，答案正确。\",\n            \"explanation_zh\": \"这道题问安娜喜欢做什么，我们在原文中可以直接找到安娜说自己喜欢读书和弹吉他的表述，对应选项B，你的作答是正确的。\",\n            \"knowledge_points_zh\": [\"阅读细节定位\", \"兴趣爱好类词汇\"]\n        },\n        {\n            \"id\": \"A2\",\n            \"item_type\": \"reading\",\n            \"reading_subtype\": \"detail\",\n            \"passage_quote\": \"I never play computer games on weekdays because I think they are boring.\",\n            \"passage_translation_zh\": \"我工作日从不玩电脑游戏，因为我觉得它们很无聊。\",\n            \"evidence_quote\": \"I never play computer games on weekdays because I think they are boring.\",\n            \"evidence_translation_zh\": \"我工作日从不玩电脑游戏，因为我觉得它们很无聊。\",\n            \"student_answer\": \"C\",\n            \"correct_answer\": \"A\",\n            \"is_correct\": false,\n            \"confidence\": 1.0,\n            \"reasoning_zh\": \"原文未提及父母不允许玩游戏的相关内容，正确原因是安娜认为游戏无聊，对应选项A，作答错误。\",\n            \"explanation_zh\": \"这道题问安娜工作日不玩电脑游戏的原因，原文明确说明是因为她觉得电脑游戏很无聊，对应选项A。你选的“父母不允许”在原文中完全没有提到，所以这道题答错了，做阅读题要记得回到原文找对应依据哦。\",\n            \"knowledge_points_zh\": [\"阅读细节查找\", \"因果逻辑判断\"]\n        },\n        {\n            \"id\": \"B3\",\n            \"item_type\": \"fill_blank\",\n            \"reading_subtype\": null,\n            \"passage_quote\": \"\",\n            \"passage_translation_zh\": \"\",\n            \"evidence_quote\": \"My brother ____ football every weekend.\",\n            \"evidence_translation_zh\": \"我的哥哥每个周末都踢足球。\",\n            \"student_answer\": \"play\",\n            \"correct_answer\": \"plays\",\n            \"is_correct\": false,\n            \"confidence\": 1.0,\n            \"reasoning_zh\": \"主语my brother是第三人称单数，一般现在时谓语动词要用第三人称单数形式，作答用了动词原形，错误。\",\n            \"explanation_zh\": \"这道题考查一般现在时的动词变化规则，句子的主语是“我的哥哥”，属于第三人称单数，在一般现在时里，主语是第三人称单数时，谓语动词要变成第三人称单数形式，play的三单形式是plays，你写的原形play是错误的。\",\n            \"knowledge_points_zh\": [\"一般现在时\", \"第三人称单数动词变化\"]\n        },\n        {\n            \"id\": \"B4\",\n            \"item_type\": \"fill_blank\",\n            \"reading_subtype\": null,\n            \"passage_quote\": \"\",\n            \"passage_translation_zh\": \"\",\n            \"evidence_quote\": \"I ____ playing the guitar. (like / likes)\",\n            \"evidence_translation_zh\": \"我喜欢弹吉他。（选填like/likes）\",\n            \"student_answer\": \"like\",\n            \"correct_answer\": \"like\",\n            \"is_correct\": true,\n            \"confidence\": 1.0,\n            \"reasoning_zh\": \"主语I是第一人称，一般现在时谓语动词用原形，作答正确。\",\n            \"explanation_zh\": \"这道题考查一般现在时的动词用法，主语是第一人称I，一般现在时中第一人称作主语时，谓语动词用原形，所以这里填like是正确的。\",\n            \"knowledge_points_zh\": [\"一般现在时\", \"第一人称动词用法\"]\n        }\n    ],\n    \"composition_assessment\": {\n        \"total_score\": null,\n        \"rubric_breakdown\": [\n            {\n                \"dimension_zh\": \"内容\",\n                \"score\": null,\n                \"comment_zh\": \"完整说明了爱好是踢足球、和朋友一起玩、地点在公园、频率是每周末、感受是有趣又开心，符合内容要求。\"\n            },\n            {\n                \"dimension_zh\": \"结构\",\n                \"score\": null,\n                \"comment_zh\": \"有开头点明爱好、中间说明活动场景、结尾表达感受的完整结构，逻辑连贯自然。\"\n            },\n            {\n                \"dimension_zh\": \"语言\",\n                \"score\": null,\n                \"comment_zh\": \"存在两处语法错误：like后接动名词应使用playing，不能用play；主语football是第三人称单数，make要变为三单形式makes，其余表达通顺。\"\n            },\n            {\n                \"dimension_zh\": \"卷面\",\n                \"score\": null,\n                \"comment_zh\": \"拼写全部正确，标点使用规范，卷面整洁。\"\n            }\n        ],\n        \"highlight_revisions\": [\"修正后的作文参考：I like playing football very much. I play it with my friend in the park every weekend. It is fun and I think football makes me happy.\"]\n    },\n    \"overall_comment_zh\": \"你本次作业的阅读第1题和填空第4题作答正确，掌握得不错。阅读第2题没有找到原文对应的正确细节，填空第3题对一般现在时第三人称单数的动词变化规则不够熟悉，作文整体内容和结构都达标，只有两处小的语法错误，修正后就很好啦，继续加油哦。\",\n    \"limitations\": [\"本次作业文本清晰可识别，给定材料完整，无判分限制。\"]\n}",
+  "parsed_ok": true,
+  "parsed_data": {
+    "image_summary_zh": "本页为THINK1 Unit1的阅读与练习作业，包含2道阅读理解选择题、2道语法填空题，以及1篇主题为个人爱好的30词左右小作文。",
+    "items": [
+      {
+        "id": "A1",
+        "item_type": "reading",
+        "reading_subtype": "detail",
+        "passage_quote": "I like reading books and playing the guitar.",
+        "passage_translation_zh": "我喜欢读书和弹吉他。",
+        "evidence_quote": "I like reading books and playing the guitar.",
+        "evidence_translation_zh": "我喜欢读书和弹吉他。",
+        "student_answer": "B",
+        "correct_answer": "B",
+        "is_correct": true,
+        "confidence": 1,
+        "reasoning_zh": "作答与原文表述一致，答案正确。",
+        "explanation_zh": "这道题问安娜喜欢做什么，我们在原文中可以直接找到安娜说自己喜欢读书和弹吉他的表述，对应选项B，你的作答是正确的。",
+        "knowledge_points_zh": [
+          "阅读细节定位",
+          "兴趣爱好类词汇"
+        ]
+      },
+      {
+        "id": "A2",
+        "item_type": "reading",
+        "reading_subtype": "detail",
+        "passage_quote": "I never play computer games on weekdays because I think they are boring.",
+        "passage_translation_zh": "我工作日从不玩电脑游戏，因为我觉得它们很无聊。",
+        "evidence_quote": "I never play computer games on weekdays because I think they are boring.",
+        "evidence_translation_zh": "我工作日从不玩电脑游戏，因为我觉得它们很无聊。",
+        "student_answer": "C",
+        "correct_answer": "A",
+        "is_correct": false,
+        "confidence": 1,
+        "reasoning_zh": "原文未提及父母不允许玩游戏的相关内容，正确原因是安娜认为游戏无聊，对应选项A，作答错误。",
+        "explanation_zh": "这道题问安娜工作日不玩电脑游戏的原因，原文明确说明是因为她觉得电脑游戏很无聊，对应选项A。你选的“父母不允许”在原文中完全没有提到，所以这道题答错了，做阅读题要记得回到原文找对应依据哦。",
+        "knowledge_points_zh": [
+          "阅读细节查找",
+          "因果逻辑判断"
+        ]
+      },
+      {
+        "id": "B3",
+        "item_type": "fill_blank",
+        "reading_subtype": null,
+        "passage_quote": "",
+        "passage_translation_zh": "",
+        "evidence_quote": "My brother ____ football every weekend.",
+        "evidence_translation_zh": "我的哥哥每个周末都踢足球。",
+        "student_answer": "play",
+        "correct_answer": "plays",
+        "is_correct": false,
+        "confidence": 1,
+        "reasoning_zh": "主语my brother是第三人称单数，一般现在时谓语动词要用第三人称单数形式，作答用了动词原形，错误。",
+        "explanation_zh": "这道题考查一般现在时的动词变化规则，句子的主语是“我的哥哥”，属于第三人称单数，在一般现在时里，主语是第三人称单数时，谓语动词要变成第三人称单数形式，play的三单形式是plays，你写的原形play是错误的。",
+        "knowledge_points_zh": [
+          "一般现在时",
+          "第三人称单数动词变化"
+        ]
+      },
+      {
+        "id": "B4",
+        "item_type": "fill_blank",
+        "reading_subtype": null,
+        "passage_quote": "",
+        "passage_translation_zh": "",
+        "evidence_quote": "I ____ playing the guitar. (like / likes)",
+        "evidence_translation_zh": "我喜欢弹吉他。（选填like/likes）",
+        "student_answer": "like",
+        "correct_answer": "like",
+        "is_correct": true,
+        "confidence": 1,
+        "reasoning_zh": "主语I是第一人称，一般现在时谓语动词用原形，作答正确。",
+        "explanation_zh": "这道题考查一般现在时的动词用法，主语是第一人称I，一般现在时中第一人称作主语时，谓语动词用原形，所以这里填like是正确的。",
+        "knowledge_points_zh": [
+          "一般现在时",
+          "第一人称动词用法"
+        ]
+      }
+    ],
+    "composition_assessment": {
+      "total_score": null,
+      "rubric_breakdown": [
+        {
+          "dimension_zh": "内容",
+          "score": null,
+          "comment_zh": "完整说明了爱好是踢足球、和朋友一起玩、地点在公园、频率是每周末、感受是有趣又开心，符合内容要求。"
+        },
+        {
+          "dimension_zh": "结构",
+          "score": null,
+          "comment_zh": "有开头点明爱好、中间说明活动场景、结尾表达感受的完整结构，逻辑连贯自然。"
+        },
+        {
+          "dimension_zh": "语言",
+          "score": null,
+          "comment_zh": "存在两处语法错误：like后接动名词应使用playing，不能用play；主语football是第三人称单数，make要变为三单形式makes，其余表达通顺。"
+        },
+        {
+          "dimension_zh": "卷面",
+          "score": null,
+          "comment_zh": "拼写全部正确，标点使用规范，卷面整洁。"
+        }
+      ],
+      "highlight_revisions": [
+        "修正后的作文参考：I like playing football very much. I play it with my friend in the park every weekend. It is fun and I think football makes me happy."
+      ]
+    },
+    "overall_comment_zh": "你本次作业的阅读第1题和填空第4题作答正确，掌握得不错。阅读第2题没有找到原文对应的正确细节，填空第3题对一般现在时第三人称单数的动词变化规则不够熟悉，作文整体内容和结构都达标，只有两处小的语法错误，修正后就很好啦，继续加油哦。",
+    "limitations": [
+      "本次作业文本清晰可识别，给定材料完整，无判分限制。"
+    ]
+  }
+}
