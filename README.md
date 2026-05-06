@@ -11,7 +11,7 @@
 
 | 名称 | `bot_id` | Prompt 文件 |
 |------|-----------|-------------|
-| 英语学习-计划生成 | 见 `coze/bots.registry.json` | `coze/prompts/learning-plan.md` |
+| 英语学习-计划生成 | 见 `coze/bots.registry.json` | `learning-plan-head.md` + `builtin-tasks-from-excels.md` → **`learning-plan.md`**（`npm run coze:build-plan`） |
 | 英语学习-图片批改 | 同上 | `coze/prompts/image-homework.md` |
 | 英语学习-口语批改 | 同上 | `coze/prompts/oral-homework.md` |
 
@@ -25,11 +25,11 @@
 ## Prompt 约定
 
 - **输出**：各 Bot 只输出 **一份可解析的 JSON**，便于前后端落库。
-- **学习计划**：业务侧在**一条文本消息**中携带 `curriculum`、`task_pool`（对齐根目录四套陪跑表案例的行式课节）、`student_profile`（见 [`docs/API.md`](docs/API.md)）；**不传学习日个数**，由模型按 `task_pool` 条目数自动生成 `days[]` 与 **`day_index`**（day1、day2…）；**公历日期由后端挂载**。
+- **学习计划**：业务侧在**一条文本消息**里写清 **`student_profile`**（体系、进度、每日时长、目标、可选排课周期），**不必**再传 `curriculum` 或 `task_pool`；四套陪跑表的**原子课节**已编入 Prompt（`coze/prompts/builtin-tasks-from-excels.md` 由 `ref/*.xlsx` / `*.xls` 导出后合并进 `learning-plan.md`）。模型输出 `days[]` 与 **`day_index`**（day1、day2…）；**公历日期由后端挂载**。详情见 [`docs/API.md`](docs/API.md)。
 - **图片批改**：`object_string` 的 `text` 中可携带单元/题号、**阅读 passage**（若图小或未印全文）、标答与作文量表等（见 `docs/API.md`）；输出**全中文**面向家长/学生。
 - **口语批改**：`text` 中可携带题型说明、参考句；输出含**五维**评分 + 总评（见 `docs/API.md`）。
 
-参考课程计划实例（任务库形态）：仓库根目录 `Think1 完整版…xlsx`、`THINK2…xls`、`Power Up2…xls`、`Power Up3…xls`。
+参考课程计划源表（本地，默认不提交 git）：放在仓库 `ref/`（与 `scripts/export-builtin-from-excels.py` 路径一致），导出后更新 **`coze/prompts/builtin-tasks-from-excels.md`**，再执行 `npm run coze:build-plan` 合并为 `learning-plan.md`。
 
 ### 模型
 
@@ -38,7 +38,8 @@
 ## 本地维护
 
 1. 复制 `.env.example` 为 `.env`，填入 `COZE_API_TOKEN`（勿提交）。
-2. 编辑 `coze/prompts/*.md` 后，可执行（需 `.env` 中 `COZE_API_TOKEN`）：`npm run coze:push-plan` / `coze:push-oral` / `coze:push-image`，自动 `bots.update` 并发布 API 渠道 `1024`。
+2. **计划 Prompt 合并**：人设与规则在 `coze/prompts/learning-plan-head.md`，任务库在 `coze/prompts/builtin-tasks-from-excels.md`。执行 `npm run coze:build-plan` 生成最终 `coze/prompts/learning-plan.md`。若手边有更新后的陪跑表放入 `ref/` 并装好 Python 依赖（`xlrd`、`openpyxl`），可先 `npm run coze:export-builtin` 再 build。
+3. 编辑完成后可执行（需 `.env` 中 `COZE_API_TOKEN`）：`npm run coze:push-plan` / `coze:push-oral` / `coze:push-image`（`push-plan` 会先 **build-plan** 再 `bots.update` 并发布 API 渠道 `1024`）。
 
 ```bash
 npm install
@@ -50,14 +51,16 @@ npm run coze:spaces    # 查看空间 ID
 
 ## 后端接入
 
-见 **`docs/API.md`**（鉴权、三个 `bot_id`、入参与 stream 要求）。  
-本轮 Prompt/契约变更的**对照清单**见 **`docs/REVIEW-prompt-changes.md`**（Review 用）。
+见 **`docs/API.md`**（鉴权、三个 `bot_id`、入参与 stream 要求）。
 
 ## 目录
 
 - `docs/API.md` — **后端接入简版 API 说明**
 - `docs/manual-test-cases.md` — **控制台手动测试用例**（THINK1 素材）
-- `coze/prompts/` — 智能体人设与输出 JSON 约定（可版本维护）
+- `coze/prompts/learning-plan-head.md` — 计划 Bot 人设与编排规则（与内置库合并后发布）
+- `coze/prompts/builtin-tasks-from-excels.md` — 四体系任务库（Excel 导出）
+- `coze/prompts/learning-plan.md` — **合并产物**（`npm run coze:build-plan`），勿手改；推送前由脚本生成
+- `coze/prompts/` — 另含 `image-homework.md`、`oral-homework.md`
 - `coze/bots.registry.json` — 创建后写入的 `bot_id` 登记
 - `scripts/` — 创建、空间列表、`quick-verify.mjs` 快速自检
 - `THINK1/` — 学生样例、作业布置表、图片/音频调试样例（上下文）

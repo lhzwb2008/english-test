@@ -15,27 +15,23 @@
 
 ### 入参（`content_type: text`）
 
-单条用户消息内用**小标题**分块（非 HTTP JSON 体）：
+业务在**一条用户消息**里主要提供 **`student_profile`**（自然语言，须能推断**在读教材/体系**、**当前进度**、**每日时长与目标**，可选写明希望排多长周期）。  
 
-| 块 | 是否必填 | 说明 |
-|----|----------|------|
-| `curriculum` | **必填** | `think1` \| `think2` \| `powerup2` \| `powerup3` |
-| `task_pool` | **必填** | 从该国别**陪跑计划表**粘贴的课节列表（与仓库根目录四份 xls/xlsx 案例**同构**）。**仅允许编排其中出现的 `lesson_code`**；可全量粘贴，**不走 RAG** |
-| `student_profile` | 建议 | 年级、时长、目标、习惯等自然语言 |
+**不写 `curriculum`、`task_pool`。** 四套陪跑表的**原子课节已全部编译进扣子侧 Prompt**；模型会先判定 `meta.curriculum`，再从内置库中匹配 `lesson_code` 并排定 `days[]`。**不走 RAG**。
 
-**学习日个数**：**不由业务传 `day_count`**。模型根据 `task_pool` 中**课节条目（行）数**自动生成 `days[]` 长度，并使 `day_index` 1…N 与条目顺序一致（与四表中「每行一课/一次作业布置」一致）；**真实公历日期由后端**自行挂载到各 `day_index`。
+**学习日个数**：**不由业务传 `day_count`**。由模型根据档案中的周期描述决定 `days[]` 长度；若档案**未写**排课跨度，Prompt 约定默认约 **14 个连续学习日**。**`day_index`** 为 1…N（day1、day2…）；**真实公历日期由后端**自行挂载到各 `day_index`。
 
 ### 出参（`answer` 的 `content` → `JSON.parse`）
 
 | 字段 | 类型 | 含义 |
 |------|------|------|
 | `meta.student_label` | string | 学生摘要（中文） |
-| `meta.curriculum` | string | 与输入一致 |
+| `meta.curriculum` | string | 模型根据档案判定：`think1` \| `think2` \| `powerup2` \| `powerup3` |
 | `meta.assumptions` | string[] | 假设与说明（中文） |
 | `days` | array | 按学习日序号排列 |
 | `days[].day_index` | number | 第几个学习日，从 1 递增（等价 day1、day2） |
 | `days[].unit_zh` | string | 单元说明（中文为主） |
-| `days[].lesson_code` | string | 须来自输入 `task_pool` |
+| `days[].lesson_code` | string | 须为 Prompt 内置任务库中该体系下某一 `####` 标题的**原文** |
 | `days[].tasks` | array | 当日条目 |
 | `days[].tasks[].detail_zh` | string | 任务说明（中文） |
 | `days[].tasks[].source_ref` | string | 来源引用 |
@@ -45,16 +41,10 @@
 ### 示例输入
 
 ```
-curriculum: think1
-
 student_profile:
-三年级，女，每日约 45 分钟，目标 KET 卓越。
+三年级女生，在读 Cambridge THINK1，目前进度约第九单元；线下每周六 1.5 小时，在家每天可学英语 45 分钟左右。目标明年暑假前 KET 卓越。请从当前进度往后排约两周课（若未说明周期则按系统默认天数）。
 
-task_pool:
-Welcome-PartA-01 | 必做：练习册P4(1/2/4题) | 口语：主题词汇认读
-U1-L1-Reading1 | 必做：P8 单词认读句子朗读 | 选做：P9 思维导图
-
-请仅输出一个 JSON（days 条数与 task_pool 课节条数一致）。
+请仅输出一个 JSON 学习计划。
 ```
 
 ### 示例输出（节选）
@@ -62,31 +52,19 @@ U1-L1-Reading1 | 必做：P8 单词认读句子朗读 | 选做：P9 思维导图
 ```json
 {
   "meta": {
-    "student_label": "三年级女生｜THINK1｜每日约45分钟",
+    "student_label": "三年级女生｜THINK1｜U9 起｜每日约45分钟",
     "curriculum": "think1",
-    "assumptions": []
+    "assumptions": ["依据档案将起点对齐内置库中与 U9 最接近的课节。"]
   },
   "days": [
     {
       "day_index": 1,
-      "unit_zh": "Welcome",
-      "lesson_code": "Welcome-PartA-01",
+      "unit_zh": "Unit 9（示例）",
+      "lesson_code": "（须与内置 think1 分区某条 #### 标题完全一致）",
       "tasks": [
         {
-          "detail_zh": "练习册必做；主题词汇认读。",
-          "source_ref": "Welcome-PartA-01 / workbook p.4",
-          "priority": "must"
-        }
-      ]
-    },
-    {
-      "day_index": 2,
-      "unit_zh": "Unit 1",
-      "lesson_code": "U1-L1-Reading1",
-      "tasks": [
-        {
-          "detail_zh": "知识清单认读与朗读；可选思维导图。",
-          "source_ref": "U1-L1-Reading1 / P8-P9",
+          "detail_zh": "（根据该课节下必做/选做整理为当日可完成项，中文）",
+          "source_ref": "见 lesson_code 对应条目",
           "priority": "must"
         }
       ]
@@ -342,7 +320,7 @@ const oralData = JSON.parse(oralReply);
 
 | 命令 | 说明 |
 |------|------|
-| `npm run coze:push-plan` | `learning-plan.md` → 计划 Bot |
+| `npm run coze:push-plan` | 先 `coze:build-plan` 合并 `learning-plan-head` + 内置任务库 → `learning-plan.md`，再推送至计划 Bot |
 | `npm run coze:push-oral` | `oral-homework.md` → 口语 Bot |
 | `npm run coze:push-image` | `image-homework.md` → 图片 Bot |
 

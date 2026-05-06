@@ -25,15 +25,10 @@ const client = new CozeAPI({
   baseURL: process.env.COZE_BASE_URL || 'https://api.coze.cn',
 });
 
-const msg = `curriculum: think1
+const msg = `student_profile:
+三年级，教材 Cambridge THINK1，目前在 Welcome 之后、约 Unit1 中段；每日可学习英语约 45 分钟，目标 KET 卓越。
 
-student_profile:
-三年级，教材 THINK1，目标 KET 卓越。每日可学习 45 分钟。
-
-task_pool（节选）：
-Welcome-PartA-01 | 必做：练习册 P4 必做；主题词汇认读。
-
-请输出 JSON 学习计划（含 meta 与 days）。`;
+请输出 JSON 学习计划（含 meta 与 days）；lesson_code 须取内置任务库中对应课的 #### 标题原文。`;
 
 const r = await client.chat.createAndPoll({
   bot_id: planBot.bot_id,

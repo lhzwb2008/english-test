@@ -22,7 +22,7 @@ const BOTS = [
   {
     name: '英语学习-计划生成',
     description:
-      '根据学生档案与原子任务池生成学习计划 JSON（说明文字为简体中文）。一期 MVP。',
+      '根据学生档案与 Prompt 内置任务库自动匹配课程并生成学习计划 JSON（说明文字为简体中文）。一期 MVP。',
     promptFile: 'coze/prompts/learning-plan.md',
   },
   {
@@ -67,7 +67,7 @@ async function main() {
         prologue:
           '请直接粘贴学生档案、任务池或作业材料。我将按系统格式输出 JSON。',
         suggested_questions: [
-          '生成未来四周学习计划（附上任务池表格）',
+          '生成未来两周学习计划（仅学生档案，无任务池）',
           '批改这张作业照片并输出 JSON',
           '这段口语录音的参考句是：... 请输出 JSON',
         ],
