@@ -93,28 +93,7 @@ async function runImage(client, botId) {
     file: fs.createReadStream(imgPath),
   });
   const fileId = up.id;
-  const text = `教材：THINK1 Unit 1 — Reading & Practice（合成测试图）
-题号：A1-A2 阅读、B3-B4 填空、C 写作
-本页阅读 passage（与图中一致，便于你判分时引用）：
-"""
-My name is Anna. I am twelve years old. I live in a small town with my family.
-I have got a brother and a sister. My brother plays football every weekend. My sister
-likes painting. I like reading books and playing the guitar. I never play computer
-games on weekdays because I think they are boring. On Saturdays my whole family
-goes to the park. I usually take my camera with me to take photos of birds.
-"""
-answer_key:
-1. B
-2. A
-3. plays
-4. like
-composition_rubric:
-- 内容（25%）：是否说明了爱好、频率、地点和感受
-- 结构（25%）：是否有连贯的开头-展开-结尾
-- 语言（30%）：动词三单/时态/动名词搭配
-- 卷面（20%）：拼写与标点
-
-请仅输出 JSON。`;
+  const text = '请仅输出 JSON。';
   const obj = [
     { type: 'text', text },
     { type: 'image', file_id: fileId },
