@@ -25,5 +25,3 @@ npm-debug.log*
 
 # Test files
 test-*.js
-
-ref/
