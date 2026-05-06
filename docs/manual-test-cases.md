@@ -10,16 +10,22 @@
 **不要上传文件**，只在输入框粘贴下面整段（内容来自 `学生信息输入(3).xlsx` 中「吴同学」一行，略作排版）：
 
 ```
+curriculum: think1
+
+student_profile:
 学生：吴同学，三年级，女，无锡市大桥小学。
 
 英语基础：剑桥体系，从 KIDS BOX1 学到目前 THINK1 第九单元；每周六下午一次线下课，每次一个半小时。学校用译林教材，每天都有英语课。2026年3月 KET 模拟：听力错 5 个、阅读错 10 个。能完成作业、自觉背默单词；性格比较拖拉，难以自主学习。每天可学习约半小时到一小时。
 
 目标：小学三年级暑假 KET 达到卓越；小学五年级暑假 PET 达到优秀。
 
-请按你的人设输出学习计划 JSON。
+task_pool（节选，业务可贴全量或子集；本期不走 RAG）：
+Welcome-PartA-01 | 必做：练习册P4 等 | 口语：主题词汇认读
+
+请按人设仅输出学习计划 JSON。
 ```
 
-**预期**：回复为一段可解析的 JSON；`meta` 与各周任务说明为**简体中文**；任务 `source_ref` 应落在内置 THINK1 节点（如 `Welcome-Part…` / `U1-L…`）上。
+**预期**：可解析 JSON；含 `meta` 与 `days[]`（条数与 `task_pool` 课节条数一致；`day_index` 递增，无公历 `date`）；`lesson_code` 来自 `task_pool`；说明文字为**简体中文**。
 
 ---
 
@@ -33,10 +39,10 @@
 **文字说明**（可粘贴在同一轮或说明里，可选）：
 
 ```
-这是 THINK1 作业纸照片，请按你的人设只输出批改 JSON。
+教材：THINK1。题号见印刷。请按人设只输出批改 JSON；输出字段需含 image_summary_zh、items、overall_comment_zh（全中文面向家长）。
 ```
 
-**预期**：回复 JSON 含 `items` 若干题；含选择题与手写/涂改时 `limitations` 可能有说明。
+**预期**：JSON 含 `items`；`limitations` 可能因 OCR/手写非空；阅读题若未附带 passage，`passage_quote` 可能为空并在 `limitations` 说明。
 
 ---
 
@@ -48,11 +54,11 @@
 **文字说明**（与 `think1作业问答/e71156dc-a233-4131-878d-01eda7a67077.png` 里老师反馈语境一致：强调 like + doing；可照抄下面）：
 
 ```
-口语作业：介绍自己的爱好或日常活动。请注意使用 like + gerund（如 like reading books），不要 like + 动词原形。
-请按你的人设只输出 JSON。
+assignment: 口语作业：介绍自己的爱好或日常活动。请注意使用 like + gerund（如 like reading books），不要 like + 动词原形。
+请按人设只输出 JSON（含 dimensions 五维与 holistic 总评）。
 ```
 
-**预期**：回复 JSON 含 `transcript`、`pronunciation`、`language` 等；若模型听不清，见 `limitations`。
+**预期**：JSON 含 `transcript`、`dimensions`（五维）、`holistic_summary_zh`、`language` 等；若听不清，见 `limitations`。
 
 ---
 

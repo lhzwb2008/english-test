@@ -42,8 +42,14 @@ async function main() {
     additional_messages: [
       {
         role: RoleType.User,
-        content:
-          '学生：三年级，在学 THINK1 Welcome 段，每天可学英语约30分钟。目标：半年后 KET。请按内置任务库生成计划。',
+        content: `curriculum: think1
+
+student_profile: 三年级，在学 THINK1 Welcome 段，每天可学英语约30分钟。目标：半年后 KET。
+
+task_pool（节选）:
+Welcome-PartA-01 | 必做：练习册P4 | 口语：主题词汇认读
+
+请输出 JSON（含 meta 与 days；天数与 task_pool 条数一致）。`,
         content_type: 'text',
       },
     ],

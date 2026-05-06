@@ -25,9 +25,15 @@ const client = new CozeAPI({
   baseURL: process.env.COZE_BASE_URL || 'https://api.coze.cn',
 });
 
-const msg = `学生：三年级，教材 THINK1，目标 KET 卓越。每日可学习 45 分钟。
-任务池（节选）：Welcome-PartA-01 练习册 P4 必做；主题词汇认读。
-请输出 JSON 学习计划。`;
+const msg = `curriculum: think1
+
+student_profile:
+三年级，教材 THINK1，目标 KET 卓越。每日可学习 45 分钟。
+
+task_pool（节选）：
+Welcome-PartA-01 | 必做：练习册 P4 必做；主题词汇认读。
+
+请输出 JSON 学习计划（含 meta 与 days）。`;
 
 const r = await client.chat.createAndPoll({
   bot_id: planBot.bot_id,
