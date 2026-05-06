@@ -26,7 +26,7 @@
 
 - **输出**：各 Bot 只输出 **一份可解析的 JSON**，便于前后端落库。
 - **学习计划**：业务侧在**一条文本消息**里写清 **`student_profile`**（体系、进度、每日时长、目标），**不必**再传 `curriculum` 或 `task_pool`；四套陪跑表的**原子课节（共 360+ 条 lesson_code）**已编入 Prompt（`coze/prompts/builtin-tasks-from-excels.md` 由 `ref/*.xlsx` / `*.xls` 导出后合并进 `learning-plan.md`）。可选 **`start_date` / `period_hint`**：给了 `start_date` 模型按"日期模式"输出 `days[].date`；未给则按"序号模式"仅输出 `day_index`；未给 `period_hint` 默认 14 天。`lesson_code` 必为内置库中某条 `####` 标题原文（如 `U1-L1-Reading1`）。详情见 [`docs/API.md`](docs/API.md)。
-- **图片批改**：`object_string` 的 `text` 中可携带单元/题号、**阅读 passage**（若图小或未印全文）、`answer_key`、`composition_rubric` 等（见 `docs/API.md`）；输出**全中文**含逐题 `passage_quote / passage_translation_zh / evidence_quote / evidence_translation_zh` 与 `knowledge_points_zh` 知识点；作文小题进入独立 `composition_assessment` 字段。
+- **图片批改**：业务侧**只**传 `text`（一句调用提示如『请仅输出 JSON』）+ `image` + `file_id`，**不**再传 `answer_key` / 教材单元 / 阅读 passage / 作文 rubric——这些是题库/知识库职责。当前为**无题库**版本：模型基于图片 OCR + 通用语言知识；阅读理解题在**图中未印 passage** 时会把 `standard_answer` 留空（`""`），并在 `limitations` 写明『无题库无法核对标答』；接入知识库 RAG 后由 `original_question` / `standard_answer` 字段回填，**业务对接 schema 不变**。
 - **口语批改**：`text` 中可携带题型说明、参考句；输出含**五维**评分 + 总评 + `language.grammar_issues`（结构化中文问题/改法）。
 
 参考课程计划源表（本地，默认不提交 git）：放在仓库 `ref/`（与 `scripts/export-builtin-from-excels.py` 路径一致），导出后更新 **`coze/prompts/builtin-tasks-from-excels.md`**，再执行 `npm run coze:build-plan` 合并为 `learning-plan.md`。
