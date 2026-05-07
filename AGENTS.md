@@ -21,14 +21,9 @@ This is `english-coze-mvp` — a prompt-engineering & bot-management toolkit for
 | `npm run coze:push-plan` | Build + push prompt to Plan bot | Yes |
 | `npm run coze:push-oral` | Push oral prompt | Yes |
 | `npm run coze:push-image` | Push image prompt | Yes |
-| `npm run test:smoke` | Smoke test — calls Plan bot via Chat API (~2 min) | Yes |
-| `npm run test:e2e` | Full E2E — calls all 3 bots (~3-6 min) | Yes |
-| `npm run verify` | Quick-verify all 3 bots (~2-6 min, needs fixture files for image/audio) | Yes |
 
 ### Gotchas
 
 - **`.env` setup**: The `COZE_API_TOKEN` environment variable should be written into `/workspace/.env`. The file is `.gitignore`-d.
-- **`test:smoke` takes ~2 minutes** because it makes a real Coze Chat API call with model inference. `test:e2e` and `verify` take even longer (3-6 min).
-- **Image/audio test fixtures** (`THINK1/think1作业问答/*.jpg`, `tests/fixtures/oral_sample.wav`) are **not committed to git** (too large). The `verify` and `test:e2e` scripts gracefully skip audio tests when fixtures are missing.
-- **No lint or build system**: There is no ESLint, TypeScript, or build step. The codebase is plain Node.js ESM (`.mjs` files).
+- **No lint, build, or test system**: There is no ESLint, TypeScript, build step, or automated test suite. The codebase is plain Node.js ESM (`.mjs` files); verification is done by manually pushing prompts and trying the bots in the Coze console.
 - **Python is optional**: Only needed for `npm run coze:export-builtin` (Excel → Markdown export). The exported file is already committed.

@@ -23,5 +23,5 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Test files
-test-*.js
+# Python virtualenv (for optional Excel export script)
+.venv/
