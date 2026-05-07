@@ -3,7 +3,7 @@
   "bot_id": "7627028747031642150",
   "request": {
     "method": "POST /v1/files/upload + POST /v3/chat (stream:true) + GET /v3/chat/message/list",
-    "uploaded_file_id": "7636685088336019465",
+    "uploaded_file_id": "7636696991388811315",
     "uploaded_file_local": "tests/fixtures/oral_sample.wav",
     "additional_messages_object_string": [
       {
@@ -12,86 +12,81 @@
       },
       {
         "type": "audio",
-        "file_id": "7636685088336019465"
+        "file_id": "7636696991388811315"
       }
     ]
   },
-  "raw_response_text": "{\n    \"reference_text\": \"I like playing football and reading books at weekends. (示例参考)\",\n    \"transcript\": \"I met my friend two years ago. We became friends because we all like read books. She will recommend the good books she has read to me. I would do the thing. Now, we do homework and play together. We also swim, play badminton together after school. I like playing with he, her.\",\n    \"holistic_score_1_to_5\": 3,\n    \"holistic_summary_zh\": \"整体表述连贯，内容贴合介绍日常活动的作业要求，但存在多处语法错误，尤其未遵守like加动名词的作业规定，整体表达合格但有较大提升空间\",\n    \"dimensions\": [\n        {\n            \"id\": \"fluency\",\n            \"label_zh\": \"流利度与连贯\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"整体表述逻辑顺畅，没有明显卡顿、自我修正的情况，流利度较好\"\n        },\n        {\n            \"id\": \"accuracy\",\n            \"label_zh\": \"语言准确性（语法、词汇）\",\n            \"score_1_to_5\": 2,\n            \"comment_zh\": \"存在多处语法错误，违反了本次作业要求的like加动名词结构，部分表述模糊，但整体含义可被理解\"\n        },\n        {\n            \"id\": \"pronunciation\",\n            \"label_zh\": \"发音清晰度\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"转写内容通顺，没有出现因发音模糊导致无法识别的内容，发音整体清晰\"\n        },\n        {\n            \"id\": \"completeness\",\n            \"label_zh\": \"任务完整度\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"内容符合作业要求，涵盖了爱好、日常和朋友相处的活动等信息，要点齐全\"\n        },\n        {\n            \"id\": \"interaction\",\n            \"label_zh\": \"交际得体性\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"表述自然，符合日常分享个人生活的交际场景，语气得体\"\n        }\n    ],\n    \"pronunciation\": {\n        \"mispronounced_or_weak_words\": [\n            \"注意动词ing形式的发音，比如reading不要读成read\",\n            \"注意宾格him/her的发音，不要和主格he/she混淆\"\n        ]\n    },\n    \"language\": {\n        \"grammar_issues\": [\n            {\n                \"issue_zh\": \"使用like表达爱好时接了动词原形read，违反本次作业要求的like+动名词结构，同时属于语法错误\",\n                \"suggestion_zh\": \"将like read books改为like reading books\"\n            },\n            {\n                \"issue_zh\": \"介词with后面接了主格代词he，语法使用错误，同时指代同一个朋友时同时用he和her表述混乱\",\n                \"suggestion_zh\": \"将like playing with he, her改为like playing with her（指代女性朋友）或like playing with him（指代男性朋友）\"\n            },\n            {\n                \"issue_zh\": \"指代你和朋友两个人时用了all，all一般用于三者及以上，使用错误\",\n                \"suggestion_zh\": \"将we all like改为we both like\"\n            },\n            {\n                \"issue_zh\": \"I would do the thing表述模糊，表意不明确\",\n                \"suggestion_zh\": \"改为I also do the same for her，表示你也会给她推荐好书\"\n            }\n        ],\n        \"lexical_suggestions_zh\": [\n            \"表示两人共同做某事可以用both代替all，更符合英语使用习惯\",\n            \"表达“我也会做同样的事”可以用固定表达do the same for sb，比do the thing更地道清晰\"\n        ]\n    },\n    \"coaching_tips_zh\": [\n        \"重点巩固like+动名词的固定结构，每次练习表达爱好时刻意提醒自己加动词ing形式，符合本次作业要求\",\n        \"梳理主格和宾格代词的用法，尤其是动词、介词后面要接宾格代词\",\n        \"可以多跟读场景对话，积累日常分享的常用地道表达，避免出现表意模糊的句子\"\n    ],\n    \"limitations\": [\n        \"本次批改仅基于提供的转写内容，未结合实际音频的语调、重音、连读等细节，若需要更精准的发音评测可上传对应音频\"\n    ]\n}",
+  "raw_response_text": "{\n    \"reference_text\": \"I like playing football and reading books at weekends. (示例参考)\",\n    \"transcript\": \"I met my friend two years ago. We became friends because we all like read books. She will recommend the good books she has read to me. I would do the thing. Now, we do homework and play together. We also swim, play badminton together after school. I like playing with he, her.\",\n    \"holistic_score_1_to_5\": 3,\n    \"holistic_summary_zh\": \"整体内容贴合日常活动介绍的主题，语句较为连贯，但存在多处不符合作业要求的语法错误，部分表达表意模糊。\",\n    \"dimensions\": [\n        {\n            \"id\": \"fluency\",\n            \"label_zh\": \"流利度与连贯\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"语句衔接自然流畅，没有明显的卡顿或自我修正痕迹，逻辑连贯。\"\n        },\n        {\n            \"id\": \"accuracy\",\n            \"label_zh\": \"语言准确性（语法、词汇）\",\n            \"score_1_to_5\": 2,\n            \"comment_zh\": \"存在多处语法错误，其中like后接动词原形不符合本次作业的明确要求，部分指代模糊。\"\n        },\n        {\n            \"id\": \"pronunciation\",\n            \"label_zh\": \"发音清晰度\",\n            \"score_1_to_5\": 3,\n            \"comment_zh\": \"基于转写内容推断发音较为清晰，未出现因发音错误导致的语义偏差。\"\n        },\n        {\n            \"id\": \"completeness\",\n            \"label_zh\": \"任务完整度\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"紧扣日常活动介绍的主题，完整讲述了和好友相识、相处的日常，信息要点齐全。\"\n        },\n        {\n            \"id\": \"interaction\",\n            \"label_zh\": \"交际得体性\",\n            \"score_1_to_5\": 4,\n            \"comment_zh\": \"表达自然得体，符合自我介绍类场景的表述逻辑，表意清晰。\"\n        }\n    ],\n    \"pronunciation\": {\n        \"mispronounced_or_weak_words\": [\"未提供音频，暂无法定位具体发音薄弱点，可上传音频后获得更精准的发音评价\"]\n    },\n    \"language\": {\n        \"grammar_issues\": [\n            {\n                \"issue_zh\": \"出现like read books的表述，不符合本次作业要求的like+动名词（gerund）的用法，也不符合英语语法规则\",\n                \"suggestion_zh\": \"改为like reading books，牢记like后接动名词表长期爱好的结构\"\n            },\n            {\n                \"issue_zh\": \"playing with he中人称代词使用错误，介词后要用人称代词宾格，且同时出现he和her指代混乱\",\n                \"suggestion_zh\": \"结合前文指代的女性朋友，改为playing with her即可\"\n            },\n            {\n                \"issue_zh\": \"I would do the thing表意模糊，指代不明，读者无法明确知道具体指什么行为\",\n                \"suggestion_zh\": \"改为I will also share good books I have read to her，明确对应前文的推荐书籍的行为\"\n            }\n        ],\n        \"lexical_suggestions_zh\": [\n            \"可以用we share the same hobby of reading来代替we all like reading books，表达更地道简洁\",\n            \"可以用great books替换the good books，更符合日常口语表达习惯\"\n        ]\n    },\n    \"coaching_tips_zh\": [\n        \"强化练习like+动名词的结构，自己替换不同的活动造5-10个句子，比如like swimming、like drawing等，巩固作业要求的语法点\",\n        \"梳理人称代词主格和宾格的用法，整理常用介词后接宾格的例子，反复朗读记忆\",\n        \"对照自己的文稿，把修改后的正确版本大声朗读3遍，加深正确表达的印象\"\n    ],\n    \"limitations\": [\"本次批改仅基于文字转写内容，发音维度的评价存在局限性，建议上传音频后获得更全面的口语评测结果\"]\n}",
   "parsed_ok": true,
   "parsed_data": {
     "reference_text": "I like playing football and reading books at weekends. (示例参考)",
     "transcript": "I met my friend two years ago. We became friends because we all like read books. She will recommend the good books she has read to me. I would do the thing. Now, we do homework and play together. We also swim, play badminton together after school. I like playing with he, her.",
     "holistic_score_1_to_5": 3,
-    "holistic_summary_zh": "整体表述连贯，内容贴合介绍日常活动的作业要求，但存在多处语法错误，尤其未遵守like加动名词的作业规定，整体表达合格但有较大提升空间",
+    "holistic_summary_zh": "整体内容贴合日常活动介绍的主题，语句较为连贯，但存在多处不符合作业要求的语法错误，部分表达表意模糊。",
     "dimensions": [
       {
         "id": "fluency",
         "label_zh": "流利度与连贯",
         "score_1_to_5": 4,
-        "comment_zh": "整体表述逻辑顺畅，没有明显卡顿、自我修正的情况，流利度较好"
+        "comment_zh": "语句衔接自然流畅，没有明显的卡顿或自我修正痕迹，逻辑连贯。"
       },
       {
         "id": "accuracy",
         "label_zh": "语言准确性（语法、词汇）",
         "score_1_to_5": 2,
-        "comment_zh": "存在多处语法错误，违反了本次作业要求的like加动名词结构，部分表述模糊，但整体含义可被理解"
+        "comment_zh": "存在多处语法错误，其中like后接动词原形不符合本次作业的明确要求，部分指代模糊。"
       },
       {
         "id": "pronunciation",
         "label_zh": "发音清晰度",
-        "score_1_to_5": 4,
-        "comment_zh": "转写内容通顺，没有出现因发音模糊导致无法识别的内容，发音整体清晰"
+        "score_1_to_5": 3,
+        "comment_zh": "基于转写内容推断发音较为清晰，未出现因发音错误导致的语义偏差。"
       },
       {
         "id": "completeness",
         "label_zh": "任务完整度",
         "score_1_to_5": 4,
-        "comment_zh": "内容符合作业要求，涵盖了爱好、日常和朋友相处的活动等信息，要点齐全"
+        "comment_zh": "紧扣日常活动介绍的主题，完整讲述了和好友相识、相处的日常，信息要点齐全。"
       },
       {
         "id": "interaction",
         "label_zh": "交际得体性",
         "score_1_to_5": 4,
-        "comment_zh": "表述自然，符合日常分享个人生活的交际场景，语气得体"
+        "comment_zh": "表达自然得体，符合自我介绍类场景的表述逻辑，表意清晰。"
       }
     ],
     "pronunciation": {
       "mispronounced_or_weak_words": [
-        "注意动词ing形式的发音，比如reading不要读成read",
-        "注意宾格him/her的发音，不要和主格he/she混淆"
+        "未提供音频，暂无法定位具体发音薄弱点，可上传音频后获得更精准的发音评价"
       ]
     },
     "language": {
       "grammar_issues": [
         {
-          "issue_zh": "使用like表达爱好时接了动词原形read，违反本次作业要求的like+动名词结构，同时属于语法错误",
-          "suggestion_zh": "将like read books改为like reading books"
+          "issue_zh": "出现like read books的表述，不符合本次作业要求的like+动名词（gerund）的用法，也不符合英语语法规则",
+          "suggestion_zh": "改为like reading books，牢记like后接动名词表长期爱好的结构"
         },
         {
-          "issue_zh": "介词with后面接了主格代词he，语法使用错误，同时指代同一个朋友时同时用he和her表述混乱",
-          "suggestion_zh": "将like playing with he, her改为like playing with her（指代女性朋友）或like playing with him（指代男性朋友）"
+          "issue_zh": "playing with he中人称代词使用错误，介词后要用人称代词宾格，且同时出现he和her指代混乱",
+          "suggestion_zh": "结合前文指代的女性朋友，改为playing with her即可"
         },
         {
-          "issue_zh": "指代你和朋友两个人时用了all，all一般用于三者及以上，使用错误",
-          "suggestion_zh": "将we all like改为we both like"
-        },
-        {
-          "issue_zh": "I would do the thing表述模糊，表意不明确",
-          "suggestion_zh": "改为I also do the same for her，表示你也会给她推荐好书"
+          "issue_zh": "I would do the thing表意模糊，指代不明，读者无法明确知道具体指什么行为",
+          "suggestion_zh": "改为I will also share good books I have read to her，明确对应前文的推荐书籍的行为"
         }
       ],
       "lexical_suggestions_zh": [
-        "表示两人共同做某事可以用both代替all，更符合英语使用习惯",
-        "表达“我也会做同样的事”可以用固定表达do the same for sb，比do the thing更地道清晰"
+        "可以用we share the same hobby of reading来代替we all like reading books，表达更地道简洁",
+        "可以用great books替换the good books，更符合日常口语表达习惯"
       ]
     },
     "coaching_tips_zh": [
-      "重点巩固like+动名词的固定结构，每次练习表达爱好时刻意提醒自己加动词ing形式，符合本次作业要求",
-      "梳理主格和宾格代词的用法，尤其是动词、介词后面要接宾格代词",
-      "可以多跟读场景对话，积累日常分享的常用地道表达，避免出现表意模糊的句子"
+      "强化练习like+动名词的结构，自己替换不同的活动造5-10个句子，比如like swimming、like drawing等，巩固作业要求的语法点",
+      "梳理人称代词主格和宾格的用法，整理常用介词后接宾格的例子，反复朗读记忆",
+      "对照自己的文稿，把修改后的正确版本大声朗读3遍，加深正确表达的印象"
     ],
     "limitations": [
-      "本次批改仅基于提供的转写内容，未结合实际音频的语调、重音、连读等细节，若需要更精准的发音评测可上传对应音频"
+      "本次批改仅基于文字转写内容，发音维度的评价存在局限性，建议上传音频后获得更全面的口语评测结果"
     ]
   }
 }
