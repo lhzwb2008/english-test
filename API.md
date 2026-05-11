@@ -10,7 +10,7 @@
 | 学习计划 | `7627028738093596712` | `POST /v3/chat`，`stream: false` |
 | 作业批改（图） | `7627028840921219091` | `POST /v3/chat`，`stream: false`（须先 `/v1/files/upload` 取 `file_id`） |
 | 口语评测（音） | `7627028747031642150` | `POST /v3/chat`，**`stream: true`**（须先 `/v1/files/upload` 取 `file_id`） |
-| 知识点讲解 | 见 `coze/bots.registry.json`（首次需创建后回填） | `POST /v3/chat`，`stream: false` |
+| 知识点讲解 | `7638556864866795539` | `POST /v3/chat`，`stream: false` |
 
 三个 bot 都返回**一份合法 JSON**，业务侧拿到 `answer` 消息的 `content` 后做 `JSON.parse` 即可。若模型偶发包裹 Markdown 围栏，截取首个 `{` 至末尾 `}` 子串后再解析。
 
@@ -336,6 +336,51 @@ reference_text: I like playing football and reading books at weekends.
 
 ---
 
+## 4. 知识点讲解
+
+**`bot_id`**：`7638556864866795539`，`stream: false`，推荐 SDK `chat.createAndPoll`。
+
+用于学生在批改结果里点击"关联知识点 → 查看讲解"时**实时生成**讲解文本（也可在后台先调一次落库复用）。**输出 Markdown 文本为核心产物**，并附 TTS 朗读脚本，便于前端生成讲解音频。
+
+### 入参（`content_type: text`）
+
+业务侧在**一条用户消息**里写清：
+
+- **`知识点：<名称>`**（必填）：中文知识点名称，如 `现在完成时` / `for 与 since 的区别` / `不可数名词`。
+- **`context：...`**（可选）：教学/批改上下文，自然语言，例如：学生年级、触发场景（"批改中现在完成时句子出错"）、希望强调或省略的子点。未给默认按**小学高年级**讲。
+
+建议消息开头写一句 `请仅输出 JSON。`，避免模型偶发输出 Markdown 围栏。
+
+### 出参（`answer.content` → `JSON.parse`）
+
+| 字段 | 类型 | 含义 |
+|------|------|------|
+| `knowledge_point` | string | 回显输入的知识点名称 |
+| `explanation_markdown` | string | **核心产物**：完整讲解 Markdown（包含定义、公式、句式表格、用法、易混对照、不规则变化、易错点、随堂练习+答案）。换行为 `\n`，前端直接 Markdown 渲染。 |
+| `tts_script_zh` | string | 可直接送 TTS 的中文朗读脚本（纯文本，无 Markdown 标记），约 500–900 字。 |
+
+> 整体内容长度通常在 1500–3500 字（取决于知识点复杂度），`explanation_markdown` 字符串可能较大，前后端注意字段长度限制。
+
+### 示例输入
+
+```text
+请仅输出 JSON。
+知识点：现在完成时
+context：学生为小学五年级，刚在批改中把 have been to 与 have gone to 用混。
+```
+
+### 示例输出（节选）
+
+```json
+{
+  "knowledge_point": "现在完成时",
+  "explanation_markdown": "## 一、什么是现在完成时？\n\n现在完成时连接**过去**和**现在**……\n\n## 二、基本构成\n\n**公式：主语 + have/has + 过去分词**\n\n## 三、四种句式\n\n| 句式 | 结构 | 例句 |\n|------|------|------|\n| 肯定句 | 主语 + have/has + 过去分词 | `I have finished my homework.` 我已经写完作业了。 |\n……\n\n## 八、容易踩的坑\n\n- ❌ `I have lost my keys yesterday.` → ✅ `I lost my keys yesterday.`\n……\n\n## 九、随堂小练习\n\n1. I ______ (finish) my homework already.\n……\n\n**答案：** 1. have finished……",
+  "tts_script_zh": "今天我们来讲一个英语里非常重要的时态：现在完成时。它的核心，是把过去和现在连在一起……举个例子，英文是 I have lost my keys，意思是：我把钥匙弄丢了，所以现在进不了门……"
+}
+```
+
+---
+
 ## 附录
 
 ### 上传文件
@@ -422,6 +467,24 @@ const oralMsgs = await client.chat.messages.list(convId, chatId);
 const oral = JSON.parse(
   oralMsgs.filter((m) => m.type === 'answer').map((m) => m.content).join('')
 );
+
+// 知识点讲解：纯文本输入
+const { messages: kpMsgs } = await client.chat.createAndPoll({
+  bot_id: '7638556864866795539',
+  user_id: 'biz-user',
+  additional_messages: [
+    {
+      role: RoleType.User,
+      content: '请仅输出 JSON。\n知识点：现在完成时\ncontext：小学五年级，have been to / have gone to 混淆。',
+      content_type: 'text',
+    },
+  ],
+});
+const knowledge = JSON.parse(
+  kpMsgs.filter((m) => m.type === 'answer').map((m) => m.content).join('')
+);
+// knowledge.explanation_markdown → 渲染给学生看
+// knowledge.tts_script_zh        → 送 TTS 生成音频
 ```
 
 ### 官方文档
