@@ -37,6 +37,12 @@ const BOTS = [
       '英语口语作业：转写、粗分、语言纠错与建议（JSON）。一期 MVP。',
     promptFile: 'coze/prompts/oral-homework.md',
   },
+  {
+    name: '英语学习-知识点讲解',
+    description:
+      '输入知识点名称（及可选教学上下文），输出面向中小学生的中文讲解 Markdown + TTS 朗读脚本（JSON）。',
+    promptFile: 'coze/prompts/knowledge-explainer.md',
+  },
 ];
 
 async function main() {

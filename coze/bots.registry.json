@@ -16,6 +16,11 @@
       "name": "英语学习-口语批改",
       "bot_id": "7627028747031642150",
       "prompt_file": "coze/prompts/oral-homework.md"
+    },
+    {
+      "name": "英语学习-知识点讲解",
+      "bot_id": "7638556864866795539",
+      "prompt_file": "coze/prompts/knowledge-explainer.md"
     }
   ]
 }

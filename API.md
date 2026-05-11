@@ -10,6 +10,7 @@
 | 学习计划 | `7627028738093596712` | `POST /v3/chat`，`stream: false` |
 | 作业批改（图） | `7627028840921219091` | `POST /v3/chat`，`stream: false`（须先 `/v1/files/upload` 取 `file_id`） |
 | 口语评测（音） | `7627028747031642150` | `POST /v3/chat`，**`stream: true`**（须先 `/v1/files/upload` 取 `file_id`） |
+| 知识点讲解 | 见 `coze/bots.registry.json`（首次需创建后回填） | `POST /v3/chat`，`stream: false` |
 
 三个 bot 都返回**一份合法 JSON**，业务侧拿到 `answer` 消息的 `content` 后做 `JSON.parse` 即可。若模型偶发包裹 Markdown 围栏，截取首个 `{` 至末尾 `}` 子串后再解析。
 

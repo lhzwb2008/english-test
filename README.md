@@ -14,6 +14,7 @@
 | 英语学习-计划生成 | 见 `coze/bots.registry.json` | `learning-plan-head.md` + `builtin-tasks-from-excels.md` → **`learning-plan.md`**（`npm run coze:build-plan`） |
 | 英语学习-图片批改 | 同上 | `coze/prompts/image-homework.md` |
 | 英语学习-口语批改 | 同上 | `coze/prompts/oral-homework.md` |
+| 英语学习-知识点讲解 | 见 `coze/bots.registry.json` | `coze/prompts/knowledge-explainer.md` |
 
 脚本已为上述智能体尝试 **发布到 API 渠道**（connector `1024`）。业务侧使用 Chat API 时需带 `Authorization: Bearer <COZE_API_TOKEN>`。
 
@@ -39,7 +40,8 @@
 
 1. 复制 `.env.example` 为 `.env`，填入 `COZE_API_TOKEN`（勿提交）。
 2. **计划 Prompt 合并**：人设与规则在 `coze/prompts/learning-plan-head.md`，任务库在 `coze/prompts/builtin-tasks-from-excels.md`。执行 `npm run coze:build-plan` 生成最终 `coze/prompts/learning-plan.md`。若手边有更新后的陪跑表放入 `ref/` 并装好 Python 依赖（`xlrd`、`openpyxl`），可先 `npm run coze:export-builtin` 再 build。
-3. 编辑完成后可执行（需 `.env` 中 `COZE_API_TOKEN`）：`npm run coze:push-plan` / `coze:push-oral` / `coze:push-image`（`push-plan` 会先 **build-plan** 再 `bots.update` 并发布 API 渠道 `1024`）。
+3. 编辑完成后可执行（需 `.env` 中 `COZE_API_TOKEN`）：`npm run coze:push-plan` / `coze:push-oral` / `coze:push-image` / `coze:push-knowledge`（`push-plan` 会先 **build-plan** 再 `bots.update` 并发布 API 渠道 `1024`）。
+   - **首次推送知识点讲解 Bot 前**：先在控制台新建（或 `npm run coze:create`）「英语学习-知识点讲解」并把 `bot_id` 写入 `coze/bots.registry.json`；也可临时 `COZE_BOT_ID=xxx npm run coze:push-knowledge`。
 
 ```bash
 npm install
