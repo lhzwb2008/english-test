@@ -29,6 +29,7 @@
     {
       "id": "string，题号或本地序号",
       "item_type": "mcq|fill_blank|short_answer|matching|reading|composition|cloze|translation|unknown",
+
       "reading_subtype": "main_idea|detail|inference|vocabulary_in_context|null",
       "original_question": "string，从图中 OCR 出的完整题干（含选项），用于前端展示原题；不可读则给空串",
       "standard_answer": "string，标准答案；无题库且无法独立确认时给空串",
@@ -44,7 +45,29 @@
       "knowledge_points_zh": ["string，本题考查的语法/词汇/技巧点（中文，可空）"]
     }
   ],
-  "composition_assessment": {
+  "overall_comment_zh": "string，总评（中文）",
+  "limitations": ["string，OCR/缺原文/手写作答/无题库无法核对标答等限制（中文）"]
+}
+```
+
+**说明：所有题目（含作文）统一放在 `items` 数组中，前端用 `item_type` 区分解析。** 不同题型可以使用不同的扩展字段，未使用到的通用字段保持空串/`null`/`[]` 即可，**不要再在顶层输出 `composition_assessment`**。
+
+## 作文类 item 扩展字段（item_type=composition）
+
+当 `item_type` 为 `composition` 时，该 item 在上述通用字段基础上**追加**以下作文专属字段（其他 item 不需要这些字段；若一次作业里有多篇作文，按多个 composition item 分别输出）：
+
+```json
+{
+  "id": "string，题号或本地序号",
+  "item_type": "composition",
+  "original_question": "string，作文题目/要求 OCR（如有）",
+  "student_answer": "string，学生作文全文 OCR（保留原拼写与原错误，不要替学生改写）",
+  "is_correct": null,
+  "confidence": 0.0,
+  "explanation_zh": "string，对该篇作文的整体讲解/讲评（中文，便于 TTS 朗读）",
+  "knowledge_points_zh": ["string，本篇作文考查的写作技能点（中文，可空）"],
+
+  "composition": {
     "total_score": null,
     "rubric_breakdown": [
       { "dimension_zh": "内容", "score": null, "comment_zh": "" },
@@ -53,13 +76,14 @@
       { "dimension_zh": "卷面", "score": null, "comment_zh": "" }
     ],
     "highlight_revisions": ["string，可改写示例（中文为主，可夹英文片段）"]
-  },
-  "overall_comment_zh": "string，总评（中文）",
-  "limitations": ["string，OCR/缺原文/手写作答/无题库无法核对标答等限制（中文）"]
+  }
 }
 ```
 
-`composition_assessment` 仅在本次作业**包含作文/写作类**题目时填实质内容；否则可整体省略（或保留键值，所有字段为 `null` / `""` / `[]`）。
+作文 item 中：
+- `standard_answer`、`passage_quote`、`passage_translation_zh`、`evidence_quote`、`evidence_translation_zh`、`reading_subtype` 等字段对作文不适用，**统一给 `""` / `null`**，由前端按 `item_type` 忽略即可。
+- `is_correct` 对作文整体没有意义，固定给 `null`（不要写 `true/false`）。
+- 作文细节修订/纠错建议主要写在 `composition.highlight_revisions` 与 `explanation_zh` 中。
 
 ---
 
@@ -87,7 +111,7 @@
   - `composition`：写作/作文。
 - **`reading_subtype`** 仅在 `item_type=reading` 时取 `main_idea`（主旨）/ `detail`（细节）/ `inference`（推理）/ `vocabulary_in_context`（词义猜测），否则为 `null`。
 - **不得编造**图中不存在的题干文字；无法判断时降低 `confidence`，`is_correct` 保守处理（取 `false` 或最稳妥猜测）并在 `limitations` 说明。
-- 作文类：通用「内容/结构/语言/卷面」中文简评；分项 `score` 当前一律 `null`（因无评分量表）。
+- 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）；按通用「内容/结构/语言/卷面」给出中文简评；分项 `score` 与 `total_score` 当前一律 `null`（因无评分量表）。若图中存在多篇作文，输出多个 composition item。
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
 - 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本。

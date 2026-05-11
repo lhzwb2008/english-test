@@ -137,7 +137,7 @@ period_hint: 先排两周（连续 14 个学习日）。
 | `image_summary_zh` | string | 本页概述（中文） |
 | `items[]` | array | 逐题 |
 | `items[].id` | string | 题号或本地序号 |
-| `items[].item_type` | string | `mcq` \| `fill_blank` \| `short_answer` \| `matching` \| `cloze` \| `translation` \| `reading` \| `composition` \| `unknown` |
+| `items[].item_type` | string | `mcq` \| `fill_blank` \| `short_answer` \| `matching` \| `cloze` \| `translation` \| `reading` \| `composition` \| `unknown`；**作文统一作为一个 `item_type=composition` 的 item 出现在 `items` 中**，前端按 `item_type` 区分解析 |
 | `items[].reading_subtype` | string \| null | `main_idea` \| `detail` \| `inference` \| `vocabulary_in_context`；非阅读题为 `null` |
 | `items[].original_question` | string | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""` |
 | `items[].standard_answer` | string | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填） |
@@ -146,17 +146,19 @@ period_hint: 先排两周（连续 14 个学习日）。
 | `items[].evidence_quote` | string | 判分依据所摘录的原文/题干句子；非阅读题可为空 |
 | `items[].evidence_translation_zh` | string | `evidence_quote` 的中文翻译 |
 | `items[].student_answer` | string | 识别到的作答；不清写 `illegible` |
-| `items[].is_correct` | boolean | 是否正确（`standard_answer` 为空时按通用语言规则给最稳妥判断，不确定时降低 `confidence`） |
+| `items[].is_correct` | boolean \| null | 是否正确（`standard_answer` 为空时按通用语言规则给最稳妥判断，不确定时降低 `confidence`）；**作文 item 固定 `null`** |
 | `items[].confidence` | number | 0–1 |
 | `items[].reasoning_zh` | string | 简短判分理由（中文） |
 | `items[].explanation_zh` | string | 完整讲解（中文，可直接 TTS） |
 | `items[].knowledge_points_zh` | string[] | 1–3 个考点关键词，便于学习总结 bot 抓薄弱点 |
-| `composition_assessment` | object \| null | 含作文小题时填，非作文可省略 |
-| `composition_assessment.total_score` | number \| null | 作文总分（无量表时为 `null`） |
-| `composition_assessment.rubric_breakdown[]` | array | `{dimension_zh, score, comment_zh}`（中文维度名；当前 `score` 一律 `null`） |
-| `composition_assessment.highlight_revisions` | string[] | 改写示例（中文为主，可夹英文片段） |
+| `items[].composition` | object \| 缺省 | **仅 `item_type=composition` 的 item 才有**；其它题型不输出此字段 |
+| `items[].composition.total_score` | number \| null | 作文总分（无量表时为 `null`） |
+| `items[].composition.rubric_breakdown[]` | array | `{dimension_zh, score, comment_zh}`（中文维度名；当前 `score` 一律 `null`） |
+| `items[].composition.highlight_revisions` | string[] | 改写示例（中文为主，可夹英文片段） |
 | `overall_comment_zh` | string | 总评（中文） |
 | `limitations` | string[] | OCR / 缺原文 / 无题库无法核对标答等限制（中文） |
+
+> **结构变更说明**：旧版本曾在顶层输出 `composition_assessment` 与 `items` 并列；当前版本已**统一收进 `items`**，作为 `item_type=composition` 的 item，并把作文专属字段放在 `items[].composition` 子对象里。这样前端只需对 `items` 做一次遍历，再按 `item_type` 分流；同一份作业里若有多篇作文，会出现多个 composition item。
 
 ### 示例 `object_string` 中 `text`（与 `image` 同条消息）
 
@@ -203,21 +205,38 @@ period_hint: 先排两周（连续 14 个学习日）。
       "reasoning_zh": "根据一般现在时语法规则可确定标答为 plays，学生作答 play 不符合语法。",
       "explanation_zh": "这道题考查一般现在时主谓一致，主语 My brother 是第三人称单数，时间状语 every weekend 表示一般现在时，动词要变第三人称单数 plays。",
       "knowledge_points_zh": ["一般现在时", "第三人称单数动词变化"]
+    },
+    {
+      "id": "5",
+      "item_type": "composition",
+      "reading_subtype": null,
+      "original_question": "Write about 30 words about your hobby.",
+      "standard_answer": "",
+      "passage_quote": "",
+      "passage_translation_zh": "",
+      "evidence_quote": "",
+      "evidence_translation_zh": "",
+      "student_answer": "I like play football. I play football with my friends after school. Football make me happy.",
+      "is_correct": null,
+      "confidence": 0.9,
+      "reasoning_zh": "作文整体表意清晰，主要存在两处语法错误，不做对错判断。",
+      "explanation_zh": "本篇 30 词小作文围绕「喜欢踢足球」展开，内容、结构、卷面都不错，主要问题集中在语法：like 后接动名词、主语 football 为第三人称单数需要 makes。建议改写为「I like playing football. I play football with my friends after school. Football makes me happy.」",
+      "knowledge_points_zh": ["like + 动名词", "第三人称单数动词变化"],
+      "composition": {
+        "total_score": null,
+        "rubric_breakdown": [
+          { "dimension_zh": "内容", "score": null, "comment_zh": "内容完整，清晰说明了爱好、活动场景、感受，符合 30 词左右的字数要求。" },
+          { "dimension_zh": "结构", "score": null, "comment_zh": "层次清晰：先点明爱好，再说明场景，最后表达感受。" },
+          { "dimension_zh": "语言", "score": null, "comment_zh": "存在两处语法错误：like 后接动名词应为 playing；主语 football 第三人称单数，make 要改为 makes。" },
+          { "dimension_zh": "卷面", "score": null, "comment_zh": "书写整洁，无涂改痕迹。" }
+        ],
+        "highlight_revisions": [
+          "将 I like play football 改为 I like playing football（like + 动名词）",
+          "将 football make me happy 改为 football makes me happy（三单 makes）"
+        ]
+      }
     }
   ],
-  "composition_assessment": {
-    "total_score": null,
-    "rubric_breakdown": [
-      { "dimension_zh": "内容", "score": null, "comment_zh": "内容完整，清晰说明了爱好、活动场景、感受，符合 30 词左右的字数要求。" },
-      { "dimension_zh": "结构", "score": null, "comment_zh": "层次清晰：先点明爱好，再说明场景，最后表达感受。" },
-      { "dimension_zh": "语言", "score": null, "comment_zh": "存在两处语法错误：like 后接动名词应为 playing；主语 football 第三人称单数，make 要改为 makes。" },
-      { "dimension_zh": "卷面", "score": null, "comment_zh": "书写整洁，无涂改痕迹。" }
-    ],
-    "highlight_revisions": [
-      "将 I like play football 改为 I like playing football（like + 动名词）",
-      "将 football make me happy 改为 football makes me happy（三单 makes）"
-    ]
-  },
   "overall_comment_zh": "本次作业完成度较好。阅读第 1 题与填空第 4 题正确，阅读第 2 题未定位到原文原因类信息，填空第 3 题需巩固三单变化；作文表意清晰但有两处小语法错误。",
   "limitations": ["写作题无官方评分量表，仅给参考建议与语法修改，未做官方评分"]
 }
