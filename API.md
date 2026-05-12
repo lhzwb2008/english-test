@@ -136,13 +136,19 @@ period_hint: 先排两周（连续 14 个学习日）。
 | 字段 | 类型 | 含义 |
 |------|------|------|
 | `image_summary_zh` | string | 本页概述（中文） |
+| `passages[]` | array | **整页阅读原文**列表（一页若有多篇阅读材料就是多个对象）；非阅读页为 `[]` |
+| `passages[].passage_id` | string | 本页内稳定标识，如 `P1` / `P2`，供 `items[].passage_ref` 关联 |
+| `passages[].title` | string | 阅读材料标题（如有），无则 `""` |
+| `passages[].passage_text` | string | **从图中 OCR 出的完整阅读原文**，保留段落用 `\n` 分段；OCR 不全时给能识别的部分并在 `limitations` 注明 |
+| `passages[].passage_translation_zh` | string | 整篇中文参考译文，可分段；无法翻译时为 `""` |
 | `items[]` | array | 逐题 |
 | `items[].id` | string | 题号或本地序号 |
 | `items[].item_type` | string | `mcq` \| `fill_blank` \| `short_answer` \| `matching` \| `cloze` \| `translation` \| `reading` \| `composition` \| `unknown`；**作文统一作为一个 `item_type=composition` 的 item 出现在 `items` 中**，前端按 `item_type` 区分解析 |
 | `items[].reading_subtype` | string \| null | `main_idea` \| `detail` \| `inference` \| `vocabulary_in_context`；非阅读题为 `null` |
 | `items[].original_question` | string | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""` |
 | `items[].standard_answer` | string | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填） |
-| `items[].passage_quote` | string | 阅读引用原文片段；图中未印 passage 或非阅读题时为 `""` |
+| `items[].passage_ref` | string | 本题对应的 `passages[].passage_id`；非阅读题为 `""` |
+| `items[].passage_quote` | string | 从对应 `passages[].passage_text` 摘录的、与本题判分相关的原文片段；非阅读题或图中未印 passage 时为 `""` |
 | `items[].passage_translation_zh` | string | `passage_quote` 的中文译文 |
 | `items[].evidence_quote` | string | 判分依据所摘录的原文/题干句子；非阅读题可为空 |
 | `items[].evidence_translation_zh` | string | `evidence_quote` 的中文翻译 |
@@ -160,6 +166,8 @@ period_hint: 先排两周（连续 14 个学习日）。
 | `limitations` | string[] | OCR / 缺原文 / 无题库无法核对标答等限制（中文） |
 
 > **结构变更说明**：旧版本曾在顶层输出 `composition_assessment` 与 `items` 并列；当前版本已**统一收进 `items`**，作为 `item_type=composition` 的 item，并把作文专属字段放在 `items[].composition` 子对象里。这样前端只需对 `items` 做一次遍历，再按 `item_type` 分流；同一份作业里若有多篇作文，会出现多个 composition item。
+>
+> **阅读原文位置（重要）**：完整阅读原文统一放在**顶层 `passages[]`** 的 `passage_text`，**不在每个 item 里重复**。`items[].passage_quote` 只承载与该题判分相关的**句段引用**，并用 `passage_ref` 指向 `passages[].passage_id`。前端展示"原题 + 原文"时，从 `passages` 里按 `passage_ref` 取整篇文章。
 
 ### 示例 `object_string` 中 `text`（与 `image` 同条消息）
 
@@ -172,6 +180,14 @@ period_hint: 先排两周（连续 14 个学习日）。
 ```json
 {
   "image_summary_zh": "本页是 THINK1 教材第一单元的阅读与练习作业，包含阅读理解选择题、语法填空题、30 词左右的爱好主题小写作三个题型。",
+  "passages": [
+    {
+      "passage_id": "P1",
+      "title": "About Anna",
+      "passage_text": "Hi, I'm Anna. I'm twelve years old. I like reading books and playing the guitar.\nAt weekends, I often go to the park with my friends.",
+      "passage_translation_zh": "你好，我叫 Anna，今年十二岁。我喜欢看书和弹吉他。\n周末我经常和朋友一起去公园。"
+    }
+  ],
   "items": [
     {
       "id": "1",
@@ -179,6 +195,7 @@ period_hint: 先排两周（连续 14 个学习日）。
       "reading_subtype": "detail",
       "original_question": "1. What does Anna like doing?\nA. playing computer games\nB. reading books and playing the guitar\nC. painting\nD. playing football",
       "standard_answer": "B",
+      "passage_ref": "P1",
       "passage_quote": "I like reading books and playing the guitar.",
       "passage_translation_zh": "我喜欢读书和弹吉他。",
       "evidence_quote": "I like reading books and playing the guitar.",
@@ -196,6 +213,7 @@ period_hint: 先排两周（连续 14 个学习日）。
       "reading_subtype": null,
       "original_question": "3. My brother ______ football every weekend.",
       "standard_answer": "plays",
+      "passage_ref": "",
       "passage_quote": "",
       "passage_translation_zh": "",
       "evidence_quote": "My brother ______ football every weekend.",
@@ -213,6 +231,7 @@ period_hint: 先排两周（连续 14 个学习日）。
       "reading_subtype": null,
       "original_question": "Write about 30 words about your hobby.",
       "standard_answer": "",
+      "passage_ref": "",
       "passage_quote": "",
       "passage_translation_zh": "",
       "evidence_quote": "",
@@ -243,7 +262,7 @@ period_hint: 先排两周（连续 14 个学习日）。
 }
 ```
 
-> 当**图中没有印 passage** 时（即纸面只给题干），阅读类题目的 `standard_answer` 会留空（`""`），`is_correct` 取最稳妥判断并把 `confidence` 调低，`limitations` 中明示「无题库，无法核对阅读题标答」。接入知识库后这部分由 RAG 回填，schema 不变。
+> 当**图中没有印 passage** 时（即纸面只给题干），顶层 `passages` 为 `[]`，阅读类题目的 `standard_answer` 会留空（`""`），`is_correct` 取最稳妥判断并把 `confidence` 调低，`limitations` 中明示「无题库，无法核对阅读题标答」。接入知识库后这部分由 RAG 回填，schema 不变。
 
 ---
 

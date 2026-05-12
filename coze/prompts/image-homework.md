@@ -25,6 +25,14 @@
 ```json
 {
   "image_summary_zh": "string，本页题型与内容概述（中文）",
+  "passages": [
+    {
+      "passage_id": "string，本页内的稳定标识，如 P1/P2",
+      "title": "string，阅读材料标题（如有），无则空串",
+      "passage_text": "string，从图中 OCR 出的完整阅读原文，保留段落用 \\n 分段；非阅读页则整个 passages 数组给 []",
+      "passage_translation_zh": "string，整篇中文参考译文，可分段；无法翻译时给空串"
+    }
+  ],
   "items": [
     {
       "id": "string，题号或本地序号",
@@ -33,7 +41,8 @@
       "reading_subtype": "main_idea|detail|inference|vocabulary_in_context|null",
       "original_question": "string，从图中 OCR 出的完整题干（含选项），用于前端展示原题；不可读则给空串",
       "standard_answer": "string，标准答案；无题库且无法独立确认时给空串",
-      "passage_quote": "string，阅读引用的原文片段；非阅读题或图中未印 passage 时给空串",
+      "passage_ref": "string，本题对应的 passages[].passage_id；非阅读题给空串",
+      "passage_quote": "string，从对应 passages[].passage_text 中摘录的原文片段（与本题判分相关）；非阅读题或图中未印 passage 时给空串",
       "passage_translation_zh": "string，passage_quote 的中文参考译文；为空时同样给空串",
       "evidence_quote": "string，判分依据所摘录的原文/题干句子；非阅读题可为空",
       "evidence_translation_zh": "string，evidence_quote 的中文翻译，可为空",
@@ -94,7 +103,8 @@
 - **`original_question`**：尽力从图中 OCR 出完整题干（含选项 A/B/C/D 或填空、短答的题面），便于前端展示。无法识别时给空串并在 `limitations` 中说明。
 - **`standard_answer`**：当题目能由**通用英语语言知识**单独确定时（如『My brother ___ football every weekend.』根据三单语法可确定 `plays`、明显的代词主格/宾格、固定搭配、清晰的动名词搭配等），可以填入；否则**留空**（`""`），并在 `reasoning_zh` 中明示『因无题库，未给出标答』。
   - **典型应留空的情况**：阅读理解选择题（缺少官方标答与原文比对）、开放式简答、与教材语境强相关的题目。
-- **`passage_quote` / `passage_translation_zh`**：仅当图中印有 passage 全文且能可靠 OCR 出时填；只有题干没有原文时一律为 `""`，并在 `limitations` 写明『未识别到完整阅读 passage』。
+- **顶层 `passages[]`（关键）**：当图中存在阅读 passage 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`；不能只把片段塞进 item 的 `passage_quote`。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读原文部分缺失』。非阅读页则 `passages: []`。
+- **item 内 `passage_quote` / `passage_translation_zh`**：是从 `passages[].passage_text` 中摘录的、与该题判分直接相关的句子片段；只有题干没有原文时一律为 `""`，并在 `limitations` 写明『未识别到完整阅读 passage』。同时通过 `passage_ref` 指向对应的 `passage_id`。
 - **`is_correct`**：
   - 若 `standard_answer` 非空：按 `student_answer` 与 `standard_answer` 的对比给出 `true / false`；
   - 若 `standard_answer` 为空：`is_correct` 仍按通用语言规则给最稳妥判断（无法判断时给 `false` 并把 `confidence` 调到 `0.3` 以下，或在 `reasoning_zh` 中标注『仅供参考，待题库确认』）。
@@ -109,6 +119,7 @@
   - `cloze`：完形填空；`translation`：英汉互译；
   - `reading`：阅读理解类（含选择/判断/简答/匹配，但材料为阅读 passage）；
   - `composition`：写作/作文。
+- **阅读原文必须放在顶层 `passages[]`**：每篇阅读材料一个对象，`passage_text` 给完整 OCR 全文（不是片段）；item 内只通过 `passage_ref` + `passage_quote` 引用相关句子，避免在多个 item 里重复整篇原文。
 - **`reading_subtype`** 仅在 `item_type=reading` 时取 `main_idea`（主旨）/ `detail`（细节）/ `inference`（推理）/ `vocabulary_in_context`（词义猜测），否则为 `null`。
 - **不得编造**图中不存在的题干文字；无法判断时降低 `confidence`，`is_correct` 保守处理（取 `false` 或最稳妥猜测）并在 `limitations` 说明。
 - 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）；按通用「内容/结构/语言/卷面」给出中文简评；分项 `score` 与 `total_score` 当前一律 `null`（因无评分量表）。若图中存在多篇作文，输出多个 composition item。
