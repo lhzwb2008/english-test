@@ -26,6 +26,7 @@
 
 - `start_date`（可选）：具体公历起点（如 `2026-05-08`）。给出时模型按"日期模式"在每个 `days[i]` 同时输出 `day_index` 与 `date`；不给则按"序号模式"仅输出 `day_index`，由后端自行挂载日期。
 - `period_hint`（可选）：`"先排两周"` / `"按月排到本月底"` / `"排到本单元结束"`；未指明默认 **14 个连续学习日**。
+- `system_task_pool`（可选）：业务方注入的"系统任务库"原子任务清单，每条形如 `ID: 100; 标题: 1单元单词复习; 描述: 1单元学习完成后，需要先复习单词`。**当本字段非空时，输出里 `days[].tasks[]` 必须从该清单中挑选**，并把命中条目的 ID 原样回填到 `tasks[].sourceRef`；未提供时所有 `sourceRef` 为 `""`，按内置教材库 `lesson_code` 衍生任务。该字段当前过渡用 `text` 直传，后续将切换知识库 RAG，输出 schema 保持不变。
 
 **不传** `curriculum`、**不传** `task_pool`：四套陪跑表的**原子课节已编入扣子侧 Prompt**（按 `think1` / `think2` / `powerup2` / `powerup3` 分区，共 360+ 条），模型先判定 `meta.curriculum` 再从内置库匹配 `lesson_code`。**不走 RAG**。
 
@@ -43,7 +44,7 @@
 | `days[].unit_zh` | string | 单元说明（中文为主） |
 | `days[].lesson_code` | string | 内置库中该体系下某条 `####` 标题原文，如 `U1-L1-Reading1` |
 | `days[].tasks[].detail_zh` | string | 任务说明（中文） |
-| `days[].tasks[].source_ref` | string | 来源引用（页码/听力编号等） |
+| `days[].tasks[].sourceRef` | string | 命中的 `system_task_pool` 原子任务 ID（如 `"100"`）；未提供任务库时为 `""` |
 | `days[].tasks[].unit_ref` | string | 所属单元（如 `Unit 1`） |
 | `days[].tasks[].priority` | string | `must` \| `optional` |
 | `review_and_adjust_zh` | string[] | 复盘与调整建议（中文） |
@@ -59,7 +60,14 @@ student_profile:
 start_date: 2026-05-08
 period_hint: 先排两周（连续 14 个学习日）。
 
-请仅输出 JSON 学习计划，schedule_mode 设为 by_date 并包含 days[].date。
+system_task_pool:
+ID: 100; 标题: 1单元单词复习; 描述: 1单元学习完成后，需要先复习单词
+ID: 101; 标题: 1单元课文跟读; 描述: 跟读 Unit1 Reading 课文 3 遍，注意语音语调
+ID: 102; 标题: 1单元语法练习; 描述: 完成 Unit1 一般现在时填空 10 题
+ID: 103; 标题: 1单元口语输出; 描述: 用 like + 动名词介绍自己的爱好，至少 30 秒
+ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自默
+
+请仅输出 JSON 学习计划，schedule_mode 设为 by_date 并包含 days[].date；任务必须从 system_task_pool 中挑选，sourceRef 回填对应 ID。
 ```
 
 ### 示例输出（节选）
@@ -83,10 +91,9 @@ period_hint: 先排两周（连续 14 个学习日）。
       "unit_zh": "Unit1 阅读1",
       "lesson_code": "U1-L1-Reading1",
       "tasks": [
-        { "detail_zh": "P8 知识清单单词(1-19)背记和认读、句子朗读", "source_ref": "P8", "unit_ref": "Unit 1", "priority": "must" },
-        { "detail_zh": "P10 quiz 完成单词和句子自默（1-27题）",      "source_ref": "P10", "unit_ref": "Unit 1", "priority": "must" },
-        { "detail_zh": "口语：分享自己喜欢或讨厌的一项活动并谈感受", "source_ref": "",    "unit_ref": "Unit 1", "priority": "must" },
-        { "detail_zh": "P9 思维导图、P10 Practice 填空",             "source_ref": "P9/P10", "unit_ref": "Unit 1", "priority": "optional" }
+        { "detail_zh": "1单元单词复习：完成 Unit1 单词表背记与认读", "sourceRef": "100", "unit_ref": "Unit 1", "priority": "must" },
+        { "detail_zh": "1单元课文跟读：跟读 Unit1 Reading 课文 3 遍", "sourceRef": "101", "unit_ref": "Unit 1", "priority": "must" },
+        { "detail_zh": "1单元口语输出：用 like + 动名词介绍爱好",    "sourceRef": "103", "unit_ref": "Unit 1", "priority": "must" }
       ]
     },
     {
@@ -95,9 +102,8 @@ period_hint: 先排两周（连续 14 个学习日）。
       "unit_zh": "Unit1 语法1词汇1",
       "lesson_code": "U1-L2-Grammar1Vocabulary1",
       "tasks": [
-        { "detail_zh": "练习册 P10 1-4题、P12 1题",                  "source_ref": "P10/P12", "unit_ref": "Unit 1", "priority": "must" },
-        { "detail_zh": "Hobbies 单词短语背记/自默；Present simple 语法规则背记和例句朗读", "source_ref": "P2/P4/P6", "unit_ref": "Unit 1", "priority": "must" },
-        { "detail_zh": "口语：双人对话互问爱好",                     "source_ref": "",       "unit_ref": "Unit 1", "priority": "must" }
+        { "detail_zh": "1单元语法练习：一般现在时填空 10 题", "sourceRef": "102", "unit_ref": "Unit 1", "priority": "must" },
+        { "detail_zh": "1单元单词复习：滚动复习 Unit1 词表",  "sourceRef": "100", "unit_ref": "Unit 1", "priority": "must" }
       ]
     }
   ],
@@ -148,9 +154,7 @@ period_hint: 先排两周（连续 14 个学习日）。
 | `items[].original_question` | string | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""` |
 | `items[].standard_answer` | string | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填） |
 | `items[].passage_ref` | string | 本题对应的 `passages[].passage_id`；非阅读题为 `""` |
-| `items[].passage_quote` | string | 从对应 `passages[].passage_text` 摘录的、与本题判分相关的原文片段；非阅读题或图中未印 passage 时为 `""` |
-| `items[].passage_translation_zh` | string | `passage_quote` 的中文译文 |
-| `items[].evidence_quote` | string | 判分依据所摘录的原文/题干句子；非阅读题可为空 |
+| `items[].evidence_quote` | string | 判分依据所摘录的原文/题干句子；阅读题写自 `passages[].passage_text` 的相关片段，非阅读题可为空 |
 | `items[].evidence_translation_zh` | string | `evidence_quote` 的中文翻译 |
 | `items[].student_answer` | string | 识别到的作答；不清写 `illegible` |
 | `items[].is_correct` | boolean \| null | 是否正确（`standard_answer` 为空时按通用语言规则给最稳妥判断，不确定时降低 `confidence`）；**作文 item 固定 `null`** |
@@ -167,7 +171,7 @@ period_hint: 先排两周（连续 14 个学习日）。
 
 > **结构变更说明**：旧版本曾在顶层输出 `composition_assessment` 与 `items` 并列；当前版本已**统一收进 `items`**，作为 `item_type=composition` 的 item，并把作文专属字段放在 `items[].composition` 子对象里。这样前端只需对 `items` 做一次遍历，再按 `item_type` 分流；同一份作业里若有多篇作文，会出现多个 composition item。
 >
-> **阅读原文位置（重要）**：完整阅读原文统一放在**顶层 `passages[]`** 的 `passage_text`，**不在每个 item 里重复**。`items[].passage_quote` 只承载与该题判分相关的**句段引用**，并用 `passage_ref` 指向 `passages[].passage_id`。前端展示"原题 + 原文"时，从 `passages` 里按 `passage_ref` 取整篇文章。
+> **阅读原文位置（重要）**：完整阅读原文统一放在**顶层 `passages[]`** 的 `passage_text`，**不在每个 item 里重复**。item 只通过 `passage_ref` 指向 `passages[].passage_id`，与本题判分直接相关的句段写到 `evidence_quote` / `evidence_translation_zh`。前端展示"原题 + 原文"时，从 `passages` 里按 `passage_ref` 取整篇文章。
 
 ### 示例 `object_string` 中 `text`（与 `image` 同条消息）
 
@@ -196,8 +200,6 @@ period_hint: 先排两周（连续 14 个学习日）。
       "original_question": "1. What does Anna like doing?\nA. playing computer games\nB. reading books and playing the guitar\nC. painting\nD. playing football",
       "standard_answer": "B",
       "passage_ref": "P1",
-      "passage_quote": "I like reading books and playing the guitar.",
-      "passage_translation_zh": "我喜欢读书和弹吉他。",
       "evidence_quote": "I like reading books and playing the guitar.",
       "evidence_translation_zh": "我喜欢读书和弹吉他。",
       "student_answer": "B",
@@ -214,8 +216,6 @@ period_hint: 先排两周（连续 14 个学习日）。
       "original_question": "3. My brother ______ football every weekend.",
       "standard_answer": "plays",
       "passage_ref": "",
-      "passage_quote": "",
-      "passage_translation_zh": "",
       "evidence_quote": "My brother ______ football every weekend.",
       "evidence_translation_zh": "我哥哥每个周末都踢足球。",
       "student_answer": "play",
@@ -232,8 +232,6 @@ period_hint: 先排两周（连续 14 个学习日）。
       "original_question": "Write about 30 words about your hobby.",
       "standard_answer": "",
       "passage_ref": "",
-      "passage_quote": "",
-      "passage_translation_zh": "",
       "evidence_quote": "",
       "evidence_translation_zh": "",
       "student_answer": "I like play football. I play football with my friends after school. Football make me happy.",
@@ -287,7 +285,7 @@ period_hint: 先排两周（连续 14 个学习日）。
 
 | 字段 | 类型 | 含义 |
 |------|------|------|
-| `reference_text` | string \| null | 参考句（英文）；业务未给则 `null` |
+| `reference_text` | string \| null | 参考句/原文（英文）；业务在 `text` 里给出则**带原文判分**（按 `transcript` ↔ `reference_text` 对比，漏读/错读/增读/语序错落都会落到对应维度评分与 `pronunciation.mispronounced_or_weak_words`），未给则 `null`，按自由口语判分，不臆造原文 |
 | `transcript` | string | 学生口语**英文**转写（保留原句，不自动修正） |
 | `holistic_score_1_to_5` | number \| null | 整体 1–5 |
 | `holistic_summary_zh` | string | 总评（中文） |

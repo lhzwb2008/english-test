@@ -18,7 +18,10 @@
 
 ## 2）`reference_text`（可选）
 
-参考句或课文原文。若用户消息中已给英文参考句，**以消息为准**并在输出中**回显**到 `reference_text`。
+参考句或课文原文（朗读类作业的"原文"）。本 Prompt **同时支持两种输入模式**：
+
+- **带原文模式**：用户消息（`text`）中给出英文参考句 / 课文原文。此时 `reference_text` **以消息为准**并在输出中**回显**；评分时按"学生 `transcript` ↔ `reference_text` 逐句/逐词对比"判断（漏读、错读、增读、顺序错乱、与原文偏离程度等都要在 `accuracy` / `completeness` / `pronunciation` 维度里体现，并在 `language.grammar_issues` 或 `pronunciation.mispronounced_or_weak_words` 中点出具体偏差）。
+- **不带原文模式**：未提供 `reference_text` 时输出 `reference_text: null`，按情景问答 / 自由口语处理，只能基于 `transcript` 本身做教学向五维评分，不得臆造原文。
 
 ## 3）`dimension_hints`（可选）
 
@@ -63,8 +66,8 @@
 
 # 有有效 `transcript` 时（正常批改）
 
-- `holistic_score_1_to_5`：1–5 整数，整体印象折合分；`holistic_summary_zh` 用**中文一句话**说明总评依据。
-- `dimensions` 五维各行须非空分数（1–5）+ `comment_zh`。
+- `holistic_score_1_to_5`：1–5 整数，整体印象折合分；`holistic_summary_zh` 用**中文一句话**说明总评依据（带原文模式下须点明"与原文相比的整体一致度"）。
+- `dimensions` 五维各行须非空分数（1–5）+ `comment_zh`。**带原文模式**下 `accuracy` / `completeness` / `pronunciation` 的 `comment_zh` 必须直接引用与原文不一致的关键差异；**不带原文模式**下不要假装存在原文。
 - `pronunciation.mispronounced_or_weak_words`：每项**中文为主**说明需注意的词/发音，可夹英文单词引用。
 - `language.grammar_issues`：每条**中文**说明语法问题及改法（**至少给 0–3 条**；若 transcript 中存在明显错误必须列出）。
 - `language.lexical_suggestions_zh`：**中文**词汇升级建议（更地道说法、避免重复词等）。
