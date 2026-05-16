@@ -115,6 +115,8 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 }
 ```
 
+**本地联调（任务库 + sourceRef）**：仓库内 `npm run coze:debug-plan`（脚本 `scripts/debug-learning-plan.mjs`）会向学习计划 Bot 发一条含 `system_task_pool` 的文本消息，并校验返回里每条 `tasks[].sourceRef` 是否落在池内 ID。需配置环境变量 `COZE_API_TOKEN`（与上文鉴权一致）。
+
 ---
 
 ## 2. 作业批改（图片）
@@ -274,7 +276,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 
 1. **`POST /v1/files/upload`** 上传 wav / ogg_opus（其它格式先转码）→ 取 `data.id` 作 `file_id`。
 2. **`POST /v3/chat`**，`stream: true`，`additional_messages[*].content_type = "object_string"`，`content` 为 JSON 数组字符串：
-   - `{"type":"text","text":"..."}`：业务可在此带题型说明 `assignment`、参考英文句 `reference_text`、维度提示 `dimension_hints`；无说明时可为 `""`。
+   - `{"type":"text","text":"..."}`：业务可在此带题型说明 `assignment`、参考英文句 `reference_text`、维度提示 `dimension_hints`；无说明时可为 `""`。**带原文**时在 `text` 中写明 `reference_text:` 英文台词/课文（朗读对标）；**不带原文**时不写或为空白，响应里 `reference_text` 需为 `null`，按自由作答判分，不得捏造对照文案。
    - `{"type":"audio","file_id":"<上一步取得的 file_id>"}`
 3. 消费 SSE 直到 `conversation.chat.completed`，记下 `conversation_id` 与 `chat_id`。
 4. **`GET /v3/chat/message/list`**，找 `type === "answer"`，对 `content` 做 `JSON.parse`。

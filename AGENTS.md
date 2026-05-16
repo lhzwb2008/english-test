@@ -21,6 +21,7 @@ This is `english-coze-mvp` — a prompt-engineering & bot-management toolkit for
 | `npm run coze:push-plan` | Build + push prompt to Plan bot | Yes |
 | `npm run coze:push-oral` | Push oral prompt | Yes |
 | `npm run coze:push-image` | Push image prompt | Yes |
+| `npm run coze:debug-plan` | Call plan bot + 校验 system_task_pool / sourceRef | Yes |
 
 ### Gotchas
 
