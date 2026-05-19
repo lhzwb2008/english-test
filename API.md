@@ -278,10 +278,11 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 2. **`POST /v3/chat`**，`stream: true`，`additional_messages[*].content_type = "object_string"`，`content` 为 JSON 数组字符串：
    - `{"type":"text","text":"..."}`：业务可在此带题型说明 `assignment`、参考英文句 `reference_text`、维度提示 `dimension_hints`；无说明时可为 `""`。**带原文**时在 `text` 中写明 `reference_text:` 英文台词/课文（朗读对标）；**不带原文**时不写或为空白，响应里 `reference_text` 需为 `null`，按自由作答判分，不得捏造对照文案。
    - `{"type":"audio","file_id":"<上一步取得的 file_id>"}`
-3. 消费 SSE 直到 `conversation.chat.completed`，记下 `conversation_id` 与 `chat_id`。
-4. **`GET /v3/chat/message/list`**，找 `type === "answer"`，对 `content` 做 `JSON.parse`。
+3. 消费 SSE，在收到 **`conversation.message.completed`** 且 `type === "answer"`、`content_type === "text"` 时，对 `data.content` 做 `JSON.parse`（此时已是完整 JSON 字符串）。
+4. **推荐**：拿到上述 text `completed` 后**立即断开流**（`AbortController` / 关闭 SSE），**不要**再等后续的 `conversation.audio.delta`（见下）。**无需**再调 `message/list`。
+5. **备选**：若坚持等全流结束，可消费到 `conversation.chat.completed` 后 **`GET /v3/chat/message/list`** 取 `type === "answer"` 的 `content` 再 `JSON.parse`（多等数十秒、多收数 MB 音频，一般不推荐）。
 
-> SSE 中可能出现 `event: conversation.audio.delta` + `content_type: audio`，这是助手侧 TTS 分片，不是用户上传的音频回传，业务侧忽略即可。
+> **`conversation.audio.delta`（重要）**：用户消息里带 `audio` 时，平台会对助手 **answer 文本自动做 TTS**，以 `event: conversation.audio.delta`、`content_type: audio` 推送（与用户上传音频无关）。Bot 未配置音色也会走默认音色；**OpenAPI 无请求参数可关闭**。仅「忽略事件」无法省带宽/耗时；**在 text `message.completed` 后断流**可省约 60s 与数 MB 下行。本地可 `npm run coze:debug-oral` 统计各事件体积。
 
 ### 出参（`answer.content` → `JSON.parse`）
 
@@ -416,7 +417,7 @@ context：学生为小学五年级，刚在批改中把 have been to 与 have go
 
 ### 口语为何强制 `stream: true`
 
-最终 JSON 是在对话结束后从 `message/list` 里取的。但只要消息里带音频，OpenAPI 不允许 `stream: false`，必须 `stream: true` 发请求；流结束（或轮询 `retrieve` 至 `completed`）后再拉 `message/list`。SSE 中的 `delta` / `verbose` 可忽略，以 `answer` 的完整 `content` 为准。
+只要消息里带 `audio`，OpenAPI 不允许 `stream: false`，必须 `stream: true`。JSON 可在同一次流里的 **`conversation.message.completed`（text answer）** 直接解析；**不必**等 `chat.completed`，也**不必**为取 JSON 再调 `message/list`（除非未等到 text completed 就断流、需兜底对账）。`conversation.audio.delta` 在 text completed 之后仍会推送，业务应在 text completed 后断流。`message.delta` 仅为文本分片，可与 completed 二选一使用。
 
 ### Node SDK 示例
 
@@ -460,32 +461,38 @@ const image = JSON.parse(
   imgMsgs.filter((m) => m.type === 'answer').map((m) => m.content).join('')
 );
 
-// 口语评测：上传 + stream + message list
+// 口语评测：上传 + stream；text answer completed 后断流（勿等 audio.delta）
 const upAud = await client.files.upload({ file: fs.createReadStream('./oral.wav') });
-let convId, chatId;
-for await (const evt of client.chat.stream({
-  bot_id: '7627028747031642150',
-  user_id: 'biz-user',
-  additional_messages: [
-    {
-      role: RoleType.User,
-      content: JSON.stringify([
-        { type: 'text', text: 'assignment: …\n请仅输出 JSON。' },
-        { type: 'audio', file_id: upAud.id },
-      ]),
-      content_type: 'object_string',
-    },
-  ],
-})) {
-  if (evt.event === ChatEventType.CONVERSATION_CHAT_COMPLETED) {
-    convId = evt.data.conversation_id;
-    chatId = evt.data.id;
+const abort = new AbortController();
+let oralRaw = '';
+for await (const evt of client.chat.stream(
+  {
+    bot_id: '7627028747031642150',
+    user_id: 'biz-user',
+    additional_messages: [
+      {
+        role: RoleType.User,
+        content: JSON.stringify([
+          { type: 'text', text: 'assignment: …\n请仅输出 JSON。' },
+          { type: 'audio', file_id: upAud.id },
+        ]),
+        content_type: 'object_string',
+      },
+    ],
+  },
+  { signal: abort.signal },
+)) {
+  if (
+    evt.event === ChatEventType.CONVERSATION_MESSAGE_COMPLETED &&
+    evt.data?.type === 'answer' &&
+    evt.data?.content_type === 'text'
+  ) {
+    oralRaw = evt.data.content;
+    abort.abort();
+    break;
   }
 }
-const oralMsgs = await client.chat.messages.list(convId, chatId);
-const oral = JSON.parse(
-  oralMsgs.filter((m) => m.type === 'answer').map((m) => m.content).join('')
-);
+const oral = JSON.parse(oralRaw);
 
 // 知识点讲解：纯文本输入
 const { messages: kpMsgs } = await client.chat.createAndPoll({
