@@ -25,3 +25,6 @@ npm-debug.log*
 
 # Python virtualenv (for optional Excel export script)
 .venv/
+*.wav
+*.mp3
+*.mp4

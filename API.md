@@ -5,12 +5,14 @@
 
 三个智能体：**学习计划**、**作业批改（图）**、**口语评测（音）**。
 
-| 智能体 | `bot_id` | 调用 |
-|--------|----------|------|
-| 学习计划 | `7627028738093596712` | `POST /v3/chat`，`stream: false` |
-| 作业批改（图） | `7627028840921219091` | `POST /v3/chat`，`stream: false`（须先 `/v1/files/upload` 取 `file_id`） |
-| 口语评测（音） | `7627028747031642150` | `POST /v3/chat`，**`stream: true`**（须先 `/v1/files/upload` 取 `file_id`） |
-| 知识点讲解 | `7638556864866795539` | `POST /v3/chat`，`stream: false` |
+
+| 智能体     | `bot_id`              | 调用                                                                    |
+| ------- | --------------------- | --------------------------------------------------------------------- |
+| 学习计划    | `7627028738093596712` | `POST /v3/chat`，`stream: false`                                       |
+| 作业批改（图） | `7627028840921219091` | `POST /v3/chat`，`stream: false`（须先 `/v1/files/upload` 取 `file_id`）    |
+| 口语评测（音） | `7627028747031642150` | `POST /v3/chat`，`**stream: true`**（须先 `/v1/files/upload` 取 `file_id`） |
+| 知识点讲解   | `7638556864866795539` | `POST /v3/chat`，`stream: false`                                       |
+
 
 三个 bot 都返回**一份合法 JSON**，业务侧拿到 `answer` 消息的 `content` 后做 `JSON.parse` 即可。若模型偶发包裹 Markdown 围栏，截取首个 `{` 至末尾 `}` 子串后再解析。
 
@@ -18,11 +20,11 @@
 
 ## 1. 学习计划
 
-**`bot_id`**：`7627028738093596712`，`stream: false`，推荐 SDK `chat.createAndPoll`。
+`**bot_id`**：`7627028738093596712`，`stream: false`，推荐 SDK `chat.createAndPoll`。
 
 ### 入参（`content_type: text`）
 
-业务侧在**一条用户消息**里写清 **`student_profile`**（自然语言学生档案，能推断**在读教材/体系**、**当前进度**、**每日时长与目标**），并按需附加：
+业务侧在**一条用户消息**里写清 `**student_profile`**（自然语言学生档案，能推断**在读教材/体系**、**当前进度**、**每日时长与目标**），并按需附加：
 
 - `start_date`（可选）：具体公历起点（如 `2026-05-08`）。给出时模型按"日期模式"在每个 `days[i]` 同时输出 `day_index` 与 `date`；不给则按"序号模式"仅输出 `day_index`，由后端自行挂载日期。
 - `period_hint`（可选）：`"先排两周"` / `"按月排到本月底"` / `"排到本单元结束"`；未指明默认 **14 个连续学习日**。
@@ -32,22 +34,24 @@
 
 ### 出参（`answer.content` → `JSON.parse`）
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `meta.student_label` | string | 学生摘要（中文） |
-| `meta.curriculum` | string | `think1` \| `think2` \| `powerup2` \| `powerup3` |
-| `meta.assumptions` | string[] | 对齐取舍说明（中文） |
-| `meta.schedule_mode` | string | `by_day_index` \| `by_date` |
-| `days[]` | array | 学习日序列 |
-| `days[].day_index` | number | 第几个学习日（1 起递增） |
-| `days[].date` | string | 公历 `YYYY-MM-DD`，仅 `by_date` 时输出 |
-| `days[].unit_zh` | string | 单元说明（中文为主） |
-| `days[].lesson_code` | string | 内置库中该体系下某条 `####` 标题原文，如 `U1-L1-Reading1` |
-| `days[].tasks[].detail_zh` | string | 任务说明（中文） |
-| `days[].tasks[].sourceRef` | string | 命中的 `system_task_pool` 原子任务 ID（如 `"100"`）；未提供任务库时为 `""` |
-| `days[].tasks[].unit_ref` | string | 所属单元（如 `Unit 1`） |
-| `days[].tasks[].priority` | string | `must` \| `optional` |
-| `review_and_adjust_zh` | string[] | 复盘与调整建议（中文） |
+
+| 字段                         | 类型       | 含义                                                      |
+| -------------------------- | -------- | ------------------------------------------------------- |
+| `meta.student_label`       | string   | 学生摘要（中文）                                                |
+| `meta.curriculum`          | string   | `think1` | `think2` | `powerup2` | `powerup3`           |
+| `meta.assumptions`         | string[] | 对齐取舍说明（中文）                                              |
+| `meta.schedule_mode`       | string   | `by_day_index` | `by_date`                              |
+| `days[]`                   | array    | 学习日序列                                                   |
+| `days[].day_index`         | number   | 第几个学习日（1 起递增）                                           |
+| `days[].date`              | string   | 公历 `YYYY-MM-DD`，仅 `by_date` 时输出                         |
+| `days[].unit_zh`           | string   | 单元说明（中文为主）                                              |
+| `days[].lesson_code`       | string   | 内置库中该体系下某条 `####` 标题原文，如 `U1-L1-Reading1`               |
+| `days[].tasks[].detail_zh` | string   | 任务说明（中文）                                                |
+| `days[].tasks[].sourceRef` | string   | 命中的 `system_task_pool` 原子任务 ID（如 `"100"`）；未提供任务库时为 `""` |
+| `days[].tasks[].unit_ref`  | string   | 所属单元（如 `Unit 1`）                                        |
+| `days[].tasks[].priority`  | string   | `must` | `optional`                                     |
+| `review_and_adjust_zh`     | string[] | 复盘与调整建议（中文）                                             |
+
 
 ### 示例输入
 
@@ -121,11 +125,11 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 
 ## 2. 作业批改（图片）
 
-**`bot_id`**：`7627028840921219091`，`stream: false`。
+`**bot_id`**：`7627028840921219091`，`stream: false`。
 
 ### 设计与限制
 
-- 业务侧**只**通过 `object_string` 传入 **`text`**（一句调用提示，如「请仅输出 JSON」）+ **`image` + `file_id`**。
+- 业务侧**只**通过 `object_string` 传入 `**text`**（一句调用提示，如「请仅输出 JSON」）+ `**image` + `file_id**`。
 - **不传** `answer_key`、教材单元范围、阅读 passage、作文评分量表等业务上下文：这些是**题库 / 知识库**侧职责。
 - **当前为无题库版本**：模型基于图片 OCR 出题干，能由通用语言知识独立确定的题目（语法填空、固定搭配等）会给出 `standard_answer`；阅读题若图中印有 passage 则结合 passage 判分；其它情况下 `standard_answer` 留空（`""`），并在 `reasoning_zh` / `limitations` 写明「因无题库未给标答」。
 - **后续接入知识库 RAG 后**：Prompt 升级为"用 OCR 出的题干检索题库，命中后回填原题与标答"。**输出 schema 保持兼容**（业务无需改对接），`original_question` 与 `standard_answer` 直接写知识库返回的标准字段。
@@ -134,42 +138,44 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 
 调用流程：
 
-1. **`POST /v1/files/upload`**（`multipart/form-data`，字段名 `file`）→ 取 `data.id` 作为 `file_id`。
+1. `**POST /v1/files/upload`**（`multipart/form-data`，字段名 `file`）→ 取 `data.id` 作为 `file_id`。
 2. `additional_messages[*].content_type = "object_string"`，`content` 为 **JSON 数组的字符串形式**，至少包含：
-   - `{"type":"text","text":"请仅输出 JSON。"}`
-   - `{"type":"image","file_id":"<上一步取得的 file_id>"}`
+  - `{"type":"text","text":"请仅输出 JSON。"}`
+  - `{"type":"image","file_id":"<上一步取得的 file_id>"}`
 
 ### 出参（`answer.content` → `JSON.parse`）
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `image_summary_zh` | string | 本页概述（中文） |
-| `passages[]` | array | **整页阅读原文**列表（一页若有多篇阅读材料就是多个对象）；非阅读页为 `[]` |
-| `passages[].passage_id` | string | 本页内稳定标识，如 `P1` / `P2`，供 `items[].passage_ref` 关联 |
-| `passages[].title` | string | 阅读材料标题（如有），无则 `""` |
-| `passages[].passage_text` | string | **从图中 OCR 出的完整阅读原文**，保留段落用 `\n` 分段；OCR 不全时给能识别的部分并在 `limitations` 注明 |
-| `passages[].passage_translation_zh` | string | 整篇中文参考译文，可分段；无法翻译时为 `""` |
-| `items[]` | array | 逐题 |
-| `items[].id` | string | 题号或本地序号 |
-| `items[].item_type` | string | `mcq` \| `fill_blank` \| `short_answer` \| `matching` \| `cloze` \| `translation` \| `reading` \| `composition` \| `unknown`；**作文统一作为一个 `item_type=composition` 的 item 出现在 `items` 中**，前端按 `item_type` 区分解析 |
-| `items[].reading_subtype` | string \| null | `main_idea` \| `detail` \| `inference` \| `vocabulary_in_context`；非阅读题为 `null` |
-| `items[].original_question` | string | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""` |
-| `items[].standard_answer` | string | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填） |
-| `items[].passage_ref` | string | 本题对应的 `passages[].passage_id`；非阅读题为 `""` |
-| `items[].evidence_quote` | string | 判分依据所摘录的原文/题干句子；阅读题写自 `passages[].passage_text` 的相关片段，非阅读题可为空 |
-| `items[].evidence_translation_zh` | string | `evidence_quote` 的中文翻译 |
-| `items[].student_answer` | string | 识别到的作答；不清写 `illegible` |
-| `items[].is_correct` | boolean \| null | 是否正确（`standard_answer` 为空时按通用语言规则给最稳妥判断，不确定时降低 `confidence`）；**作文 item 固定 `null`** |
-| `items[].confidence` | number | 0–1 |
-| `items[].reasoning_zh` | string | 简短判分理由（中文） |
-| `items[].explanation_zh` | string | 完整讲解（中文，可直接 TTS） |
-| `items[].knowledge_points_zh` | string[] | 1–3 个考点关键词，便于学习总结 bot 抓薄弱点 |
-| `items[].composition` | object \| 缺省 | **仅 `item_type=composition` 的 item 才有**；其它题型不输出此字段 |
-| `items[].composition.total_score` | number \| null | 作文总分（无量表时为 `null`） |
-| `items[].composition.rubric_breakdown[]` | array | `{dimension_zh, score, comment_zh}`（中文维度名；当前 `score` 一律 `null`） |
-| `items[].composition.highlight_revisions` | string[] | 改写示例（中文为主，可夹英文片段） |
-| `overall_comment_zh` | string | 总评（中文） |
-| `limitations` | string[] | OCR / 缺原文 / 无题库无法核对标答等限制（中文） |
+
+| 字段                                        | 类型             | 含义                                                                                                                                                                                                  |
+| ----------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image_summary_zh`                        | string         | 本页概述（中文）                                                                                                                                                                                            |
+| `passages[]`                              | array          | **整页阅读原文**列表（一页若有多篇阅读材料就是多个对象）；非阅读页为 `[]`                                                                                                                                                           |
+| `passages[].passage_id`                   | string         | 本页内稳定标识，如 `P1` / `P2`，供 `items[].passage_ref` 关联                                                                                                                                                    |
+| `passages[].title`                        | string         | 阅读材料标题（如有），无则 `""`                                                                                                                                                                                  |
+| `passages[].passage_text`                 | string         | **从图中 OCR 出的完整阅读原文**，保留段落用 `\n` 分段；OCR 不全时给能识别的部分并在 `limitations` 注明                                                                                                                                |
+| `passages[].passage_translation_zh`       | string         | 整篇中文参考译文，可分段；无法翻译时为 `""`                                                                                                                                                                            |
+| `items[]`                                 | array          | 逐题                                                                                                                                                                                                  |
+| `items[].id`                              | string         | 题号或本地序号                                                                                                                                                                                             |
+| `items[].item_type`                       | string         | `mcq` | `fill_blank` | `short_answer` | `matching` | `cloze` | `translation` | `reading` | `composition` | `unknown`；**作文统一作为一个 `item_type=composition` 的 item 出现在 `items` 中**，前端按 `item_type` 区分解析 |
+| `items[].reading_subtype`                 | string | null  | `main_idea` | `detail` | `inference` | `vocabulary_in_context`；非阅读题为 `null`                                                                                                                         |
+| `items[].original_question`               | string         | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""`                                                                                                                                                             |
+| `items[].standard_answer`                 | string         | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填）                                                                                                                                                          |
+| `items[].passage_ref`                     | string         | 本题对应的 `passages[].passage_id`；非阅读题为 `""`                                                                                                                                                            |
+| `items[].evidence_quote`                  | string         | 判分依据所摘录的原文/题干句子；阅读题写自 `passages[].passage_text` 的相关片段，非阅读题可为空                                                                                                                                       |
+| `items[].evidence_translation_zh`         | string         | `evidence_quote` 的中文翻译                                                                                                                                                                              |
+| `items[].student_answer`                  | string         | 识别到的作答；不清写 `illegible`                                                                                                                                                                              |
+| `items[].is_correct`                      | boolean | null | 是否正确（`standard_answer` 为空时按通用语言规则给最稳妥判断，不确定时降低 `confidence`）；**作文 item 固定 `null`**                                                                                                                  |
+| `items[].confidence`                      | number         | 0–1                                                                                                                                                                                                 |
+| `items[].reasoning_zh`                    | string         | 简短判分理由（中文）                                                                                                                                                                                          |
+| `items[].explanation_zh`                  | string         | 完整讲解（中文，可直接 TTS）                                                                                                                                                                                    |
+| `items[].knowledge_points_zh`             | string[]       | 1–3 个考点关键词，便于学习总结 bot 抓薄弱点                                                                                                                                                                          |
+| `items[].composition`                     | object | 缺省    | **仅 `item_type=composition` 的 item 才有**；其它题型不输出此字段                                                                                                                                                  |
+| `items[].composition.total_score`         | number | null  | 作文总分（无量表时为 `null`）                                                                                                                                                                                  |
+| `items[].composition.rubric_breakdown[]`  | array          | `{dimension_zh, score, comment_zh}`（中文维度名；当前 `score` 一律 `null`）                                                                                                                                     |
+| `items[].composition.highlight_revisions` | string[]       | 改写示例（中文为主，可夹英文片段）                                                                                                                                                                                   |
+| `overall_comment_zh`                      | string         | 总评（中文）                                                                                                                                                                                              |
+| `limitations`                             | string[]       | OCR / 缺原文 / 无题库无法核对标答等限制（中文）                                                                                                                                                                        |
+
 
 > **结构变更说明**：旧版本曾在顶层输出 `composition_assessment` 与 `items` 并列；当前版本已**统一收进 `items`**，作为 `item_type=composition` 的 item，并把作文专属字段放在 `items[].composition` 子对象里。这样前端只需对 `items` 做一次遍历，再按 `item_type` 分流；同一份作业里若有多篇作文，会出现多个 composition item。
 >
@@ -268,40 +274,42 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 
 ## 3. 口语评测（音频）
 
-**`bot_id`**：`7627028747031642150`，**`stream: true`**（含 `audio` 时强制流式）。
+`**bot_id`**：`7627028747031642150`，`**stream: true**`（含 `audio` 时强制流式）。
 
 ### 入参（`content_type: object_string`）
 
 调用流程：
 
-1. **`POST /v1/files/upload`** 上传 wav / ogg_opus（其它格式先转码）→ 取 `data.id` 作 `file_id`。
-2. **`POST /v3/chat`**，`stream: true`，`additional_messages[*].content_type = "object_string"`，`content` 为 JSON 数组字符串：
-   - `{"type":"text","text":"..."}`：业务可在此带题型说明 `assignment`、参考英文句 `reference_text`、维度提示 `dimension_hints`；无说明时可为 `""`。**带原文**时在 `text` 中写明 `reference_text:` 英文台词/课文（朗读对标）；**不带原文**时不写或为空白，响应里 `reference_text` 需为 `null`，按自由作答判分，不得捏造对照文案。
-   - `{"type":"audio","file_id":"<上一步取得的 file_id>"}`
-3. 消费 SSE，在收到 **`conversation.message.completed`** 且 `type === "answer"`、`content_type === "text"` 时，对 `data.content` 做 `JSON.parse`（此时已是完整 JSON 字符串）。
+1. `**POST /v1/files/upload**` 上传 wav / ogg_opus（其它格式先转码）→ 取 `data.id` 作 `file_id`。
+2. `**POST /v3/chat**`，`stream: true`，`additional_messages[*].content_type = "object_string"`，`content` 为 JSON 数组字符串：
+  - `{"type":"text","text":"..."}`：业务可在此带题型说明 `assignment`、参考英文句 `reference_text`、维度提示 `dimension_hints`；无说明时可为 `""`。**带原文**时在 `text` 中写明 `reference_text:` 英文台词/课文（朗读对标）；**不带原文**时不写或为空白，响应里 `reference_text` 需为 `null`，按自由作答判分，不得捏造对照文案。
+  - `{"type":"audio","file_id":"<上一步取得的 file_id>"}`
+3. 消费 SSE，在收到 `**conversation.message.completed`** 且 `type === "answer"`、`content_type === "text"` 时，对 `data.content` 做 `JSON.parse`（此时已是完整 JSON 字符串）。
 4. **推荐**：拿到上述 text `completed` 后**立即断开流**（`AbortController` / 关闭 SSE），**不要**再等后续的 `conversation.audio.delta`（见下）。**无需**再调 `message/list`。
-5. **备选**：若坚持等全流结束，可消费到 `conversation.chat.completed` 后 **`GET /v3/chat/message/list`** 取 `type === "answer"` 的 `content` 再 `JSON.parse`（多等数十秒、多收数 MB 音频，一般不推荐）。
+5. **备选**：若坚持等全流结束，可消费到 `conversation.chat.completed` 后 `**GET /v3/chat/message/list`** 取 `type === "answer"` 的 `content` 再 `JSON.parse`（多等数十秒、多收数 MB 音频，一般不推荐）。
 
-> **`conversation.audio.delta`（重要）**：用户消息里带 `audio` 时，平台会对助手 **answer 文本自动做 TTS**，以 `event: conversation.audio.delta`、`content_type: audio` 推送（与用户上传音频无关）。Bot 未配置音色也会走默认音色；**OpenAPI 无请求参数可关闭**。仅「忽略事件」无法省带宽/耗时；**在 text `message.completed` 后断流**可省约 60s 与数 MB 下行。本地可 `npm run coze:debug-oral` 统计各事件体积。
+> `**conversation.audio.delta`（重要）**：用户消息里带 `audio` 时，平台会对助手 **answer 文本自动做 TTS**，以 `event: conversation.audio.delta`、`content_type: audio` 推送（与用户上传音频无关）。Bot 未配置音色也会走默认音色；**OpenAPI 无请求参数可关闭**。仅「忽略事件」无法省带宽/耗时；**在 text `message.completed` 后断流**可省约 60s 与数 MB 下行。本地可 `npm run coze:debug-oral` 统计各事件体积。
 
 ### 出参（`answer.content` → `JSON.parse`）
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `reference_text` | string \| null | 参考句/原文（英文）；业务在 `text` 里给出则**带原文判分**（按 `transcript` ↔ `reference_text` 对比，漏读/错读/增读/语序错落都会落到对应维度评分与 `pronunciation.mispronounced_or_weak_words`），未给则 `null`，按自由口语判分，不臆造原文 |
-| `transcript` | string | 学生口语**英文**转写（保留原句，不自动修正） |
-| `holistic_score_1_to_5` | number \| null | 整体 1–5 |
-| `holistic_summary_zh` | string | 总评（中文） |
-| `dimensions[]` | array | 五维评分 |
-| `dimensions[].id` | string | `fluency` \| `accuracy` \| `pronunciation` \| `completeness` \| `interaction` |
-| `dimensions[].label_zh` | string | 维度中文名 |
-| `dimensions[].score_1_to_5` | number \| null | 1–5 |
-| `dimensions[].comment_zh` | string | 该维简评（中文） |
-| `pronunciation.mispronounced_or_weak_words` | string[] | 发音/用词提醒（中文为主） |
-| `language.grammar_issues[]` | array | 每条 `{issue_zh, suggestion_zh}` 或字符串（中文） |
-| `language.lexical_suggestions_zh` | string[] | 词汇升级建议（中文） |
-| `coaching_tips_zh` | string[] | 练习建议（中文） |
-| `limitations` | string[] | 限制说明（中文） |
+
+| 字段                                          | 类型            | 含义                                                                                                                                                                      |
+| ------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reference_text`                            | string | null | 参考句/原文（英文）；业务在 `text` 里给出则**带原文判分**（按 `transcript` ↔ `reference_text` 对比，漏读/错读/增读/语序错落都会落到对应维度评分与 `pronunciation.mispronounced_or_weak_words`），未给则 `null`，按自由口语判分，不臆造原文 |
+| `transcript`                                | string        | 学生口语**英文**转写（保留原句，不自动修正）                                                                                                                                                |
+| `holistic_score_1_to_5`                     | number | null | 整体 1–5                                                                                                                                                                  |
+| `holistic_summary_zh`                       | string        | 总评（中文）                                                                                                                                                                  |
+| `dimensions[]`                              | array         | 五维评分                                                                                                                                                                    |
+| `dimensions[].id`                           | string        | `fluency` | `accuracy` | `pronunciation` | `completeness` | `interaction`                                                                                               |
+| `dimensions[].label_zh`                     | string        | 维度中文名                                                                                                                                                                   |
+| `dimensions[].score_1_to_5`                 | number | null | 1–5                                                                                                                                                                     |
+| `dimensions[].comment_zh`                   | string        | 该维简评（中文）                                                                                                                                                                |
+| `pronunciation.mispronounced_or_weak_words` | string[]      | 发音/用词提醒（中文为主）                                                                                                                                                           |
+| `language.grammar_issues[]`                 | array         | 每条 `{issue_zh, suggestion_zh}` 或字符串（中文）                                                                                                                                 |
+| `language.lexical_suggestions_zh`           | string[]      | 词汇升级建议（中文）                                                                                                                                                              |
+| `coaching_tips_zh`                          | string[]      | 练习建议（中文）                                                                                                                                                                |
+| `limitations`                               | string[]      | 限制说明（中文）                                                                                                                                                                |
+
 
 ### 示例 `object_string` 中 `text`
 
@@ -358,7 +366,7 @@ reference_text: I like playing football and reading books at weekends.
 
 ## 4. 知识点讲解
 
-**`bot_id`**：`7638556864866795539`，`stream: false`，推荐 SDK `chat.createAndPoll`。
+`**bot_id**`：`7638556864866795539`，`stream: false`，推荐 SDK `chat.createAndPoll`。
 
 用于学生在批改结果里点击"关联知识点 → 查看讲解"时**实时生成**讲解文本（也可在后台先调一次落库复用）。**输出 Markdown 文本为核心产物**，并附 TTS 朗读脚本，便于前端生成讲解音频。
 
@@ -366,18 +374,20 @@ reference_text: I like playing football and reading books at weekends.
 
 业务侧在**一条用户消息**里写清：
 
-- **`知识点：<名称>`**（必填）：中文知识点名称，如 `现在完成时` / `for 与 since 的区别` / `不可数名词`。
-- **`context：...`**（可选）：教学/批改上下文，自然语言，例如：学生年级、触发场景（"批改中现在完成时句子出错"）、希望强调或省略的子点。未给默认按**小学高年级**讲。
+- `**知识点：<名称>`**（必填）：中文知识点名称，如 `现在完成时` / `for 与 since 的区别` / `不可数名词`。
+- `**context：...**`（可选）：教学/批改上下文，自然语言，例如：学生年级、触发场景（"批改中现在完成时句子出错"）、希望强调或省略的子点。未给默认按**小学高年级**讲。
 
 建议消息开头写一句 `请仅输出 JSON。`，避免模型偶发输出 Markdown 围栏。
 
 ### 出参（`answer.content` → `JSON.parse`）
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `knowledge_point` | string | 回显输入的知识点名称 |
+
+| 字段                     | 类型     | 含义                                                                                        |
+| ---------------------- | ------ | ----------------------------------------------------------------------------------------- |
+| `knowledge_point`      | string | 回显输入的知识点名称                                                                                |
 | `explanation_markdown` | string | **核心产物**：完整讲解 Markdown（包含定义、公式、句式表格、用法、易混对照、不规则变化、易错点、随堂练习+答案）。换行为 `\n`，前端直接 Markdown 渲染。 |
-| `tts_script_zh` | string | 可直接送 TTS 的中文朗读脚本（纯文本，无 Markdown 标记），约 500–900 字。 |
+| `tts_script_zh`        | string | 可直接送 TTS 的中文朗读脚本（纯文本，无 Markdown 标记），约 500–900 字。                                          |
+
 
 > 整体内容长度通常在 1500–3500 字（取决于知识点复杂度），`explanation_markdown` 字符串可能较大，前后端注意字段长度限制。
 
@@ -405,7 +415,7 @@ context：学生为小学五年级，刚在批改中把 have been to 与 have go
 
 ### 上传文件
 
-`POST [REDACTED]/v1/files/upload`，`multipart/form-data`，字段名 **`file`**。响应 `data.id` 即 **`file_id`**。文档：[上传文件](https://www.coze.cn/docs/developer_guides/upload_files?_lang=zh)
+`POST [REDACTED]/v1/files/upload`，`multipart/form-data`，字段名 `**file**`。响应 `data.id` 即 `**file_id**`。文档：[上传文件](https://www.coze.cn/docs/developer_guides/upload_files?_lang=zh)
 
 **对话接入只用 `file_id`**：在 `/v3/chat` 里用 `object_string` 带上 `image / audio + file_id`，平台在对话侧解析；不要尝试把 `file_id` 拼成公网 URL。若业务要长期可访问的图/音 URL，请走自有对象存储。
 
@@ -417,7 +427,7 @@ context：学生为小学五年级，刚在批改中把 have been to 与 have go
 
 ### 口语为何强制 `stream: true`
 
-只要消息里带 `audio`，OpenAPI 不允许 `stream: false`，必须 `stream: true`。JSON 可在同一次流里的 **`conversation.message.completed`（text answer）** 直接解析；**不必**等 `chat.completed`，也**不必**为取 JSON 再调 `message/list`（除非未等到 text completed 就断流、需兜底对账）。`conversation.audio.delta` 在 text completed 之后仍会推送，业务应在 text completed 后断流。`message.delta` 仅为文本分片，可与 completed 二选一使用。
+只要消息里带 `audio`，OpenAPI 不允许 `stream: false`，必须 `stream: true`。JSON 可在同一次流里的 `**conversation.message.completed`（text answer）** 直接解析；**不必**等 `chat.completed`，也**不必**为取 JSON 再调 `message/list`（除非未等到 text completed 就断流、需兜底对账）。`conversation.audio.delta` 在 text completed 之后仍会推送，业务应在 text completed 后断流。`message.delta` 仅为文本分片，可与 completed 二选一使用。
 
 ### Node SDK 示例
 
@@ -518,3 +528,4 @@ const knowledge = JSON.parse(
 - [Chat v3](https://www.coze.cn/docs/developer_guides/chat_v3?_lang=zh)
 - [消息列表](https://www.coze.cn/docs/developer_guides/chat_message_list?_lang=zh)
 - [鉴权](https://www.coze.cn/docs/developer_guides/authentication?_lang=zh)
+
