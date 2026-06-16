@@ -297,6 +297,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 | ------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `reference_text`                            | string | null | 参考句/原文（英文）；业务在 `text` 里给出则**带原文判分**（按 `transcript` ↔ `reference_text` 对比，漏读/错读/增读/语序错落都会落到对应维度评分与 `pronunciation.mispronounced_or_weak_words`），未给则 `null`，按自由口语判分，不臆造原文 |
 | `transcript`                                | string        | 学生口语**英文**转写（保留原句，不自动修正）                                                                                                                                                |
+| `standard_response_en`                      | string        | **参考标准回复**（英文）：结合 `assignment` 与学生 `transcript` 要点生成；朗读类与 `reference_text` 一致；自由口语类为语法正确、扣题的示范句；无有效转写时为 `""`                                                                 |
 | `holistic_score_1_to_5`                     | number | null | 整体 1–5                                                                                                                                                                  |
 | `holistic_summary_zh`                       | string        | 总评（中文）                                                                                                                                                                  |
 | `dimensions[]`                              | array         | 五维评分                                                                                                                                                                    |
@@ -316,7 +317,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 ```text
 assignment: 口语作业：介绍自己的爱好或日常活动。请使用 like + gerund（如 like reading books），不要 like + 动词原形。
 reference_text: I like playing football and reading books at weekends.
-请仅输出 JSON 口语批改结果（含 dimensions 五维 + holistic 总评）。
+请仅输出 JSON 口语批改结果（含 dimensions 五维 + holistic 总评 + standard_response_en）。
 ```
 
 ### 示例输出（节选）
@@ -325,6 +326,7 @@ reference_text: I like playing football and reading books at weekends.
 {
   "reference_text": "I like playing football and reading books at weekends.",
   "transcript": "I met my friend two years ago. We became friends because we all like read books. ... I like playing with he, her.",
+  "standard_response_en": "I met my friend two years ago. We became friends because we both like reading books. I like playing football and reading books at weekends. I like playing with her.",
   "holistic_score_1_to_5": 3,
   "holistic_summary_zh": "整体表述连贯，内容贴合介绍日常活动的作业要求，但存在多处语法错误，未遵守 like 加动名词的作业规定。",
   "dimensions": [
