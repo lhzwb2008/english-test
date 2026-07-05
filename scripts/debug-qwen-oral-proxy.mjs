@@ -114,4 +114,6 @@ const missing = required.filter((k) => !(k in oral));
 console.log('\n[schema] 缺失字段:', missing.length ? missing : '无');
 console.log('[transcript]', oral.transcript?.slice(0, 120));
 console.log('[holistic]', oral.holistic_score_1_to_5, oral.holistic_summary_zh?.slice(0, 80));
+console.log('\n=== 完整 JSON 输出 ===');
+console.log(JSON.stringify(oral, null, 2));
 console.log('\n[OK] Qwen 代理端到端验证通过');
