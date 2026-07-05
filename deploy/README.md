@@ -4,14 +4,30 @@
 
 ## 首次部署
 
-```bash
-# 1. 把代码放到服务器（任选其一）
-git clone <你的仓库地址> /opt/qwen-oral-proxy
-cd /opt/qwen-oral-proxy
-# 或者：直接 scp/rsync 整个仓库目录到服务器
+**当前生产环境**（`101.201.237.149`）首次是用 **rsync 从本机同步代码** 到 `/opt/qwen-oral-proxy`，再执行 `bash deploy/deploy.sh`，**不是** `git clone`。
 
-# 2. 一键安装 + 部署
+后续推荐改为 git 管理，便于 `git pull` 更新：
+
+```bash
+# 方式 A（推荐）：服务器上 clone 新目录（首次或重建时）
+git clone https://github.com/lhzwb2008/english-test.git /opt/qwen-oral-proxy
+cd /opt/qwen-oral-proxy
+cp .env.example .env && vi .env   # 填入 DASHSCOPE_API_KEY、QWEN_PROXY_TOKEN、QWEN_PROXY_PORT=8000
 bash deploy/deploy.sh
+
+# 方式 B：已有 rsync 目录时，在服务器 init git（保留现有 .env）
+cd /opt/qwen-oral-proxy
+cp .env /root/qwen-oral-proxy.env.bak
+git init && git remote add origin https://github.com/lhzwb2008/english-test.git
+git fetch origin main && git checkout -f -B main origin/main
+cp /root/qwen-oral-proxy.env.bak .env
+bash deploy/deploy.sh
+```
+
+```bash
+# 方式 C：本机 rsync 同步（不依赖 GitHub，首次实际使用的方式）
+rsync -az --exclude node_modules --exclude .git ./ root@101.201.237.149:/opt/qwen-oral-proxy/
+ssh root@101.201.237.149 "cd /opt/qwen-oral-proxy && bash deploy/deploy.sh"
 ```
 
 脚本会自动完成：
@@ -37,12 +53,19 @@ pm2 restart qwen-oral-proxy --update-env
 
 ## 更新部署（后续每次改动代码后）
 
+**前提**：代码已 `git push` 到 `origin/main`（`https://github.com/lhzwb2008/english-test.git`）。
+
+在服务器上：
+
 ```bash
+cd /opt/qwen-oral-proxy
 bash deploy/update.sh          # 默认拉取 main 分支
 bash deploy/update.sh release  # 或指定分支
 ```
 
-等价于 `git pull` + 重跑 `deploy/deploy.sh`。
+等价于 `git pull` + 重跑 `deploy/deploy.sh`（`npm ci` + `pm2 restart`）。**`.env` 不会被 git 覆盖**，改密钥后需 `pm2 restart qwen-oral-proxy --update-env`。
+
+若服务器尚未 init git（仍是纯 rsync 目录），请先用上文「方式 B」绑定远程，或继续用 rsync + `deploy.sh`。
 
 ## 常用运维命令
 

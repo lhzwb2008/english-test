@@ -2,13 +2,27 @@
 
 **鉴权**：`Authorization: Bearer <token>`（Coze Bot 用 `COZE_API_TOKEN`；Qwen 代理用 `QWEN_PROXY_TOKEN`，见下）。
 
+## 生产环境（Qwen-Omni 代理，口语 / 万能音频）
+
+| 项 | 值 |
+|---|---|
+| **Base URL** | `http://101.201.237.149:8000` |
+| **健康检查** | `GET http://101.201.237.149:8000/health` |
+| **鉴权 Header** | `Authorization: Bearer <QWEN_PROXY_TOKEN>` |
+| **Token 获取** | 见服务器 `/opt/qwen-oral-proxy/.env` 中的 `QWEN_PROXY_TOKEN`（勿提交到 Git、勿写进前端仓库） |
+| **口语批改 bot_id** | `qwen-oral-v1` |
+| **万能音频 bot_id** | `qwen-universal-audio-v1` |
+| **服务器目录** | `/opt/qwen-oral-proxy`（pm2 进程名 `qwen-oral-proxy`） |
+
+Coze 其余 Bot（学习计划 / 图片批改 / 知识点讲解 / 万能文本）仍走官方：`https://api.coze.cn`，Token 用 `COZE_API_TOKEN`。
+
 五个智能体：**学习计划**、**作业批改（图）**、**口语评测（音，已切至 Qwen-Omni）**、**万能模型（自由 Prompt）**、**知识点讲解**。
 
 | 智能体 | 引擎 | `bot_id` | 调用 |
 | ------- | --- | --------------------- | --------------------------------------------------------------------- |
 | 学习计划 | Coze | `7627028738093596712` | `POST /v3/chat`，`stream: false` |
 | 作业批改（图） | Coze | `7627028840921219091` | `POST /v3/chat`，`stream: false`（须先 `/v1/files/upload` 取 `file_id`） |
-| **口语评测（音）** | **Qwen-Omni 代理** | **`qwen-oral-v1`** | `POST /v3/chat`，`**stream: true`**（须先 `/v1/files/upload` 取 `file_id`）；**Base URL 改指向本地/已部署的 Qwen 代理** |
+| **口语评测（音）** | **Qwen-Omni 代理** | **`qwen-oral-v1`** | `POST http://101.201.237.149:8000/v3/chat`，`**stream: true`**（须先 `POST .../v1/files/upload` 取 `file_id`） |
 | 口语评测（音，Coze 旧版，仅供参考/回退） | Coze | `7627028747031642150` | 同上，`Base URL` 用 Coze 官方地址；**已知问题**：强制 TTS 音频输出，耗时/token 明显更高，不建议继续使用 |
 | **万能模型（自由 Prompt，文本）** | Coze | **`7638850155068391439`** | `POST /v3/chat`；无预置 Prompt，业务在消息里写完整指令 |
 | **万能模型（自由 Prompt，音频）** | **Qwen-Omni 代理** | **`qwen-universal-audio-v1`** | 同「口语评测」调用方式；无预置 system prompt，专为**音频输入 + 自定义 Prompt**场景设计 |
@@ -22,7 +36,7 @@
 
 | | Coze | Qwen-Omni 代理（本仓库 `server/`） |
 |---|------|------------------------------|
-| Base URL | `https://api.coze.cn` | 自建代理地址（本地 `http://127.0.0.1:8787`，或阿里云部署后的地址） |
+| Base URL | `https://api.coze.cn` | **`http://101.201.237.149:8000`**（本地调试：`http://127.0.0.1:8787`） |
 | Token | `COZE_API_TOKEN` | `QWEN_PROXY_TOKEN` |
 | 覆盖能力 | 学习计划、图片批改、知识点讲解、万能模型（文本） | 口语评测、万能模型（音频） |
 | 音频场景表现 | 强制 TTS 音频输出（`conversation.audio.delta`），耗时数十秒、多收数 MB、token 消耗高 | `modalities:["text"]`，**不产生音频**，实测 22.7s 音频约 6–8s 出结果 |
@@ -374,7 +388,7 @@ reference_text: I like playing football and reading books at weekends.
 
 ### 已部署服务实测案例（真实调用，非虚构示例）
 
-以下是对**已部署的生产代理**（阿里云服务器，`http://<部署地址>:8000`）发起的一次**真实端到端调用**，用真实测试音频 `homework-12.wav`（约 22.7s）跑通全流程：上传 → 携带 `assignment` 的 `object_string` 对话 → 消费 SSE → `JSON.parse` 出参。
+以下是对**已部署的生产代理**（`http://101.201.237.149:8000`）发起的一次**真实端到端调用**，用真实测试音频 `homework-12.wav`（约 22.7s）跑通全流程：上传 → 携带 `assignment` 的 `object_string` 对话 → 消费 SSE → `JSON.parse` 出参。
 
 #### 调用代码（真实跑通，未简化）
 
@@ -383,8 +397,8 @@ import fs from 'node:fs';
 import { CozeAPI, RoleType, ChatEventType } from '@coze/api';
 
 const client = new CozeAPI({
-  token: process.env.QWEN_PROXY_TOKEN,      // 生产环境的代理鉴权 token
-  baseURL: process.env.QWEN_PROXY_BASE_URL, // 例如 http://<部署地址>:8000
+  token: process.env.QWEN_PROXY_TOKEN,      // 见服务器 /opt/qwen-oral-proxy/.env
+  baseURL: 'http://101.201.237.149:8000',   // 生产环境
 });
 
 // 1. 上传音频
@@ -476,6 +490,17 @@ npm run qwen:debug-oral     # 终端 B，用 @coze/api 指向本地代理做端�
 ```
 
 生产部署见 [`deploy/README.md`](deploy/README.md)（阿里云服务器一键安装/部署脚本）。
+
+### 服务器更新方式
+
+**当前生产机**（`101.201.237.149`）目录 `/opt/qwen-oral-proxy`：
+
+| 方式 | 说明 |
+|------|------|
+| **`git pull`（推荐，需先 push 代码到 GitHub）** | 在服务器执行 `bash deploy/update.sh`（内部 `git pull` + `deploy.sh` 重启 pm2） |
+| **rsync（首次部署用过）** | 本地 `rsync` 同步到服务器后，再 `bash deploy/deploy.sh` |
+
+> **注意**：首次上线是用 **rsync 直传**，不是 `git clone`；已在服务器初始化 git 并绑定 `origin` 后，后续改代码需**先 `git push` 到 GitHub**，再在服务器跑 `bash deploy/update.sh`。`.env` 只在服务器维护，不会被 git 覆盖。
 
 ### 已知限制
 
@@ -614,7 +639,7 @@ const cozeClient = new CozeAPI({
 // Qwen-Omni 引擎：口语评测 / 万能模型（音频）
 const qwenClient = new CozeAPI({
   token: process.env.QWEN_PROXY_TOKEN,
-  baseURL: process.env.QWEN_PROXY_BASE_URL, // 本地 http://127.0.0.1:8787 或部署后的地址
+  baseURL: 'http://101.201.237.149:8000',
 });
 
 // 学习计划：纯文本 + createAndPoll
