@@ -58,9 +58,9 @@ npm run coze:spaces    # 查看空间 ID
 
 **本地开发**：
 
-1. 在 `.env` 填入 `DASHSCOPE_API_KEY`（百炼）与 `QWEN_PROXY_TOKEN`（代理鉴权口令）。
+1. 在 `.env` 填入 `DASHSCOPE_API_KEY`（百炼，仅服务端持有，业务侧无需感知）。
 2. `npm run qwen:serve` 启动兼容代理（默认 `http://127.0.0.1:8787`）。
-3. 业务侧 `@coze/api` 仅改 `baseURL` / `token` / `bot_id`（`qwen-oral-v1` / `qwen-universal-audio-v1`），其余调用方式不变。
+3. 业务侧 `@coze/api` 仅改 `baseURL` / `bot_id`（`qwen-oral-v1` / `qwen-universal-audio-v1`），`token` 无需真实值（代理不校验，SDK 要求非空传占位符即可），其余调用方式不变。
 4. `npm run qwen:debug-oral` 做端到端验证。
 
 **生产部署（阿里云服务器）**：见 [`deploy/README.md`](deploy/README.md)，`bash deploy/deploy.sh` 一键安装依赖并用 `pm2` 常驻部署。

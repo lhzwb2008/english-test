@@ -16,13 +16,13 @@ const ORAL_BOT_ID = 'qwen-oral-v1';
 const AUDIO_PATH =
   process.argv[2] || path.join(ROOT, 'homework-12.wav');
 
-const token = process.env.QWEN_PROXY_TOKEN;
 const baseURL = process.env.QWEN_PROXY_BASE_URL || `http://127.0.0.1:${process.env.QWEN_PROXY_PORT || 8787}`;
 
-if (!token) throw new Error('缺少 QWEN_PROXY_TOKEN');
 if (!fs.existsSync(AUDIO_PATH)) throw new Error(`音频不存在: ${AUDIO_PATH}`);
 
-const client = new CozeAPI({ token, baseURL });
+// Qwen 代理不校验业务侧 token（鉴权由服务器网络侧维护），@coze/api 的
+// CozeAPI 构造函数要求非空 token 参数，这里传占位符即可，代理不会校验它。
+const client = new CozeAPI({ token: 'unused', baseURL });
 
 const stats = {
   events: {},

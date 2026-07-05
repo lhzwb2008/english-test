@@ -1,6 +1,6 @@
 # 智能体后端接入说明（Coze + Qwen-Omni 双引擎）
 
-**鉴权**：`Authorization: Bearer <token>`（Coze Bot 用 `COZE_API_TOKEN`；Qwen 代理用 `QWEN_PROXY_TOKEN`，见下）。
+**鉴权**：Coze Bot 用 `Authorization: Bearer <COZE_API_TOKEN>`；**Qwen 代理无需业务侧传 token**（鉴权/访问控制由服务器网络侧维护，见下）。
 
 ## 生产环境（Qwen-Omni 代理，口语 / 万能音频）
 
@@ -8,8 +8,7 @@
 |---|---|
 | **Base URL** | `http://101.201.237.149:8000` |
 | **健康检查** | `GET http://101.201.237.149:8000/health` |
-| **鉴权 Header** | `Authorization: Bearer <QWEN_PROXY_TOKEN>` |
-| **Token 获取** | 见服务器 `/opt/qwen-oral-proxy/.env` 中的 `QWEN_PROXY_TOKEN`（勿提交到 Git、勿写进前端仓库） |
+| **鉴权 Header** | **无需传 `Authorization`**（代理不校验 token；`@coze/api` 的 `CozeAPI({ token })` 参数因 SDK 限制必须非空，传任意占位字符串即可，如 `'unused'`） |
 | **口语批改 bot_id** | `qwen-oral-v1` |
 | **万能音频 bot_id** | `qwen-universal-audio-v1` |
 | **服务器目录** | `/opt/qwen-oral-proxy`（pm2 进程名 `qwen-oral-proxy`） |
@@ -37,11 +36,11 @@ Coze 其余 Bot（学习计划 / 图片批改 / 知识点讲解 / 万能文本�
 | | Coze | Qwen-Omni 代理（本仓库 `server/`） |
 |---|------|------------------------------|
 | Base URL | `https://api.coze.cn` | **`http://101.201.237.149:8000`**（本地调试：`http://127.0.0.1:8787`） |
-| Token | `COZE_API_TOKEN` | `QWEN_PROXY_TOKEN` |
+| Token | `COZE_API_TOKEN`（必填） | **无需业务侧传 token**（`CozeAPI({ token })` 传占位符即可，代理不校验） |
 | 覆盖能力 | 学习计划、图片批改、知识点讲解、万能模型（文本） | 口语评测、万能模型（音频） |
 | 音频场景表现 | 强制 TTS 音频输出（`conversation.audio.delta`），耗时数十秒、多收数 MB、token 消耗高 | `modalities:["text"]`，**不产生音频**，实测 22.7s 音频约 6–8s 出结果 |
 
-**业务侧调用姿势完全一致**（同一套 `@coze/api` SDK 用法：先 `files.upload` 取 `file_id`，再 `chat.stream`/`chat.createAndPoll`，SSE 事件名一致），**只需按上表切换 `baseURL` + `token` + `bot_id` 三项配置**，无需改动业务代码。
+**业务侧调用姿势完全一致**（同一套 `@coze/api` SDK 用法：先 `files.upload` 取 `file_id`，再 `chat.stream`/`chat.createAndPoll`，SSE 事件名一致），**只需按上表切换 `baseURL` + `bot_id`（Qwen 场景下 `token` 传占位符即可）**，无需改动业务代码。
 
 ---
 
@@ -397,7 +396,7 @@ import fs from 'node:fs';
 import { CozeAPI, RoleType, ChatEventType } from '@coze/api';
 
 const client = new CozeAPI({
-  token: process.env.QWEN_PROXY_TOKEN,      // 见服务器 /opt/qwen-oral-proxy/.env
+  token: 'unused',                          // 代理不校验 token，SDK 要求非空占位符即可
   baseURL: 'http://101.201.237.149:8000',   // 生产环境
 });
 
@@ -484,7 +483,7 @@ const oral = JSON.parse(oralRaw);
 ### 本地启动与验证
 
 ```bash
-# .env 配置 DASHSCOPE_API_KEY、QWEN_PROXY_TOKEN
+# .env 配置 DASHSCOPE_API_KEY（服务端专用，业务侧无需感知）
 npm run qwen:serve          # 终端 A，默认 :8787
 npm run qwen:debug-oral     # 终端 B，用 @coze/api 指向本地代理做端到端验证
 ```
@@ -636,9 +635,9 @@ const cozeClient = new CozeAPI({
   baseURL: process.env.COZE_BASE_URL, // https://api.coze.cn
 });
 
-// Qwen-Omni 引擎：口语评测 / 万能模型（音频）
+// Qwen-Omni 引擎：口语评测 / 万能模型（音频）；无需业务侧 token
 const qwenClient = new CozeAPI({
-  token: process.env.QWEN_PROXY_TOKEN,
+  token: 'unused',
   baseURL: 'http://101.201.237.149:8000',
 });
 

@@ -95,7 +95,7 @@ fi
 if [ ! -f "$APP_DIR/.env" ]; then
   if [ -f "$APP_DIR/.env.example" ]; then
     cp "$APP_DIR/.env.example" "$APP_DIR/.env"
-    warn "已从 .env.example 生成 .env，请尽快编辑填入 DASHSCOPE_API_KEY / QWEN_PROXY_TOKEN 等真实值："
+    warn "已从 .env.example 生成 .env，请尽快编辑填入 DASHSCOPE_API_KEY 真实值："
     warn "  vi $APP_DIR/.env"
   else
     err ".env 与 .env.example 均不存在，无法继续。"
@@ -115,9 +115,8 @@ if [ -n "${APP_PORT:-}" ]; then
 fi
 
 DASHSCOPE_KEY_SET="$(grep -E '^DASHSCOPE_API_KEY=.+' "$APP_DIR/.env" || true)"
-PROXY_TOKEN_SET="$(grep -E '^QWEN_PROXY_TOKEN=.+' "$APP_DIR/.env" || true)"
-if [ -z "$DASHSCOPE_KEY_SET" ] || [ -z "$PROXY_TOKEN_SET" ]; then
-  warn "DASHSCOPE_API_KEY 或 QWEN_PROXY_TOKEN 尚未在 .env 中配置真实值；服务会启动，但音频请求会报错，请尽快补全后 pm2 restart。"
+if [ -z "$DASHSCOPE_KEY_SET" ]; then
+  warn "DASHSCOPE_API_KEY 尚未在 .env 中配置真实值；服务会启动，但音频请求会报错，请尽快补全后 pm2 restart。"
 fi
 
 # ---------- 5. 安装项目依赖 ----------
@@ -156,21 +155,16 @@ fi
 # ---------- 8. 健康检查 ----------
 PORT="$(grep -E '^QWEN_PROXY_PORT=' "$APP_DIR/.env" | tail -n1 | cut -d= -f2)"
 PORT="${PORT:-8787}"
-TOKEN="$(grep -E '^QWEN_PROXY_TOKEN=' "$APP_DIR/.env" | tail -n1 | cut -d= -f2-)"
 
 sleep 2
 log "健康检查 http://127.0.0.1:${PORT}/health ..."
-if [ -n "$TOKEN" ]; then
-  if curl -fsS -H "Authorization: Bearer ${TOKEN}" "http://127.0.0.1:${PORT}/health"; then
-    echo
-    log "部署完成，服务运行正常。"
-  else
-    echo
-    err "健康检查失败，请用 'pm2 logs ${PM2_APP_NAME}' 查看日志。"
-    exit 1
-  fi
+if curl -fsS "http://127.0.0.1:${PORT}/health"; then
+  echo
+  log "部署完成，服务运行正常。"
 else
-  warn "QWEN_PROXY_TOKEN 未配置，跳过带鉴权的健康检查；请配置后手动验证。"
+  echo
+  err "健康检查失败，请用 'pm2 logs ${PM2_APP_NAME}' 查看日志。"
+  exit 1
 fi
 
 log "常用命令：pm2 status | pm2 logs ${PM2_APP_NAME} | pm2 restart ${PM2_APP_NAME}"

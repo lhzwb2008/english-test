@@ -12,7 +12,7 @@
 # 方式 A（推荐）：服务器上 clone 新目录（首次或重建时）
 git clone https://github.com/lhzwb2008/english-test.git /opt/qwen-oral-proxy
 cd /opt/qwen-oral-proxy
-cp .env.example .env && vi .env   # 填入 DASHSCOPE_API_KEY、QWEN_PROXY_TOKEN、QWEN_PROXY_PORT=8000
+cp .env.example .env && vi .env   # 填入 DASHSCOPE_API_KEY、QWEN_PROXY_PORT=8000
 bash deploy/deploy.sh
 
 # 方式 B：已有 rsync 目录时，在服务器 init git（保留现有 .env）
@@ -34,7 +34,7 @@ ssh root@101.201.237.149 "cd /opt/qwen-oral-proxy && bash deploy/deploy.sh"
 
 1. 识别系统包管理器（`apt` / `dnf` / `yum`），缺 Node.js（或版本 < 18）时通过 NodeSource 安装。
 2. 缺 `pm2` 时全局安装。
-3. `.env` 不存在时从 `.env.example` 生成（**首次部署后需手动编辑填入真实的 `DASHSCOPE_API_KEY` 与 `QWEN_PROXY_TOKEN`**，见下）。
+3. `.env` 不存在时从 `.env.example` 生成（**首次部署后需手动编辑填入真实的 `DASHSCOPE_API_KEY`**，见下）。
 4. `npm ci`（有 lockfile）或 `npm install` 安装生产依赖。
 5. 用 `deploy/ecosystem.config.cjs` 通过 `pm2` 启动（已存在同名进程则 `pm2 restart`）。
 6. 尝试配置 `pm2 startup`（开机自启），可用 `SKIP_PM2_STARTUP=1` 跳过。
@@ -45,11 +45,12 @@ ssh root@101.201.237.149 "cd /opt/qwen-oral-proxy && bash deploy/deploy.sh"
 ```bash
 vi .env
 # 填入：
-#   DASHSCOPE_API_KEY=sk-xxx        （阿里云百炼 API Key）
-#   QWEN_PROXY_TOKEN=<自定义强随机口令，业务侧调用时作为 Bearer token>
+#   DASHSCOPE_API_KEY=sk-xxx        （阿里云百炼 API Key，仅服务端持有，不对外暴露）
 
 pm2 restart qwen-oral-proxy --update-env
 ```
+
+> **鉴权说明**：本代理不要求业务侧传任何 token（区别于 Coze 的 `COZE_API_TOKEN`）。安全性由服务器网络侧保障（安全组/内网限制来源 IP，或在 Nginx 层加白名单），业务侧直接调用即可，`CozeAPI({ token })` 传任意占位字符串（SDK 要求非空）都可以。
 
 ## 更新部署（后续每次改动代码后）
 
@@ -80,8 +81,7 @@ pm2 stop qwen-oral-proxy       # 停止
 
 | 变量 | 说明 |
 |------|------|
-| `DASHSCOPE_API_KEY` | 阿里云百炼 API Key（必填，音频请求依赖） |
-| `QWEN_PROXY_TOKEN` | 本代理的鉴权口令；业务侧 `CozeAPI({ token })` 填此值 |
+| `DASHSCOPE_API_KEY` | 阿里云百炼 API Key（必填，音频请求依赖；仅服务端持有） |
 | `QWEN_PROXY_PORT` | 监听端口，默认 `8787` |
 | `QWEN_ORAL_MODEL` / `QWEN_UNIVERSAL_MODEL` | 使用的 Qwen-Omni 模型，默认 `qwen3.5-omni-flash` |
 | `QWEN_FILE_TTL_MS` | 上传文件在内存中的保留时长（毫秒），默认 1 小时 |
