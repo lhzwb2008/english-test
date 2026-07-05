@@ -13,8 +13,11 @@
 |------|-----------|-------------|
 | 英语学习-计划生成 | 见 `coze/bots.registry.json` | `learning-plan-head.md` + `builtin-tasks-from-excels.md` → **`learning-plan.md`**（`npm run coze:build-plan`） |
 | 英语学习-图片批改 | 同上 | `coze/prompts/image-homework.md` |
-| 英语学习-口语批改 | 同上 | `coze/prompts/oral-homework.md` |
+| 英语学习-口语批改（旧版，仅供参考） | 同上 | `coze/prompts/oral-homework.md` |
 | 英语学习-知识点讲解 | 见 `coze/bots.registry.json` | `coze/prompts/knowledge-explainer.md` |
+| 万能模型（自由 Prompt，文本） | 见 `coze/bots.registry.json` | 无（空白 Bot，业务自定义指令） |
+
+**口语批改已切换至 Qwen-Omni 代理**（避免 Coze 强制 TTS 导致 token/带宽浪费）：见 [`coze/qwen-bots.registry.json`](coze/qwen-bots.registry.json)，`bot_id` 为 `qwen-oral-v1`（口语批改）/ `qwen-universal-audio-v1`（万能音频模型），通过本地代理 `npm run qwen:serve` 接入，详情见 [`API.md` §3](API.md#3-口语评测音频--已切换至-qwen-omni-代理) 与 [`API.md` §4](API.md#4-万能模型自由-prompt无预置人设)。
 
 脚本已为上述智能体尝试 **发布到 API 渠道**（connector `1024`）。业务侧使用 Chat API 时需带 `Authorization: Bearer <COZE_API_TOKEN>`。
 
@@ -49,6 +52,21 @@ npm run coze:spaces    # 查看空间 ID
 # npm run coze:create  # 仅首次需要；会新建 Bot，勿重复
 ```
 
+### Qwen-Omni 口语批改代理
+
+口语批改与「万能音频模型」现均通过本代理接入，用以规避 Coze 口语 Bot 强制 TTS 导致的 token/带宽浪费：
+
+**本地开发**：
+
+1. 在 `.env` 填入 `DASHSCOPE_API_KEY`（百炼）与 `QWEN_PROXY_TOKEN`（代理鉴权口令）。
+2. `npm run qwen:serve` 启动兼容代理（默认 `http://127.0.0.1:8787`）。
+3. 业务侧 `@coze/api` 仅改 `baseURL` / `token` / `bot_id`（`qwen-oral-v1` / `qwen-universal-audio-v1`），其余调用方式不变。
+4. `npm run qwen:debug-oral` 做端到端验证。
+
+**生产部署（阿里云服务器）**：见 [`deploy/README.md`](deploy/README.md)，`bash deploy/deploy.sh` 一键安装依赖并用 `pm2` 常驻部署。
+
+详见 [`API.md` §3](API.md#3-口语评测音频--已切换至-qwen-omni-代理) 与 [`API.md` §4](API.md#4-万能模型自由-prompt无预置人设)。
+
 ## 后端接入
 
 见 **`API.md`**（鉴权、三个 `bot_id`、入参与 stream 要求）。
@@ -60,6 +78,9 @@ npm run coze:spaces    # 查看空间 ID
 - `coze/prompts/builtin-tasks-from-excels.md` — 四体系任务库（Excel 导出）
 - `coze/prompts/learning-plan.md` — **合并产物**（`npm run coze:build-plan`），勿手改；推送前由脚本生成
 - `coze/prompts/image-homework.md` / `oral-homework.md` — 图片 / 口语 Bot Prompt
-- `coze/bots.registry.json` — 创建后写入的 `bot_id` 登记
+- `coze/bots.registry.json` — 创建后写入的 `bot_id` 登记（含万能模型-文本）
+- `coze/qwen-bots.registry.json` — Qwen-Omni 代理 Bot 登记（口语 / 万能音频）
+- `server/` — Qwen-Omni 兼容代理（模拟 Coze upload + chat SSE）
+- `deploy/` — 阿里云服务器一键安装/部署脚本（Qwen 代理）
 - `scripts/` — 创建、空间列表、Prompt 推送脚本
 - `ref/` — 参考课程计划源表（Excel）

@@ -1,0 +1,21 @@
+{
+  "defaults": {
+    "QWEN_ORAL_MODEL": "qwen3.5-omni-flash",
+    "QWEN_UNIVERSAL_MODEL": "qwen3.5-omni-flash"
+  },
+  "bots": [
+    {
+      "name": "英语学习-口语批改(Qwen)",
+      "bot_id": "qwen-oral-v1",
+      "engine": "fixed-prompt",
+      "prompt_file": "coze/prompts/oral-homework.md",
+      "model_env": "QWEN_ORAL_MODEL"
+    },
+    {
+      "name": "万能音频模型(Qwen)",
+      "bot_id": "qwen-universal-audio-v1",
+      "engine": "freeform",
+      "model_env": "QWEN_UNIVERSAL_MODEL"
+    }
+  ]
+}

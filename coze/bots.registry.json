@@ -21,6 +21,11 @@
       "name": "英语学习-知识点讲解",
       "bot_id": "7638556864866795539",
       "prompt_file": "coze/prompts/knowledge-explainer.md"
+    },
+    {
+      "name": "万能模型（自由 Prompt，文本，无预置 Prompt 文件）",
+      "bot_id": "7638850155068391439",
+      "prompt_file": null
     }
   ]
 }
