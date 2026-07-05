@@ -372,6 +372,93 @@ reference_text: I like playing football and reading books at weekends.
 }
 ```
 
+### 已部署服务实测案例（真实调用，非虚构示例）
+
+以下是对**已部署的生产代理**（阿里云服务器，`http://<部署地址>:8000`）发起的一次**真实端到端调用**，用真实测试音频 `homework-12.wav`（约 22.7s）跑通全流程：上传 → 携带 `assignment` 的 `object_string` 对话 → 消费 SSE → `JSON.parse` 出参。
+
+#### 调用代码（真实跑通，未简化）
+
+```javascript
+import fs from 'node:fs';
+import { CozeAPI, RoleType, ChatEventType } from '@coze/api';
+
+const client = new CozeAPI({
+  token: process.env.QWEN_PROXY_TOKEN,      // 生产环境的代理鉴权 token
+  baseURL: process.env.QWEN_PROXY_BASE_URL, // 例如 http://<部署地址>:8000
+});
+
+// 1. 上传音频
+const up = await client.files.upload({ file: fs.createReadStream('./homework-12.wav') });
+// up = { id, bytes, created_at, file_name }
+
+// 2. 携带题型说明发起对话（stream: true）
+const userText = [
+  'assignment: 口语作业：介绍自己的爱好或日常活动。请使用 like + gerund（如 like reading books），不要 like + 动词原形。',
+  '请仅输出 JSON 口语批改结果（含 dimensions 五维 + holistic 总评 + standard_response_en）。',
+].join('\n');
+
+const abort = new AbortController();
+let oralRaw = '';
+for await (const evt of client.chat.stream(
+  {
+    bot_id: 'qwen-oral-v1',
+    user_id: 'demo-user-001',
+    additional_messages: [{
+      role: RoleType.User,
+      content_type: 'object_string',
+      content: JSON.stringify([
+        { type: 'text', text: userText },
+        { type: 'audio', file_id: up.id },
+      ]),
+    }],
+  },
+  { signal: abort.signal },
+)) {
+  if (
+    evt.event === ChatEventType.CONVERSATION_MESSAGE_COMPLETED &&
+    evt.data?.type === 'answer' &&
+    evt.data?.content_type === 'text'
+  ) {
+    oralRaw = evt.data.content;
+    abort.abort();
+    break;
+  }
+}
+const oral = JSON.parse(oralRaw);
+```
+
+#### 实测结果
+
+- **上传响应**：`{"id":"13334652236797066380","bytes":4358222,"created_at":1783223438,"file_name":"homework-12.wav"}`
+- **SSE 事件序列**：`conversation.chat.created` → `conversation.chat.in_progress` → `conversation.message.delta`（约 320+ 条增量片段）→ `conversation.message.completed`；**全程未出现 `conversation.audio.delta`**（即无强制 TTS，本次改造的核心目标达成）。
+- **总耗时**：约 10.1s（含上传 + 模型推理 + 全部增量事件传输）。
+- **出参 JSON**（真实原样返回，未加工）：
+
+```json
+{
+  "reference_text": null,
+  "transcript": "Part three的第十三题，当马丁拍摄了他第一张关于自然的照片的时候，他感觉怎么样？",
+  "standard_response_en": "",
+  "holistic_score_1_to_5": null,
+  "holistic_summary_zh": "",
+  "dimensions": [
+    { "id": "fluency", "label_zh": "流利度与连贯", "score_1_to_5": null, "comment_zh": "" },
+    { "id": "accuracy", "label_zh": "语言准确性（语法、词汇）", "score_1_to_5": null, "comment_zh": "" },
+    { "id": "pronunciation", "label_zh": "发音清晰度", "score_1_to_5": null, "comment_zh": "" },
+    { "id": "completeness", "label_zh": "任务完整度", "score_1_to_5": null, "comment_zh": "" },
+    { "id": "interaction", "label_zh": "交际得体性", "score_1_to_5": null, "comment_zh": "" }
+  ],
+  "pronunciation": { "mispronounced_or_weak_words": [] },
+  "language": { "grammar_issues": [], "lexical_suggestions_zh": [] },
+  "coaching_tips_zh": [],
+  "limitations": [
+    "未提供有效口语转写内容。当前输入为中文题目描述，不符合口语作业评分要求。请上传包含英文回答的音频文件或提供对应的英文转写文本。"
+  ]
+}
+```
+
+> **说明**：本次测试用的 `homework-12.wav` 实际内容是一段**中文题目播报**（"Part three 的第十三题……"），并非学生的英文口语作答，因此模型正确识别出"无有效英文转写"并走了 §3 出参表中「五维分数可为 `null`」的分支，`limitations` 也如实说明了原因——这恰好验证了 Prompt 中「不得臆造评分」的约束在 Qwen-Omni 上依然生效，行为与原 Coze Bot 一致。若上传真实学生英文答题音频，会走正常五维评分分支（示例见上文「示例输出（节选）」）。
+
 ### 成本对比（实测，22.7s 音频）
 
 | 指标 | Coze 口语 Bot（旧版，仅参考） | Qwen-Omni 代理（现行） |
