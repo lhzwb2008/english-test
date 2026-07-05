@@ -306,7 +306,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 
 调用流程：
 
-1. `**POST /v1/files/upload**` 上传 wav / mp3 等（代理支持 wav/mp3/aac/ogg/amr/3gp 等常见格式）→ 取 `data.id` 作 `file_id`。
+1. `**POST /v1/files/upload**` 上传 wav / mp3 等（代理支持 wav/mp3/aac/ogg/amr/3gp 等常见格式）→ 取 `data.id` 作 `file_id`。**注意**：此 `file_id` 只是代理进程内存里的临时句柄（非字节文件服务的持久文件），对话时会被整体 base64 内联进对千问的一次性请求，千问侧并没有真正的“文件”概念；与 Coze 的差异详见[附录·上传文件](#上传文件)。
 2. `**POST /v3/chat**`，`stream: true`，`additional_messages[*].content_type = "object_string"`，`content` 为 JSON 数组字符串：
   - `{"type":"text","text":"..."}`：业务可在此带题型说明 `assignment`、参考英文句 `reference_text`、维度提示 `dimension_hints`；无说明时可为 `""`。**带原文**时在 `text` 中写明 `reference_text:` 英文台词/课文（朗读对标）；**不带原文**时不写或为空白，响应里 `reference_text` 需为 `null`，按自由作答判分，不得捏造对照文案。
   - `{"type":"audio","file_id":"<上一步取得的 file_id>"}`
@@ -608,11 +608,22 @@ context：学生为小学五年级，刚在批改中把 have been to 与 have go
 
 ### 上传文件
 
-**Coze**：`POST https://api.coze.cn/v1/files/upload`，`multipart/form-data`，字段名 `**file**`。响应 `data.id` 即 `**file_id**`。文档：[上传文件](https://www.coze.cn/docs/developer_guides/upload_files?_lang=zh)
+**接口形状对业务侧完全一样**：都是 `POST .../v1/files/upload`，`multipart/form-data`，字段名 `file`，拿到的都是一个 `file_id` 字符串，后续在 `/v3/chat` 的 `object_string` 里用 `{"type":"audio","file_id":"..."}` 引用。但**底层实现和语义有本质差异**，业务侧虽不需要改代码，但要理解行为区别：
 
-**Qwen 代理**：`POST <代理地址>/v1/files/upload`，同样 `multipart/form-data` + 字段名 `file`，响应结构 `{ code: 0, data: { id, bytes, created_at, file_name } }`，`data.id` 即 `file_id`；文件仅暂存于代理内存，默认 1 小时后过期（`QWEN_FILE_TTL_MS`）。
+| | Coze（字节） | Qwen 代理（本仓库 `server/`） |
+|---|---|---|
+| 上传后文件存在哪 | 字节侧对象存储，**跨进程/跨天持久**（有自己的过期策略，通常远长于 1 小时） | **仅存在代理进程的内存里**（`server/lib/fileStore.mjs` 的一个 `Map`），**不会**被转发上传到通义千问 / DashScope，也不落盘 |
+| `file_id` 本质 | 字节文件服务真实分配的资源 ID，可被多个后续对话复用、可能支持跨会话/跨机器访问 | 代理进程内部自造的一个随机字符串（`server/lib/ids.mjs` 的 `genId()`），**只在本进程有效**，仅是一个「稍后从内存里取回这段 buffer」的钥匙 |
+| 过期时间 | 由 Coze 平台策略决定 | **默认 1 小时**（`QWEN_FILE_TTL_MS`，可配置），到期或**代理进程重启/`pm2 restart`** 后立即失效 |
+| 真正喂给模型的内容 | Coze 内部把 `file_id` 解析回文件，走它自己的多模态输入通道 | 对话请求命中 `/v3/chat` 时，代理用 `file_id` 从内存 `Map` 里取出原始音频 `Buffer`，**当场 base64 编码**，拼成 `data:;base64,<...>` 的 data URI，作为 `input_audio` 字段**内联**在发给通义千问 `qwen3.5-omni-flash` 的 `chat.completions.create` 请求体里一次性传过去（见 `server/qwen/client.mjs`）。**通义千问侧完全不知道“file_id”这个概念，也没有单独的“先传文件再引用”接口**，全部音频数据都是这一次 HTTP 请求内联传输的 |
+| 上传大小限制 | 字节侧限制（较大） | `QWEN_MAX_FILE_BYTES`，默认 100MB（multer 内存限制，超限直接 413） |
+| 支持的音频格式 | 字节侧自行判断 | 按上传文件名后缀猜测格式（`server/lib/fileStore.mjs` 的 `detectAudioFormat`）：`wav/mp3/m4a→aac/aac/ogg/opus→ogg/amr/3gp/3gpp`，**文件名必须带正确扩展名**，否则会被当成未知格式传给千问导致解析失败 |
+| 多次复用同一 `file_id` | 支持 | 支持（只要没过期、代理没重启，同一 `file_id` 可在多次 `/v3/chat` 里重复引用，因为内存里的 buffer 没被消费掉） |
+| 跨机器/多实例部署 | 天然支持（中心化存储） | **不支持**：如果代理后续做了多实例负载均衡，`file_id` 只在处理上传请求的那个进程内存里，别的实例读不到；当前生产是单进程 pm2（`fork` 模式、1 个实例），暂无此问题 |
 
-**对话接入只用 `file_id`**：在 `/v3/chat` 里用 `object_string` 带上 `image / audio + file_id`，平台/代理在对话侧解析；不要尝试把 `file_id` 拼成公网 URL。若业务要长期可访问的图/音 URL，请走自有对象存储。
+**一句话总结差异**：Coze 的 `file_id` 是指向一份「平台托管的持久文件」；Qwen 代理的 `file_id` 只是「本进程内存里一段音频 buffer」的临时句柄，最终会在对话请求发生的那一刻被整体 base64 内联进对千问的一次性请求里——**千问本身没有文件上传接口，这一步“文件上传”完全是代理自己模拟出来兼容 Coze 协议的**。
+
+**不要**尝试把 `file_id` 拼成公网 URL 使用（两种引擎都不支持）；若业务要长期可访问的图/音 URL，请走自有对象存储。
 
 ### `object_string` 注意点
 
