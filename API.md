@@ -193,12 +193,15 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 | `items[].explanation_zh`                  | string         | 完整讲解（中文，可直接 TTS）                                                                                                                                                                                    |
 | `items[].knowledge_points_zh`             | string[]       | 1–3 个考点关键词，便于学习总结 bot 抓薄弱点                                                                                                                                                                          |
 | `items[].composition`                     | object \| 缺省    | **仅 `item_type=composition` 的 item 才有**；其它题型不输出此字段                                                                                                                                                  |
-| `items[].composition.total_score`         | number \| null  | 作文总分（无量表时为 `null`）                                                                                                                                                                                  |
-| `items[].composition.rubric_breakdown[]`  | array          | `{dimension_zh, score, comment_zh}`（中文维度名；当前 `score` 一律 `null`）                                                                                                                                     |
+| `items[].composition.exam_standard`       | `"KET"` \| `"PET"` \| `null` | **新增**：题目明确标注 KET（A2 Key）/ PET（B1 Preliminary）写作时给出对应值，并按剑桥官方最新评分标准打分；未标注时为 `null`，走通用四维（此时 `score` 一律 `null`，见下） |
+| `items[].composition.total_score`         | number \| null  | 作文总分；`exam_standard=null` 时为 `null`；`KET` 时为 0–15（内容+组织+语言之和）；`PET` 时为 0–20（内容+交流效果+结构组织+语言应用之和）                                                                                                       |
+| `items[].composition.rubric_breakdown[]`  | array          | `{dimension_zh, score, comment_zh}`；`exam_standard=null` 时中文维度名为「内容/结构/语言/卷面」、`score` 一律 `null`（无量表）；`exam_standard=KET` 时维度为「内容/组织/语言」3 项，`score` 为 0–5 具体分；`exam_standard=PET` 时维度为「内容/交流效果/结构组织/语言应用」4 项，`score` 为 0–5 具体分 |
 | `items[].composition.highlight_revisions` | string[]       | 改写示例（中文为主，可夹英文片段）                                                                                                                                                                                   |
 | `overall_comment_zh`                      | string         | 总评（中文）                                                                                                                                                                                              |
 | `limitations`                             | string[]       | OCR / 缺原文 / 无题库无法核对标答等限制（中文）                                                                                                                                                                        |
 
+> **KET/PET 写作评分标准（新增）**：业务侧若已知本次作文题目来自 KET（A2 Key）或 PET（B1 Preliminary）考试，需在 `object_string` 的 `text` 中显式注明（如 `"这是一篇 PET 写作真题，请按 PET 官方标准评分"`），模型才会启用对应的剑桥官方最新评分标准（见上表 `composition.exam_standard`）；不注明则按通用「内容/结构/语言/卷面」四维给出定性点评，不打分。
+>
 > **结构变更说明**：旧版本曾在顶层输出 `composition_assessment` 与 `items` 并列；当前版本已**统一收进 `items`**，作为 `item_type=composition` 的 item，并把作文专属字段放在 `items[].composition` 子对象里。这样前端只需对 `items` 做一次遍历，再按 `item_type` 分流；同一份作业里若有多篇作文，会出现多个 composition item。
 >
 > **阅读原文位置（重要）**：完整阅读原文统一放在**顶层 `passages[]`** 的 `passage_text`，**不在每个 item 里重复**。item 只通过 `passage_ref` 指向 `passages[].passage_id`，与本题判分直接相关的句段写到 `evidence_quote` / `evidence_translation_zh`。前端展示"原题 + 原文"时，从 `passages` 里按 `passage_ref` 取整篇文章。
@@ -332,6 +335,12 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 | `language.lexical_suggestions_zh`           | string[]      | 词汇升级建议（中文）                                                                                                                                                              |
 | `coaching_tips_zh`                          | string[]      | 练习建议（中文）                                                                                                                                                                |
 | `limitations`                               | string[]      | 限制说明（中文）                                                                                                                                                                |
+| `exam_rubric`                                | object \| null | **新增**：`assignment`/`text` 明确标注 KET（A2 Key）/ PET（B1 Preliminary）口语时给出，按剑桥官方最新评分标准打分；未标注时为 `null`，只走上面的默认五维评分 |
+| `exam_rubric.exam_standard`                  | `"KET"` \| `"PET"` | 识别到的考试类型 |
+| `exam_rubric.dimensions[]`                   | array | KET 4 项：`grammar_vocabulary`/`pronunciation`/`interactive_communication`/`global_achievement`；PET 5 项：额外含 `discourse_management`（言语组织）；每项 `{id, label_zh, score_0_to_5, comment_zh}` |
+| `exam_rubric.overall_grade_hint_zh`          | string | 中文档位描述（如"接近合格档"），非精确等级换算 |
+
+> **KET/PET 口语评分标准（新增）**：业务侧若已知本次口语任务来自 KET（A2 Key）或 PET（B1 Preliminary）考试，需在 `text` 里的 `assignment` 中显式注明（如 `"KET Part 1 考官问答"`），模型才会额外输出 `exam_rubric`（见上表）并按剑桥官方最新评分标准打分；不注明则只走默认五维评分，`exam_rubric` 为 `null`。
 
 ### 示例 `object_string` 中 `text`
 

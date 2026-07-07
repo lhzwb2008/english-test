@@ -81,6 +81,7 @@
   "knowledge_points_zh": ["string，本篇作文考查的写作技能点（中文，可空）"],
 
   "composition": {
+    "exam_standard": null,
     "total_score": null,
     "rubric_breakdown": [
       { "dimension_zh": "内容", "score": null, "comment_zh": "" },
@@ -97,6 +98,32 @@
 - `standard_answer`、`evidence_quote`、`evidence_translation_zh`、`reading_subtype` 等字段对作文不适用，**统一给 `""` / `null`**，由前端按 `item_type` 忽略即可。
 - `is_correct` 对作文整体没有意义，固定给 `null`（不要写 `true/false`）。
 - 作文细节修订/纠错建议主要写在 `composition.highlight_revisions` 与 `explanation_zh` 中。
+- **`composition.exam_standard`**：默认 `null`，走通用「内容/结构/语言/卷面」四维评分（`score` 当前无评分量表时留 `null`）。**若** `original_question`/图中题目明确标注为 **KET（A2 Key）写作**或 **PET（B1 Preliminary）写作**（出现「KET」「A2 Key」「PET」「B1 Preliminary」等关键字，或题型明显是 KET 的邮件/图片故事、PET 的邮件/文章/故事续写且标注了考试来源），必须设为 `"KET"` 或 `"PET"`，并按下方"剑桥 KET/PET 写作评分标准"给出 `rubric_breakdown` 与 `total_score`（此时 `score` 必须给出 0–5 的具体分数，不再是 `null`）；未明确标注考试类型时不得臆造，保持 `null`。
+
+---
+
+# 剑桥 KET/PET 写作评分标准（仅当 `composition.exam_standard` 为 KET 或 PET 时使用，必须使用最新官方标准，不得凭经验自定义维度/档位）
+
+## KET（A2 Key）写作：3 个分项，每项 0–5 分，单篇满分 15
+
+- `内容`（Content）：任务要点覆盖与信息完整度。5 分＝100% 覆盖全部强制任务点、信息准确无冗余；3 分＝覆盖≥2/3 要点、核心内容清晰；1 分＝几乎未覆盖任何要点。字数不达标（Part 1<25 词、Part 2<35 词）时内容分最高不超过 3 分。
+- `组织`（Organisation）：结构/段落是否清晰、A2 级别衔接词（and, but, so, because, then, when 等）使用是否恰当、逻辑指代是否清晰。5 分＝结构清晰、衔接熟练、逻辑流畅；3 分＝有基本结构、衔接词基础但可用；1 分＝无结构、句子零散堆砌。
+- `语言`（Language）：词汇准确恰当性 + 语法结构正确性（A2 核心时态、基础并列句、情态动词等），核心看错误是否影响理解。5 分＝用词准确、语法正确、仅个别不影响理解的笔误；3 分＝基本满足任务需求，存在一些错误但不影响理解；1 分＝词汇/语法基本错误，严重影响理解。
+- 0 分（三维通用）：完全跑题、空白、无法辨认、抄袭。
+
+## PET（B1 Preliminary）写作：4 个分项，每项 0–5 分，单篇满分 20
+
+- `内容`（Content）：是否完整回应题目全部要求、信息是否充分、字数是否处于合理区间（90–110 词左右；<80 或>120 词内容分最高不超过 3 分）。
+- `交流效果`（Communicative Achievement）：文体格式是否正确、语气是否符合交际场景（如邮件礼貌问候/落款）、能否有效传递写作意图。
+- `结构组织`（Organisation）：段落划分是否清晰、逻辑是否顺畅、衔接手段是否自然多样（避免全篇仅用 and then）。
+- `语言应用`（Language）：语法错误频率、词汇丰富度、句式变化多样性（鼓励定语从句/状语从句等复合句式）。
+- 每维度 5 分＝该维度接近满分表现（详见下方档位描述）；3 分＝合格档，略有疏漏但不影响整体理解；1 分＝薄弱档，明显跑题/错误多/无结构；0 分＝完全不切题、空白、无法辨认、抄袭。
+
+**通用要求（KET/PET 均适用）**：
+- 打分前先在 `explanation_zh` 中简要引用学生作文原句作为依据，不得空泛给分。
+- `highlight_revisions` 至少给 1–2 条具体改写示例，体现该标准"高分要点"方向（如 KET 邮件类"问候-要点-道别"分层、PET 邮件类补充细节从句等）。
+- `rubric_breakdown` 的 `dimension_zh` 必须与所选标准的维度名称完全一致（KET 用"内容/组织/语言"三项；PET 用"内容/交流效果/结构组织/语言应用"四项），不得混用通用的"卷面"维度。
+- `total_score` = 各维度 `score` 之和（KET 满分 15，PET 满分 20）。
 
 ---
 
@@ -130,7 +157,7 @@
   - **顺序**：按在 `passage_text` 中**首次出现**顺序排列；同一词只列一次。
 - **`reading_subtype`** 仅在 `item_type=reading` 时取 `main_idea`（主旨）/ `detail`（细节）/ `inference`（推理）/ `vocabulary_in_context`（词义猜测），否则为 `null`。
 - **不得编造**图中不存在的题干文字；无法判断时降低 `confidence`，`is_correct` 保守处理（取 `false` 或最稳妥猜测）并在 `limitations` 说明。
-- 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）；按通用「内容/结构/语言/卷面」给出中文简评；分项 `score` 与 `total_score` 当前一律 `null`（因无评分量表）。若图中存在多篇作文，输出多个 composition item。
+- 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）。默认（未标注 KET/PET）按通用「内容/结构/语言/卷面」给出中文简评，分项 `score` 与 `total_score` 一律 `null`（因无评分量表）；**若明确标注 KET/PET**，必须按对应剑桥官方标准给出具体 `score`（0–5）与 `total_score`，见上方"剑桥 KET/PET 写作评分标准"专节。若图中存在多篇作文，输出多个 composition item。
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
 - 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本。

@@ -27,6 +27,46 @@
 
 若业务指定本次重点维度（例如只评流利度），可在 `text` 中说明；否则按下方**默认五维**全部输出。
 
+## 4）`exam_standard`（可选，KET/PET 专用）
+
+若 `assignment`/`text` 中明确标注本次作业为 **KET（A2 Key）口语**或 **PET（B1 Preliminary）口语**（含出现「KET」「A2 Key」「PET」「B1 Preliminary」等关键字），必须**额外**按下方"剑桥 KET/PET 口语评分标准"输出 `exam_rubric` 字段（见输出 schema）；未标注时 `exam_rubric` 为 `null`，只走默认五维评分，不得臆造考试类型。
+
+---
+
+# 剑桥 KET/PET 口语评分标准（仅当 `exam_standard` 为 KET 或 PET 时使用，必须使用最新官方标准，不得凭经验自定义维度）
+
+## KET（A2 Key）口语：4 个分项，每项 0–5 分
+
+- `grammar_vocabulary`（语法与词汇）：A2 级别基础语法掌握度 + 日常话题词汇丰富度/恰当性，核心看错误是否影响理解，不强行要求复杂语法。
+- `pronunciation`（发音）：单个音素清晰度、单词/句子重音准确度、语调恰当性；核心看整体可理解度，允许轻微口音。
+- `interactive_communication`（互动沟通）：主动参与对话、回应衔接、维持交流的能力；Part 2 搭档对话是核心考察场景。
+- `global_achievement`（总体表现）：整体交流流畅度、语句长度、场景适配度的综合印象分。
+
+档位锚点（5/3/1 档，4/2 为过渡档，可参考相邻档位适当给出）：
+- 5 分：该维度错误极少且不影响理解，表现优秀、流畅自然。
+- 3 分：该维度存在部分错误/不足，但不妨碍基本理解与交流。
+- 1 分：该维度掌握程度极低，严重影响理解或几乎无法达成该维度目标。
+- 0 分：该维度无有效表现。
+
+官方卷面总分公式（仅供参考展示，不要求模型换算等级）：`(语法词汇 + 发音 + 互动沟通) × 2 + 总体表现 × 3`，满分 45。
+
+## PET（B1 Preliminary）口语：5 个分项，每项 0–5 分
+
+- `grammar_vocabulary`（词汇语法）：B1 级别语法结构掌握度 + 词汇准确性/丰富度/话题适配性，鼓励尝试复杂结构，不因少量不影响理解的错误扣分。
+- `discourse_management`（言语组织）：表达连贯性、内容相关性、拓展深度、衔接手段使用；对应写作中的"结构组织"，是口语独有的语篇把控能力。
+- `pronunciation`（发音）：语音可理解度，含音素清晰度、重音准确性、语调自然度；允许口音，核心看"是否无需费力就能听懂"。
+- `interactive_communication`（互动交流）：发起话题、回应对方、维持对话、协商沟通的能力，是否自然双向交流而非单向独白。
+- `global_achievement`（总体表现）：全程综合交流效果、流畅度、语言适配能力的整体评定（权重 2 倍）。
+
+档位锚点：同 KET，5 分优秀流畅、3 分基本达标、1 分严重不足、0 分无有效表现。
+
+官方卷面总分公式（仅供参考展示）：`(词汇语法 + 言语组织 + 发音 + 互动交流 + 总体表现×2)`，满分 30。
+
+**通用要求（KET/PET 均适用）**：
+- `comment_zh` 必须结合 `transcript` 给出具体依据（引用学生原话中的问题/亮点），不得空泛套话。
+- 不得因**大小写、标点等纯书写格式问题**扣分或在评语中提及——口语评测不存在书写格式，只关注语音转写内容本身。
+- `exam_rubric.overall_grade_hint_zh`：可选，给出中文档位描述（如"接近合格档"），不强行换算精确等级证书。
+
 ---
 
 # 语言约定（必读）
@@ -121,10 +161,25 @@
     "lexical_suggestions_zh": ["string"]
   },
   "coaching_tips_zh": ["string"],
-  "limitations": ["string"]
+  "limitations": ["string"],
+  "exam_rubric": null
 }
 ```
 
 `grammar_issues` 也可退化为字符串数组（仅当模型把"问题+建议"合并写在一句话中时），但**说明须为中文**。
+
+`exam_rubric`：仅当识别到 `exam_standard` 为 KET 或 PET 时输出以下结构（否则整体为 `null`，不要输出空对象）：
+
+```json
+{
+  "exam_standard": "KET|PET",
+  "dimensions": [
+    { "id": "grammar_vocabulary|discourse_management|pronunciation|interactive_communication|global_achievement", "label_zh": "string", "score_0_to_5": null, "comment_zh": "string" }
+  ],
+  "overall_grade_hint_zh": "string"
+}
+```
+
+`dimensions` 只包含该标准实际拥有的分项（KET 4 项，无 `discourse_management`；PET 5 项，含 `discourse_management`），不得混用或多写。
 
 输出前自检：**只有一份合法 JSON**，双引号，无多余逗号，无 Markdown 围栏。
