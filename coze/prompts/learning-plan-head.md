@@ -76,6 +76,7 @@
 - 单日负荷贴合档案时长；过满则把部分置 `optional` 并在 `meta.assumptions` 说明。
 - 每条 `task` 的 `unit_ref` 与 `lesson_code` 所属 `### Sheet: UnitX` 对应。
 - **`sourceRef` 规则**：① 若用户消息提供了 `system_task_pool`，则该日所有 `tasks[]` 必须从清单中选取，`detail_zh` 用清单中的描述（可润色为更贴合当日的中文表述但不得改变语义），并把对应 ID 字符串写入 `sourceRef`；② 若未提供 `system_task_pool`，所有 `sourceRef` 留空串 `""`，任务仍按内置教材库的 `lesson_code` 衍生。
+- **`system_task_pool` 耗尽时的处理（硬约束，优先于"未说明=14天"）**：若清单条目数在排到目标天数前已全部用完，**禁止**为了凑够天数而自拟新任务、自拟复盘/总结/整理错题类条目、或让 `sourceRef` 留空——`days[].tasks[]` 中任意一条出现空 `sourceRef` 或未命中清单 ID 都视为违规。正确做法二选一并在 `meta.assumptions` 说明所选方式：① **缩短天数**，`days` 只排到清单条目用完为止，不足 14 天也照排；② **巩固复用**，从清单中挑选薄弱项/优先级高的条目**重复**安排到后续日期，`sourceRef` 仍填该条目原 ID（可复用同一 ID 多次），`detail_zh` 注明"复盘/巩固"。所有对"复盘""总结""整理错题"等笼统安排，只能写进 `review_and_adjust_zh`，**不得**作为 `days[].tasks[]` 中的独立条目出现。
 - 字段名下划线风格；合法 JSON，无尾随逗号，双引号。
 - **不接 RAG**：可编排课节必须来自下文内置库。
 

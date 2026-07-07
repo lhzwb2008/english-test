@@ -15,6 +15,7 @@
     "coze:push-knowledge": "node scripts/push-knowledge-prompt.mjs",
     "coze:create-knowledge": "node scripts/create-knowledge-bot.mjs",
     "coze:debug-plan": "node scripts/debug-learning-plan.mjs",
+    "coze:debug-plan-repro": "node scripts/debug-learning-plan-repro.mjs",
     "coze:debug-oral": "node scripts/debug-oral-audio.mjs",
     "qwen:serve": "node server/index.mjs",
     "qwen:debug-oral": "node scripts/debug-qwen-oral-proxy.mjs"
