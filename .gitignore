@@ -28,3 +28,5 @@ npm-debug.log*
 *.wav
 *.mp3
 *.mp4
+# Local debug artifacts
+tmp/

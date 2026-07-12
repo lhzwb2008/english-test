@@ -185,7 +185,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 | `items[].original_question`               | string         | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""`                                                                                                                                                             |
 | `items[].standard_answer`                 | string         | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填）                                                                                                                                                          |
 | `items[].passage_ref`                     | string         | 本题对应的 `passages[].passage_id`；非阅读题为 `""`                                                                                                                                                            |
-| `items[].evidence_quote`                  | string         | 判分依据所摘录的原文/题干句子；阅读题写自 `passages[].passage_text` 的相关片段，非阅读题可为空                                                                                                                                       |
+| `items[].evidence_quote`                  | string         | 判分依据的原文连续摘录；有 `passage_ref` 时必须是对应 `passages[].passage_text` 的**连续子串**（禁止 `...` 省略、改写、拼接不相邻句）；听力脚本与阅读同等。非阅读/听力材料题可为空                                                                                                       |
 | `items[].evidence_translation_zh`         | string         | `evidence_quote` 的中文翻译                                                                                                                                                                              |
 | `items[].student_answer`                  | string         | 识别到的作答；不清写 `illegible`                                                                                                                                                                              |
 | `items[].is_correct`                      | boolean \| null | 是否正确（`standard_answer` 为空时按通用语言规则给最稳妥判断，不确定时降低 `confidence`）；**作文 item 固定 `null`**                                                                                                                  |
@@ -205,7 +205,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 >
 > **结构变更说明**：旧版本曾在顶层输出 `composition_assessment` 与 `items` 并列；当前版本已**统一收进 `items`**，作为 `item_type=composition` 的 item，并把作文专属字段放在 `items[].composition` 子对象里。这样前端只需对 `items` 做一次遍历，再按 `item_type` 分流；同一份作业里若有多篇作文，会出现多个 composition item。
 >
-> **阅读原文位置（重要）**：完整阅读原文统一放在**顶层 `passages[]`** 的 `passage_text`，**不在每个 item 里重复**。item 只通过 `passage_ref` 指向 `passages[].passage_id`，与本题判分直接相关的句段写到 `evidence_quote` / `evidence_translation_zh`。前端展示"原题 + 原文"时，从 `passages` 里按 `passage_ref` 取整篇文章。
+> **阅读原文位置（重要）**：完整阅读/听力原文统一放在**顶层 `passages[]`** 的 `passage_text`，**不在每个 item 里重复**。item 只通过 `passage_ref` 指向 `passages[].passage_id`，与本题判分直接相关的句段写到 `evidence_quote` / `evidence_translation_zh`。**`evidence_quote` 必须是 `passage_text` 的连续原文子串**（禁止用 `...` 省略中间、禁止改写拼接），前端据此在原文中高亮；展示「原题 + 原文」时从 `passages` 按 `passage_ref` 取整篇。
 
 ### 示例 `object_string` 中 `text`（与 `image` 同条消息）
 

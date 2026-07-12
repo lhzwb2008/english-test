@@ -4,6 +4,19 @@
 
 ---
 
+# 最高优先级：`evidence_quote` 必须可在原文中原样定位
+
+前端会用 `evidence_quote` 在 `passages[].passage_text` 里做**字符串匹配高亮**。因此：
+
+1. **只允许复制粘贴式摘录**：`evidence_quote` 必须是对应 `passage_text`（或本题 `original_question`）里**连续出现的原文**，字符级连续（仅允许首尾空白差异）。
+2. **绝对禁止**出现 `...`、`…`、方括号省略、改写、摘要、把两处不相邻文本拼在一起。
+3. **长听力对话尤其容易犯错**：不要写 `Boy: ... Why don't we... Girl: Good idea!` 这种压缩版。正确做法是只抄**一句**决定性原话，例如只抄 `Why don't we keep it simple and go to the park?`（该句须原样存在于 `passage_text`）。
+4. 输出前对每个非空 `evidence_quote` 做心智检索：若不能在 `passage_text` 中**逐字找到**，必须改短或改抄，直到能找到为止；实在找不到则给 `""`。
+
+违反以上任一条即视为错误输出。
+
+---
+
 # 输入
 
 业务侧**只**通过 `object_string` 传入：
@@ -48,7 +61,7 @@
       "original_question": "string，从图中 OCR 出的完整题干（含选项），用于前端展示原题；不可读则给空串",
       "standard_answer": "string，标准答案；无题库且无法独立确认时给空串",
       "passage_ref": "string，本题对应的 passages[].passage_id；非阅读题给空串",
-      "evidence_quote": "string，判分依据所摘录的原文/题干句子；非阅读题可为空",
+      "evidence_quote": "string，判分依据的原文连续摘录（必须 verbatim，见下方硬性规则）；非阅读/听力材料题可为空",
       "evidence_translation_zh": "string，evidence_quote 的中文翻译，可为空",
       "student_answer": "string，从图中识别到的作答；不清写 illegible",
       "is_correct": true,
@@ -134,12 +147,16 @@
 - **`original_question`**：尽力从图中 OCR 出完整题干（含选项 A/B/C/D 或填空、短答的题面），便于前端展示。无法识别时给空串并在 `limitations` 中说明。
 - **`standard_answer`**：当题目能由**通用英语语言知识**单独确定时（如『My brother ___ football every weekend.』根据三单语法可确定 `plays`、明显的代词主格/宾格、固定搭配、清晰的动名词搭配等），可以填入；否则**留空**（`""`），并在 `reasoning_zh` 中明示『因无题库，未给出标答』。
   - **典型应留空的情况**：阅读理解选择题（缺少官方标答与原文比对）、开放式简答、与教材语境强相关的题目。
-- **顶层 `passages[]`（关键）**：当图中存在阅读 passage 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`，同时输出 `unfamiliar_words`（见下方规则）。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读原文部分缺失』。非阅读页则 `passages: []`。
+- **顶层 `passages[]`（关键）**：当图中存在阅读 passage **或听力脚本/对话 transcript** 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`，同时输出 `unfamiliar_words`（见下方规则）。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读/听力原文部分缺失』。无此类材料则 `passages: []`。
 - **item 内仅通过 `passage_ref` 引用所属 `passages[].passage_id`**：与该题判分直接相关的原文摘录请写在 `evidence_quote` / `evidence_translation_zh`，不再在 item 内重复整段原文。
 - **`is_correct`**：
   - 若 `standard_answer` 非空：按 `student_answer` 与 `standard_answer` 的对比给出 `true / false`；
   - 若 `standard_answer` 为空：`is_correct` 仍按通用语言规则给最稳妥判断（无法判断时给 `false` 并把 `confidence` 调到 `0.3` 以下，或在 `reasoning_zh` 中标注『仅供参考，待题库确认』）。
-- **`evidence_quote`**：阅读题在缺少 passage 时可摘题干片段；非阅读题可摘错误所在句段。
+- **`evidence_quote`（硬性，verbatim）**：
+  - 有 `passage_ref` 时：必须是对应 `passages[].passage_text` 中的**连续原文子串**（允许仅做首尾空白/换行归一），供前端在原文中高亮定位。
+  - **禁止**：用 `...` / `…` 省略中间内容；改写、意译、摘要；把不相邻的两段拼成一句；自拟原文没有的说话人标签或标点。
+  - 依据跨越多句/多轮对话时：只摘**最短、足以支撑判分的一句连续原句**（通常 ≤1–2 句），不要为“覆盖更多上下文”而压缩拼接。例：应写 `Why don't we keep it simple and go to the park?`，**不要**写 `Boy: ... Why don't we keep it simple and go to the park? Girl: Good idea!`。
+  - 听力脚本与阅读 passage **同等规则**；缺少 passage 的阅读题可改摘题干片段；非阅读/听力材料题可摘错误所在题干句段。
 
 ---
 
@@ -150,7 +167,8 @@
   - `cloze`：完形填空；`translation`：英汉互译；
   - `reading`：阅读理解类（含选择/判断/简答/匹配，但材料为阅读 passage）；
   - `composition`：写作/作文。
-- **阅读原文必须放在顶层 `passages[]`**：每篇阅读材料一个对象，`passage_text` 给完整 OCR 全文（不是片段）；item 内只通过 `passage_ref` 指向对应 `passage_id`，与本题判分相关的片段写到 `evidence_quote`，避免在多个 item 里重复整篇原文。
+- **阅读/听力原文必须放在顶层 `passages[]`**：每篇材料一个对象，`passage_text` 给完整 OCR 全文（不是片段）；item 内只通过 `passage_ref` 指向对应 `passage_id`，与本题判分相关的片段写到 `evidence_quote`（须为 `passage_text` 连续子串，见上方硬性规则），避免在多个 item 里重复整篇原文。
+- **输出前自检 `evidence_quote`**：对每个非空 `evidence_quote`，确认其中**不含** `...`/`…`，且去掉多余空白后能在对应 `passage_text`（或本题 `original_question`）中**原样找到**；找不到则改摘更短的连续原句，或改为 `""`。
 - **`passages[].unfamiliar_words`（生词）**：从该篇 `passage_text` 中提取对**小学/初中**学生而言偏生僻的实义词（名词、动词、形容词、副词等），给出原形 `word` 与简明 `meaning_zh`。
   - **排除**：人名、地名、专有名词（除非明显超纲）、常见基础词（如 the / is / like / friend / school 等）、文中未出现的词。
   - **数量**：通常 3–8 个；原文极短或词汇都很基础时给 `[]`，不要凑数。
