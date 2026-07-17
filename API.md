@@ -154,10 +154,12 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 
 ### 设计与限制
 
-- 业务侧**只**通过 `object_string` 传入 `**text`**（一句调用提示，如「请仅输出 JSON」）+ `**image` + `file_id**`。
-- **不传** `answer_key`、教材单元范围、阅读 passage、作文评分量表等业务上下文：这些是**题库 / 知识库**侧职责。
+- 业务侧**只**通过 `object_string` 传入 `**text`** + `**image` + `file_id**`。
+- **`text` 强烈建议附带本次「必做 / 选做」布置范围**（可与「请仅输出 JSON」写在同一段），模型将**只批该范围内的题**，同页未布置题目不会进入 `items[]`。必做与选做**分行**书写识别更稳。
+- **不传** `answer_key`、教材全文、阅读 passage、作文评分量表等业务上下文：这些是**题库 / 知识库**侧职责。
 - **当前为无题库版本**：模型基于图片 OCR 出题干，能由通用语言知识独立确定的题目（语法填空、固定搭配等）会给出 `standard_answer`；阅读题若图中印有 passage 则结合 passage 判分；其它情况下 `standard_answer` 留空（`""`），并在 `reasoning_zh` / `limitations` 写明「因无题库未给标答」。
 - **后续接入知识库 RAG 后**：Prompt 升级为"用 OCR 出的题干检索题库，命中后回填原题与标答"。**输出 schema 保持兼容**（业务无需改对接），`original_question` 与 `standard_answer` 直接写知识库返回的标准字段。
+- **写作批改**：作文 item 不再以「挑错」为主，而是输出基于学生原文的完整润色稿 `composition.polished_version`；面向学生/家长文案禁止使用「错误」等负面纠错措辞。
 
 ### 入参（`content_type: object_string`）
 
@@ -197,9 +199,10 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 | `items[].composition.exam_standard`       | `"KET"` \| `"PET"` \| `null` | **新增**：题目明确标注 KET（A2 Key）/ PET（B1 Preliminary）写作时给出对应值，并按剑桥官方最新评分标准打分；未标注时为 `null`，走通用四维（此时 `score` 一律 `null`，见下） |
 | `items[].composition.total_score`         | number \| null  | 作文总分；`exam_standard=null` 时为 `null`；`KET` 时为 0–15（内容+组织+语言之和）；`PET` 时为 0–20（内容+交流效果+结构组织+语言应用之和）                                                                                                       |
 | `items[].composition.rubric_breakdown[]`  | array          | `{dimension_zh, score, comment_zh}`；`exam_standard=null` 时中文维度名为「内容/结构/语言/卷面」、`score` 一律 `null`（无量表）；`exam_standard=KET` 时维度为「内容/组织/语言」3 项，`score` 为 0–5 具体分；`exam_standard=PET` 时维度为「内容/交流效果/结构组织/语言应用」4 项，`score` 为 0–5 具体分 |
-| `items[].composition.highlight_revisions` | string[]       | 改写示例（中文为主，可夹英文片段）                                                                                                                                                                                   |
+| `items[].composition.highlight_revisions` | string[]       | 润色对照要点（「原文 → 润色」说明；禁止「错误」话术）                                                                                                                                                                                   |
+| `items[].composition.polished_version`    | string         | **新增**：基于学生原文的完整英文润色稿；原文空白/无法 OCR 时为 `""`                                                                                                                                                                      |
 | `overall_comment_zh`                      | string         | 总评（中文）                                                                                                                                                                                              |
-| `limitations`                             | string[]       | OCR / 缺原文 / 无题库无法核对标答等限制（中文）                                                                                                                                                                        |
+| `limitations`                             | string[]       | OCR / 缺原文 / 无题库无法核对标答 / 未提供必做选做范围等限制（中文）                                                                                                                                                                        |
 
 > **KET/PET 写作评分标准（新增）**：业务侧若已知本次作文题目来自 KET（A2 Key）或 PET（B1 Preliminary）考试，需在 `object_string` 的 `text` 中显式注明（如 `"这是一篇 PET 写作真题，请按 PET 官方标准评分"`），模型才会启用对应的剑桥官方最新评分标准（见上表 `composition.exam_standard`）；不注明则按通用「内容/结构/语言/卷面」四维给出定性点评，不打分。
 >
@@ -210,8 +213,13 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 ### 示例 `object_string` 中 `text`（与 `image` 同条消息）
 
 ```text
+assignment:
+必做：P34：第3-4、6-7题
+选做：P34：第5题
 请仅输出 JSON。
 ```
+
+> 若暂未传布置范围，模型会尽量按图中「必做/选做」标注识别；仍无法确定时按可见已作答题批改，并在 `limitations` 注明。
 
 ### 示例输出（节选）
 
@@ -271,26 +279,28 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
       "student_answer": "I like play football. I play football with my friends after school. Football make me happy.",
       "is_correct": null,
       "confidence": 0.9,
-      "reasoning_zh": "作文整体表意清晰，主要存在两处语法错误，不做对错判断。",
-      "explanation_zh": "本篇 30 词小作文围绕「喜欢踢足球」展开，内容、结构、卷面都不错，主要问题集中在语法：like 后接动名词、主语 football 为第三人称单数需要 makes。建议改写为「I like playing football. I play football with my friends after school. Football makes me happy.」",
+      "reasoning_zh": "作文表意清晰，已给出基于原文的润色版，不做对错判断。",
+      "explanation_zh": "这篇小作文把爱好、和朋友踢球、开心的感受都写出来了，内容很完整。下面给出一篇在你原文基础上顺过表达的润色版，可以对照阅读；比如 like 后面接 playing，以及 Football makes me happy 会更顺一些。",
       "knowledge_points_zh": ["like + 动名词", "第三人称单数动词变化"],
       "composition": {
+        "exam_standard": null,
         "total_score": null,
         "rubric_breakdown": [
           { "dimension_zh": "内容", "score": null, "comment_zh": "内容完整，清晰说明了爱好、活动场景、感受，符合 30 词左右的字数要求。" },
           { "dimension_zh": "结构", "score": null, "comment_zh": "层次清晰：先点明爱好，再说明场景，最后表达感受。" },
-          { "dimension_zh": "语言", "score": null, "comment_zh": "存在两处语法错误：like 后接动名词应为 playing；主语 football 第三人称单数，make 要改为 makes。" },
+          { "dimension_zh": "语言", "score": null, "comment_zh": "整体能看懂；润色版主要顺了 like + 动名词，以及主语 football 的三单搭配。" },
           { "dimension_zh": "卷面", "score": null, "comment_zh": "书写整洁，无涂改痕迹。" }
         ],
+        "polished_version": "I like playing football. I play football with my friends after school. Football makes me happy.",
         "highlight_revisions": [
-          "将 I like play football 改为 I like playing football（like + 动名词）",
-          "将 football make me happy 改为 football makes me happy（三单 makes）"
+          "原文：I like play football → 润色：I like playing football",
+          "原文：Football make me happy → 润色：Football makes me happy"
         ]
       }
     }
   ],
-  "overall_comment_zh": "本次作业完成度较好。阅读第 1 题与填空第 4 题正确，阅读第 2 题未定位到原文原因类信息，填空第 3 题需巩固三单变化；作文表意清晰但有两处小语法错误。",
-  "limitations": ["写作题无官方评分量表，仅给参考建议与语法修改，未做官方评分"]
+  "overall_comment_zh": "本次作业完成度较好。阅读第 1 题与填空第 4 题正确，阅读第 2 题可再核对原文原因类信息，填空第 3 题可继续巩固三单变化；作文表意清晰，已给出润色版供对照。",
+  "limitations": ["写作题无官方评分量表，仅给参考讲评与润色稿，未做官方评分"]
 }
 ```
 
