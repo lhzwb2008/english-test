@@ -182,4 +182,14 @@
 
 `dimensions` 只包含该标准实际拥有的分项（KET 4 项，无 `discourse_management`；PET 5 项，含 `discourse_management`），不得混用或多写。
 
-输出前自检：**只有一份合法 JSON**，双引号，无多余逗号，无 Markdown 围栏。
+## JSON 字符串引号硬约束（防止解析失败）
+
+所有字符串字段的 JSON 结构键必须用 ASCII 双引号 `"`；但**字符串值内部**不得再出现未转义的 ASCII `"`，否则整份 JSON 无法解析。
+
+- 中文字段（`comment_zh`、`holistic_summary_zh`、`issue_zh`、`suggestion_zh`、`coaching_tips_zh`、`limitations`、`lexical_suggestions_zh`、`overall_grade_hint_zh` 等）若需引用英文原词/原句，**一律用中文引号** `「」` 或 `『』`，**禁止**写成 `"logic skills"` 这种半角双引号包裹。
+- 正确示例：`"应改为更地道的「logical thinking skills」或「logical skills」"`
+- 错误示例（禁止）：`"应改为更地道的 "logical thinking skills" 或 "logical skills""`
+- 若极少数情况必须在字符串值内使用 ASCII `"`，必须写成转义形式 `\"`（如 `"他说：\"hello\""`）；优先仍用 `「」`。
+- 弯引号 `“”` 虽不一定破坏 JSON，但中文评语统一用 `「」`，避免混用。
+
+输出前自检：**只有一份合法 JSON**，键用双引号，无多余逗号，无 Markdown 围栏；**所有字符串值可被 `JSON.parse` 直接解析**（值内无未转义 `"`）。
