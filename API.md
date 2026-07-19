@@ -219,7 +219,7 @@ assignment:
 请仅输出 JSON。
 ```
 
-> 若暂未传布置范围，模型会尽量按图中「必做/选做」标注识别；仍无法确定时按可见已作答题批改，并在 `limitations` 注明。
+> 若暂未传布置范围，模型会尽量按图中「必做/选做」标注识别；仍无法确定时按本页可见大题全量批改（含空白未作答的空），并在 `limitations` 注明。布置范围内每个编号空都会进入 `items[]`：已作答的判对错并讲解，未作答的 `student_answer` 为空、`is_correct=false`，仍给出 `standard_answer`（能确定时）与完整 `explanation_zh`。
 
 ### 示例输出（节选）
 
