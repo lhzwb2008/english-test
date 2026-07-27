@@ -54,24 +54,24 @@ Coze 其余 Bot（学习计划 / 图片批改 / 知识点讲解 / 万能文本�
 
 - `start_date`（可选）：具体公历起点（如 `2026-05-08`）。给出时模型按"日期模式"在每个 `days[i]` 同时输出 `day_index` 与 `date`；不给则按"序号模式"仅输出 `day_index`，由后端自行挂载日期。
 - `period_hint`（可选）：`"先排两周"` / `"按月排到本月底"` / `"排到本单元结束"`；未指明默认 **14 个连续学习日**。
-- `system_task_pool`（可选）：业务方注入的"系统任务库"原子任务清单，每条形如 `ID: 100; 标题: 1单元单词复习; 描述: 1单元学习完成后，需要先复习单词`。**当本字段非空时，输出里 `days[].tasks[]` 必须从该清单中挑选**，并把命中条目的 ID 原样回填到 `tasks[].sourceRef`；未提供时所有 `sourceRef` 为 `""`，按内置教材库 `lesson_code` 衍生任务。该字段当前过渡用 `text` 直传，后续将切换知识库 RAG，输出 schema 保持不变。
-  - **池子耗尽时**：若 `system_task_pool` 条目数不足以填满目标天数（默认或 `period_hint` 指定），模型会**优先缩短 `days` 天数**，或对清单中的条目**复用排期**（`sourceRef` 会重复出现同一 ID，`detail_zh` 会标注"复盘/巩固"），**绝不会**为凑天数而自拟池外任务或输出空 `sourceRef`。业务侧校验 `sourceRef` 时应按此预期处理，不要把"天数少于预期"或"同一 ID 出现多次"当作异常。
+- `system_task_pool`（**生产必给**）：业务方注入的"系统任务库"原子任务清单，每条形如 `ID: 100; 标题: 1单元单词复习; 描述: …`（也兼容带教材/单元/课程名称等字段的长格式）。**输出里 `days[].tasks[]` 必须全部从该清单挑选**，并把命中条目的 ID 原样回填到 `tasks[].sourceRef`。题库**不在** Bot System Prompt 里，每次请求由客户端注入。未提供时所有 `sourceRef` 为 `""`（仅兜底）。该字段当前用 `text` 直传，后续可切知识库 RAG，输出 schema 保持不变。
+  - **池子耗尽时**：若条目数不足以填满目标天数，模型会**优先缩短 `days`**，或对清单条目**复用排期**（同一 `sourceRef` 可重复，`detail_zh` 标注"复盘/巩固"），**绝不会**自拟池外任务、空 `sourceRef`，或插入「月度复盘」类假 day。业务侧校验时不要把"天数少于预期"或"同一 ID 出现多次"当作异常。
 
-**不传** `curriculum`、**不传** `task_pool`：四套陪跑表的**原子课节已编入扣子侧 Prompt**（按 `think1` / `think2` / `powerup2` / `powerup3` 分区，共 360+ 条），模型先判定 `meta.curriculum` 再从内置库匹配 `lesson_code`。**不走 RAG**。
+**不传** `curriculum`：由模型从 `student_profile` 推断写入 `meta.curriculum`。**不走 RAG**。
 
 ### 出参（`answer.content` → `JSON.parse`）
 
 | 字段                         | 类型       | 含义                                                      |
 | -------------------------- | -------- | ------------------------------------------------------- |
 | `meta.student_label`       | string   | 学生摘要（中文）                                                |
-| `meta.curriculum`          | string   | `think1` \| `think2` \| `powerup2` \| `powerup3`           |
+| `meta.curriculum`          | string   | `think1` \| `think2` \| `powerup2` \| `powerup3` \| `other` |
 | `meta.assumptions`         | string[] | 对齐取舍说明（中文）                                              |
 | `meta.schedule_mode`       | string   | `by_day_index` \| `by_date`                              |
 | `days[]`                   | array    | 学习日序列                                                   |
 | `days[].day_index`         | number   | 第几个学习日（1 起递增）                                           |
 | `days[].date`              | string   | 公历 `YYYY-MM-DD`，仅 `by_date` 时输出                         |
 | `days[].unit_zh`           | string   | 单元说明（中文为主）                                              |
-| `days[].lesson_code`       | string   | 内置库中该体系下某条 `####` 标题原文，如 `U1-L1-Reading1`               |
+| `days[].lesson_code`       | string   | 课节代号（从池内课程名称/任务标题归纳，如 `Unit3-Reading1`）              |
 | `days[].tasks[].detail_zh` | string   | 任务说明（中文）                                                |
 | `days[].tasks[].sourceRef` | string   | 命中的 `system_task_pool` 原子任务 ID（如 `"100"`）；未提供任务库时为 `""` |
 | `days[].tasks[].unit_ref`  | string   | 所属单元（如 `Unit 1`）                                        |
@@ -107,7 +107,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
     "student_label": "无锡市大桥小学三年级吴同学，THINK1第一单元Reading阶段，目标三年级暑假KET卓越、五年级暑假PET优秀，每日可学30-60分钟",
     "curriculum": "think1",
     "assumptions": [
-      "当前进度为THINK1第一单元Reading阶段，从U1-L1-Reading1开始对齐",
+      "当前进度为THINK1第一单元Reading阶段，从池内 Unit1 相关任务起排",
       "14个学习日对应公历日期为2026-05-08至2026-05-21（连续学习日）",
       "每周六线下课较多内容，必做项保持课后巩固优先，部分选做标 optional"
     ],
@@ -118,7 +118,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
       "day_index": 1,
       "date": "2026-05-08",
       "unit_zh": "Unit1 阅读1",
-      "lesson_code": "U1-L1-Reading1",
+      "lesson_code": "Unit1-Reading1",
       "tasks": [
         { "detail_zh": "1单元单词复习：完成 Unit1 单词表背记与认读", "sourceRef": "100", "unit_ref": "Unit 1", "priority": "must" },
         { "detail_zh": "1单元课文跟读：跟读 Unit1 Reading 课文 3 遍", "sourceRef": "101", "unit_ref": "Unit 1", "priority": "must" },
@@ -129,7 +129,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
       "day_index": 2,
       "date": "2026-05-09",
       "unit_zh": "Unit1 语法1词汇1",
-      "lesson_code": "U1-L2-Grammar1Vocabulary1",
+      "lesson_code": "Unit1-Grammar1Vocabulary1",
       "tasks": [
         { "detail_zh": "1单元语法练习：一般现在时填空 10 题", "sourceRef": "102", "unit_ref": "Unit 1", "priority": "must" },
         { "detail_zh": "1单元单词复习：滚动复习 Unit1 词表",  "sourceRef": "100", "unit_ref": "Unit 1", "priority": "must" }
@@ -144,6 +144,7 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 }
 ```
 
+上例仅说明字段形状；真实排课必须以当次消息里的 `system_task_pool` 为准。
 **本地联调（任务库 + sourceRef）**：仓库内 `npm run coze:debug-plan`（脚本 `scripts/debug-learning-plan.mjs`）会向学习计划 Bot 发一条含 `system_task_pool` 的文本消息，并校验返回里每条 `tasks[].sourceRef` 是否落在池内 ID。需配置环境变量 `COZE_API_TOKEN`（与上文鉴权一致）。
 
 ---

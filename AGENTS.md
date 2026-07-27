@@ -16,7 +16,7 @@ This is `english-coze-mvp` — a prompt-engineering & bot-management toolkit for
 
 | Command | What it does | Needs API? |
 |---------|-------------|------------|
-| `npm run coze:build-plan` | Merges prompt files → `learning-plan.md` | No |
+| `npm run coze:build-plan` | Sync slim `learning-plan-head.md` → `learning-plan.md` | No |
 | `npm run coze:spaces` | Lists Coze workspaces | Yes |
 | `npm run coze:push-plan` | Build + push prompt to Plan bot | Yes |
 | `npm run coze:push-oral` | Push oral prompt | Yes |

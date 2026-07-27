@@ -1,3 +1,5 @@
+> **说明**：本文件由教研 Excel 导出，仅作仓库内对照/导出产物。**不再合并进**计划 Bot 发布 Prompt（题库由客户端每次请求注入 `system_task_pool`）。
+
 ## 内置 · think1（来自 Think1 完整版陪跑计划表）
 ### Sheet: Unit welcome
 #### Welcome-PartA-01
