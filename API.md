@@ -57,14 +57,14 @@ Coze 其余 Bot（学习计划 / 图片批改 / 知识点讲解 / 万能文本�
 - `system_task_pool`（**生产必给**）：业务方注入的"系统任务库"原子任务清单，每条形如 `ID: 100; 标题: 1单元单词复习; 描述: …`（也兼容带教材/单元/课程名称等字段的长格式）。**输出里 `days[].tasks[]` 必须全部从该清单挑选**，并把命中条目的 ID 原样回填到 `tasks[].sourceRef`。题库**不在** Bot System Prompt 里，每次请求由客户端注入。未提供时所有 `sourceRef` 为 `""`（仅兜底）。该字段当前用 `text` 直传，后续可切知识库 RAG，输出 schema 保持不变。
   - **池子耗尽时**：若条目数不足以填满目标天数，模型会**优先缩短 `days`**，或对清单条目**复用排期**（同一 `sourceRef` 可重复，`detail_zh` 标注"复盘/巩固"），**绝不会**自拟池外任务、空 `sourceRef`，或插入「月度复盘」类假 day。业务侧校验时不要把"天数少于预期"或"同一 ID 出现多次"当作异常。
 
-**不传** `curriculum`：由模型从 `student_profile` 推断写入 `meta.curriculum`。**不走 RAG**。
+**不传** `curriculum`：由模型从 `student_profile` 推断写入 `meta.curriculum`。若档案显式写了「使用教材」（如 `使用教材：PET`），模型**必须只排该教材**对应的池内任务，忽略混池里其它教材（学习历史提到的旧教材不算排课许可）。**不走 RAG**。
 
 ### 出参（`answer.content` → `JSON.parse`）
 
 | 字段                         | 类型       | 含义                                                      |
 | -------------------------- | -------- | ------------------------------------------------------- |
 | `meta.student_label`       | string   | 学生摘要（中文）                                                |
-| `meta.curriculum`          | string   | `think1` \| `think2` \| `powerup2` \| `powerup3` \| `other` |
+| `meta.curriculum`          | string   | `think1` \| `think2` \| `powerup2` \| `powerup3` \| `pet` \| `other` |
 | `meta.assumptions`         | string[] | 对齐取舍说明（中文）                                              |
 | `meta.schedule_mode`       | string   | `by_day_index` \| `by_date`                              |
 | `days[]`                   | array    | 学习日序列                                                   |

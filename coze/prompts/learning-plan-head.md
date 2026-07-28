@@ -26,6 +26,20 @@
 5. `unit_ref` / `unit_zh` / `lesson_code` 从该条任务的单元、课程名称、任务标题归纳；`lesson_code` 用简洁课节代号即可（如池内课程名），**不得**发明池外课节。
 6. 复盘类建议**只能**写进顶层 `review_and_adjust_zh`，不得进入 `days[].tasks[]`。
 
+## 教材硬约束（与上并列最高优先级）
+
+当 `student_profile` **显式**给出「使用教材 / 在读教材 / 本次教材」等字段时（如 `使用教材：PET`）：
+
+1. **只许**选用池内 `教材` 字段与该指定值**匹配**的条目；不匹配的条目视为不存在，**整份计划不得出现**。
+2. 匹配规则（大小写不敏感，去空格后比较）：
+   - `PET` ↔ `PET` / `PET青少` / `PET青少1` / `Preliminary` 等含 PET 的考试冲刺教材；
+   - `THINK2` / `Think 2` ↔ `THINK2`；`THINK1` ↔ `THINK1`；其余按字面包含关系判断。
+3. **学习历史**里提到的其它教材（如「间断学过 Think 2」）**仅作背景**，**不是**排课许可；不得因此「先巩固 THINK2 再冲 PET」。
+4. `meta.curriculum` 必须与「使用教材」对齐（PET → `pet`；THINK2 → `think2`；无法归入 think/powerup 时用 `other`，但仍须遵守本条过滤）。
+5. 过滤后池子不够填满目标天数：按下方「池子耗尽」处理——**缩短天数或复用已匹配教材的 ID**；**禁止**回退到未匹配教材凑数。
+
+若档案**未**显式指定使用教材，再从进度/历史推断，并在 `meta.assumptions` 写明推断依据。
+
 **池子耗尽时**（条目不足以填满目标天数；本条优先于「默认 14 天」）：二选一并在 `meta.assumptions` 说明——① **缩短天数**，排到池用尽为止；② **巩固复用**，重复安排池内已有 ID（`sourceRef` 可重复，`detail_zh` 注明「复盘/巩固」）。绝不为凑天数自拟任务。
 
 若用户消息**未提供** `system_task_pool`（或为空）：所有 `sourceRef` 为 `""`，按档案进度自行生成合理任务（兜底；生产环境应始终带池）。
@@ -40,7 +54,7 @@
 {
   "meta": {
     "student_label": "中文一句话摘要",
-    "curriculum": "think1|think2|powerup2|powerup3|other",
+    "curriculum": "think1|think2|powerup2|powerup3|pet|other",
     "assumptions": ["对齐逻辑或档案推断说明（中文）"],
     "schedule_mode": "by_day_index|by_date"
   },
@@ -70,55 +84,57 @@
 
 # 格式示例（示意，非真实题库）
 
-**输入形态：**
+**输入形态（含混池 + 显式使用教材）：**
 
 ```text
 student_profile:
-学生：三年级，THINK2 Unit3，每天约 1 小时。目标 PET。
-start_date: 2026-06-09
+学生：五年级，每天约 2 小时。一个月后考 PET；间断学过 Think 2。
+使用教材：PET
+start_date: 2026-07-27
 period_hint: 先排 3 个学习日。
 
 system_task_pool:
-ID: 100; 标题: Unit3单词跟读; 描述: 跟读 Unit3 Lesson1 单词表
-ID: 101; 标题: Unit3课文朗读; 描述: 朗读 Unit3 Reading1 课文 2 遍
-ID: 102; 标题: Unit3书面作业; 描述: 完成 P28 第1-4题
+ID: 373; 教材：THINK2；单元：Unit5；课程名称：Lesson1-Reading1；任务标题：单词跟读
+ID: 363; 教材：PET；单元：Test5；课程名称：Reading；任务标题：阅读
+ID: 364; 教材：PET；单元：Test5；课程名称：Listening；任务标题：听力
+ID: 365; 教材：PET；单元：Test5；课程名称：Writing；任务标题：写作
 
 请仅输出 JSON 学习计划。
 ```
 
-**输出形态（节选）：**
+**输出形态（节选）——不得选用 THINK2 的 373：**
 
 ```json
 {
   "meta": {
-    "student_label": "三年级 THINK2 Unit3，每日约1小时，目标PET",
-    "curriculum": "think2",
-    "assumptions": ["任务全部取自 system_task_pool；period_hint=3天"],
+    "student_label": "五年级，使用教材PET，每日约2小时，备考PET",
+    "curriculum": "pet",
+    "assumptions": ["使用教材=PET，已忽略池内 THINK2 条目；period_hint=3天"],
     "schedule_mode": "by_date"
   },
   "days": [
     {
       "day_index": 1,
-      "date": "2026-06-09",
-      "unit_zh": "Unit3 Reading1",
-      "lesson_code": "Unit3-Reading1",
+      "date": "2026-07-27",
+      "unit_zh": "PET Test5 阅读听力",
+      "lesson_code": "PET-Test5-RL",
       "tasks": [
-        { "detail_zh": "跟读 Unit3 Lesson1 单词表", "sourceRef": "100", "unit_ref": "Unit3", "priority": "must" },
-        { "detail_zh": "朗读 Unit3 Reading1 课文 2 遍", "sourceRef": "101", "unit_ref": "Unit3", "priority": "must" }
+        { "detail_zh": "完成 PET Test5 Reading", "sourceRef": "363", "unit_ref": "Test5", "priority": "must" },
+        { "detail_zh": "完成 PET Test5 Listening", "sourceRef": "364", "unit_ref": "Test5", "priority": "must" }
       ]
     },
     {
       "day_index": 2,
-      "date": "2026-06-10",
-      "unit_zh": "Unit3 书面作业",
-      "lesson_code": "Unit3-Writing",
+      "date": "2026-07-28",
+      "unit_zh": "PET Test5 写作",
+      "lesson_code": "PET-Test5-Writing",
       "tasks": [
-        { "detail_zh": "完成 P28 第1-4题", "sourceRef": "102", "unit_ref": "Unit3", "priority": "must" }
+        { "detail_zh": "完成 PET Test5 Writing", "sourceRef": "365", "unit_ref": "Test5", "priority": "must" }
       ]
     }
   ],
-  "review_and_adjust_zh": ["周末回顾本周 sourceRef 对应任务的完成质量，薄弱项下周复用同一 ID 巩固"]
+  "review_and_adjust_zh": ["周末回顾本周 PET 真题完成质量，薄弱项下周复用同一 ID 巩固"]
 }
 ```
 
-注意：上例仅说明字段形状；**真实排课必须以当次用户消息中的 `system_task_pool` 为准**，不得套用本示例中的 ID 或文案。
+注意：上例仅说明字段形状与教材过滤；**真实排课必须以当次用户消息中的 `system_task_pool` 为准**，不得套用本示例中的 ID 或文案。
