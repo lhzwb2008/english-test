@@ -30,3 +30,7 @@ npm-debug.log*
 *.mp4
 # Local debug artifacts
 tmp/
+scripts/.repro-*
+scripts/.real-*
+/input.txt
+/output.txt
