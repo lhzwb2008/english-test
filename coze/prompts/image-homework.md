@@ -65,6 +65,21 @@
 
 ---
 
+# 最高优先级：多图也必须输出 `passages[]` 并挂 `passage_ref`（禁止整段跳过阅读）
+
+前端错题/讲解依赖 `passages` + `passage_ref`。**多图、无题库、卷面已有教师批改痕迹，都不能成为空 `passages` / 空 `passage_ref` 的理由。**
+
+1. **凡图中可见的阅读/听力材料都必须进 `passages[]`**（每篇一个对象，`passage_text` 为完整 OCR，不是一句摘录）。包括但不限于：告示/便条/短信/邮件、短文、完形填空正文、句子还原正文、听力脚本。多图时**逐页**收集，合并进同一次输出的 `passages[]`，不得只处理「语法好判」的几页而丢掉其他页的原文。
+2. **依赖该材料的题必须挂非空 `passage_ref`**：`item_type` 为 `reading` / `cloze` / `matching`（匹配阅读材料时），或题干明显基于某篇 notice/短文作答时，`passage_ref` **必须**等于对应 `passages[].passage_id`。完形填空用 `cloze`（不要退化成无 `passage_ref` 的裸 `mcq`/`fill_blank`）。
+3. **`passage_ref=""` 仅限真正无材料题**：孤立语法填空、翻译、作文、与任何图中原文无关的单句练习。只要图中有对应材料却输出空 `passage_ref`，即视为错误输出。
+4. **禁止「因无题库 / 缺官方标答」整段跳过阅读题**：无题库时 `standard_answer` 可以 `""`，`is_correct`/`confidence` 可降低，但**仍须**输出该题 item，并尽量 OCR `original_question`、填写 `passages` 与 `passage_ref`。不得在 `limitations` 写「阅读理解未纳入本次批改」来逃避。
+5. **材料确实不在本批图片中**（如写「见对面页 / see opposite page」且对面页未上传）：该题仍输出 item，`passages` 可不含缺失篇，`passage_ref` 给 `""`，并在 `limitations` 写明『第×题原文在未提交页』——**仅此情形**允许阅读题空 `passage_ref`。
+6. **输出前自检**：若任一项 `item_type` 为 `reading`/`cloze` 且图中能看到对应正文，则 `passages.length≥1` 且该项 `passage_ref` 非空；否则必须改到满足。
+
+违反以上任一条即视为错误输出。
+
+---
+
 # 最高优先级：`is_correct` 与讲解必须自洽（禁止「答案对却判错」）
 
 输出前对**每一道非作文题**做下列自检；任一不满足即视为错误输出，必须改到满足为止：
@@ -125,7 +140,7 @@
     {
       "passage_id": "string，本页内的稳定标识，如 P1/P2",
       "title": "string，阅读材料标题（如有），无则空串",
-      "passage_text": "string，从图中 OCR 出的完整阅读原文，保留段落用 \\n 分段；非阅读页则整个 passages 数组给 []",
+      "passage_text": "string，从图中 OCR 出的完整阅读/完形/告示等原文，保留段落用 \\n 分段；本批图均无此类材料时整个 passages 才给 []",
       "passage_translation_zh": "string，整篇中文参考译文，可分段；无法翻译时给空串",
       "unfamiliar_words": [
         {
@@ -143,8 +158,8 @@
       "reading_subtype": "main_idea|detail|inference|vocabulary_in_context|null",
       "original_question": "string，从图中 OCR 出的完整题干（含选项），用于前端展示原题；不可读则给空串",
       "standard_answer": "string，标准答案；无题库且无法独立确认时给空串",
-      "passage_ref": "string，本题对应的 passages[].passage_id；非阅读题给空串",
-      "evidence_quote": "string，判分依据的原文连续摘录（必须 verbatim，见下方硬性规则）；非阅读/听力材料题可为空",
+      "passage_ref": "string，本题对应的 passages[].passage_id；reading/cloze/有材料的 matching 必填；仅孤立语法/翻译/作文等无材料题给空串",
+      "evidence_quote": "string，判分依据的原文连续摘录（必须 verbatim，见下方硬性规则）；有 passage_ref 时优先摘自对应 passage_text",
       "evidence_translation_zh": "string，evidence_quote 的中文翻译，可为空",
       "student_answer": "string，从图中识别到的作答；不清写 illegible",
       "is_correct": true,
@@ -249,8 +264,9 @@
 - **`original_question`**：尽力从图中 OCR 出完整题干（含选项 A/B/C/D 或填空、短答的题面），便于前端展示。无法识别时给空串并在 `limitations` 中说明。
 - **`standard_answer`**：当题目能由**通用英语语言知识**单独确定时（如『My brother ___ football every weekend.』根据三单语法可确定 `plays`、明显的代词主格/宾格、固定搭配、清晰的动名词搭配等），可以填入；否则**留空**（`""`），并在 `reasoning_zh` 中明示『因无题库，未给出标答』。
   - **典型应留空的情况**：阅读理解选择题（缺少官方标答与原文比对）、开放式简答、与教材语境强相关的题目。
-- **顶层 `passages[]`（关键）**：当图中存在阅读 passage **或听力脚本/对话 transcript** 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`，同时输出 `unfamiliar_words`（见下方规则）。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读/听力原文部分缺失』。无此类材料则 `passages: []`。
-- **item 内仅通过 `passage_ref` 引用所属 `passages[].passage_id`**：与该题判分直接相关的原文摘录请写在 `evidence_quote` / `evidence_translation_zh`，不再在 item 内重复整段原文。
+  - **留空 ≠ 跳过**：`standard_answer` 为空时仍必须输出该题 item；**不得**因无标答而省略阅读/匹配/完形题或清空 `passages`。
+- **顶层 `passages[]`（关键，多图同样强制）**：当本批任意图中存在阅读 passage、告示/便条/短信/邮件、完形/句子还原正文、**或听力脚本/对话 transcript** 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`，同时输出 `unfamiliar_words`（见下方规则）。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读/听力原文部分缺失』。仅当本批图完全无此类材料时才 `passages: []`。
+- **item 内仅通过 `passage_ref` 引用所属 `passages[].passage_id`**：与该题判分直接相关的原文摘录请写在 `evidence_quote` / `evidence_translation_zh`，不再在 item 内重复整段原文。`reading`/`cloze`/有材料的 `matching` **禁止**空 `passage_ref`（材料未上传页除外，见上方硬约束）。
 - **`is_correct`**（必须遵守上方「最高优先级：自洽」）：
   - 若 `standard_answer` 非空：先归一化再对比 `student_answer`；**相等或语义等价 → 必须 `true`**；仅当明显不等价时才 `false`。翻译/单词英译中按「宽松判分」规则，勿因「的/地」或词性字面差判错。
   - 若 `standard_answer` 为空：`is_correct` 仍按通用语言规则给最稳妥判断（无法判断时给 `false` 并把 `confidence` 调到 `0.3` 以下，或在 `reasoning_zh` 中标注『仅供参考，待题库确认』）。
@@ -283,4 +299,4 @@
 - **`items[]` 范围**：只输出必做/选做范围内的题（见文首硬约束）；范围外的题不要出现在 `items` 中。**范围内每一个编号空都要有对应 item**（含学生未作答的空，见「空白/未作答」硬约束），不得只输出已填空。
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。讲解结论必须与 `is_correct` 一致（见上方自洽硬约束）。**空白未作答**时讲解仍须给出参考答案与理由，禁止只催促「把剩下的做完」。作文讲解另须遵守「禁止展示错误」规则。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
-- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「范围内空白空也已逐条输出且 explanation 含参考答案」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」六项核对。
+- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「范围内空白空也已逐条输出且 explanation 含参考答案」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」八项核对。
