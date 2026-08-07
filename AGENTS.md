@@ -28,3 +28,9 @@ This is `english-coze-mvp` — a prompt-engineering & bot-management toolkit for
 - **`.env` setup**: The `COZE_API_TOKEN` environment variable should be written into `/workspace/.env`. The file is `.gitignore`-d.
 - **No lint, build, or test system**: There is no ESLint, TypeScript, build step, or automated test suite. The codebase is plain Node.js ESM (`.mjs` files); verification is done by manually pushing prompts and trying the bots in the Coze console.
 - **Python is optional**: Only needed for `npm run coze:export-builtin` (Excel → Markdown export). The exported file is already committed.
+
+### Workflow preferences
+
+- **交付面**：Prompt/脚本改完后推 Coze（及如有的线上服务）即可；不要为联调另存 `tmp/`、截图复现产物、额外说明文档等过程文件。
+- **少写文档**：除非用户明确要求，不要同步改 `API.md` / README 等；以 `coze/prompts/*` 与推送结果为准。
+- **改完即提交**：用户要求的功能改动完成后，自动 `git commit` 相关源码（不含 `.env`、密钥、过程产物）；未要求则不要 push remote。
