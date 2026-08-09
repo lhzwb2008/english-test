@@ -74,3 +74,38 @@ export async function streamQwenText(params) {
 
   return { fullText, usage };
 }
+
+/**
+ * 调用文本 Qwen（非 Omni），一次性返回完整文本。
+ * @param {{
+ *   model: string,
+ *   systemPrompt?: string | null,
+ *   userText: string,
+ *   json?: boolean,
+ *   temperature?: number,
+ * }} params
+ */
+export async function completeQwenText(params) {
+  const openai = getClient();
+
+  /** @type {import('openai').ChatCompletionMessageParam[]} */
+  const messages = [];
+  if (params.systemPrompt) {
+    messages.push({ role: 'system', content: params.systemPrompt });
+  }
+  messages.push({ role: 'user', content: params.userText });
+
+  /** @type {import('openai').ChatCompletionCreateParamsNonStreaming} */
+  const body = {
+    model: params.model,
+    messages,
+    temperature: params.temperature ?? 0.4,
+  };
+  if (params.json) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const completion = await openai.chat.completions.create(body);
+  const fullText = completion.choices?.[0]?.message?.content ?? '';
+  return { fullText, usage: completion.usage ?? null };
+}
