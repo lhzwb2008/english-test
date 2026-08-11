@@ -100,14 +100,19 @@ function kick() {
 }
 
 function maxSlides() {
-  const n = Number(process.env.GRAMMAR_VIDEO_MAX_SLIDES || 8);
-  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 5), 8) : 8;
+  const n = Number(process.env.GRAMMAR_VIDEO_MAX_SLIDES || 5);
+  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 3), 5) : 5;
 }
 
-/** 生图并发路数：每路独立 Agent，路内复用（Cursor 单 Agent 不能并行 run） */
-function imageConcurrency() {
-  const n = Number(process.env.GRAMMAR_VIDEO_IMAGE_CONCURRENCY || 3);
-  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 1), 6) : 3;
+/** 生图并发：默认等于页数（全部并行）；可用 GRAMMAR_VIDEO_IMAGE_CONCURRENCY 限流 */
+function imageConcurrency(slideCount) {
+  const raw = process.env.GRAMMAR_VIDEO_IMAGE_CONCURRENCY;
+  if (raw === undefined || raw === '') {
+    return Math.max(1, slideCount);
+  }
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return Math.max(1, slideCount);
+  return Math.min(Math.max(Math.floor(n), 1), Math.max(1, slideCount));
 }
 
 /**
@@ -219,7 +224,7 @@ async function runPipeline(jobId, publicBaseUrl) {
     JSON.stringify(drillData, null, 2),
   );
 
-  // 2) 分镜脚本（1–3 分钟，高教学密度）
+  // 2) 分镜脚本（约 1 分钟，3–5 页）
   updateJob(jobId, { progress: 'script' });
   const scriptPrompt = loadPrompt('grammar-video-script.md');
   const script = await completeVideoJson(scriptPrompt, {
@@ -228,12 +233,12 @@ async function runPipeline(jobId, publicBaseUrl) {
     student_profile: input.student_profile,
     focus_points: input.focus_points,
     max_slides: maxSlides(),
-    duration_target: '1-3 minutes',
+    duration_target: 'about 1 minute',
   });
   let slides = Array.isArray(script.slides) ? script.slides : [];
   slides = slides.slice(0, maxSlides());
-  if (slides.length < 5) {
-    throw new Error(`分镜页数不足（需要≥5）: ${slides.length}`);
+  if (slides.length < 3) {
+    throw new Error(`分镜页数不足（需要≥3）: ${slides.length}`);
   }
   fs.writeFileSync(
     path.join(workDir, 'script.json'),
@@ -245,7 +250,7 @@ async function runPipeline(jobId, publicBaseUrl) {
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
   const composeSlides = [];
 
-  // 3) 生图：Cursor Grok，多路并发 + 每路复用 Agent；未配置回退万相
+  // 3) 生图：全部并行（每页独立 Agent）
   updateJob(jobId, { progress: 'images' });
   const imageTasks = slides.map((slide, i) => {
     const labels = Array.isArray(slide?.on_image_text)
@@ -269,11 +274,12 @@ async function runPipeline(jobId, publicBaseUrl) {
     };
   });
 
-  const conc = imageConcurrency();
+  const conc = imageConcurrency(imageTasks.length);
   console.log(
-    `[grammar-video] images: ${imageTasks.length} slides, concurrency=${conc}`,
+    `[grammar-video] images: ${imageTasks.length} slides, concurrency=${conc} (full parallel=${conc >= imageTasks.length})`,
   );
   const imagePaths = await mapWithAgentPool(imageTasks, conc, async (task, _i, agentId) => {
+    // 全部并行时每路通常只处理 1 页；若限流则路内仍可复用 agentId
     const nextId = await generateSlideImage(
       task.prompt,
       task.imgPath,

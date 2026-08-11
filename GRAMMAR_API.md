@@ -602,7 +602,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 ## 3. 知识点口播短视频（异步）
 
-只把**讲解**做成竖屏口播短视频（目标 **1–3 分钟**，高教学密度），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
+只把**讲解**做成竖屏口播短视频（目标约 **1 分钟**，3–5 页分镜），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
 
 成片合成后上传到**阿里云 OSS**（`nba-dev-sh` / 前缀 `wenbo`）。当前 Bucket 为**私有**，`video_url` 为**签名 HTTPS**（默认约 7 天，查询接口会刷新签名），流量走 OSS 不走业务机。未配置 OSS 时才回退本服务 `/file`。
 
@@ -662,9 +662,9 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 ### 流水线说明
 
 1. **讲解 + 分镜文案**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）。分镜按**课堂教学**组织，**无吸睛引子 / cold_open**
-2. **生图**：Cursor 内置 GenerateImage（编排默认 **`grok-4.5`**；`GRAMMAR_VIDEO_IMAGE_CONCURRENCY` 路并发，每路复用同一 Agent；未配置则回退百炼万相）。**不使用 AiHubMix**
+2. **生图**：Cursor 内置 GenerateImage（编排默认 **`grok-4.5`**；默认**全部并行**，`GRAMMAR_VIDEO_IMAGE_CONCURRENCY` 可限流；未配置则回退百炼万相）。**不使用 AiHubMix**
 3. TTS：百炼 CosyVoice（默认音色 **`longxiaoxia_v2` 温柔女声**）；合成：本机 ffmpeg；上传：阿里云 OSS 签名 URL
-4. 目标时长 **1–3 分钟**，分镜约 5–8 页，强调例句 / 易混对比 / 口诀；整体制作耗时约 **10–20 分钟**（生图为主）
+4. 目标时长约 **1 分钟**，分镜 **3–5 页**；墙钟耗时主要在 Cursor 文案 2 次 + 生图一轮并行（约 1–2 分钟量级，视 Cursor 排队波动）
 ### 错误码
 
 | code | HTTP | 说明 |
