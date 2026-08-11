@@ -80,10 +80,6 @@ export function buildObjectUrl(key) {
   const seconds = signedSeconds();
   const url = client.signatureUrl(key, {
     expires: seconds,
-    response: {
-      'content-disposition': 'inline',
-      'content-type': 'video/mp4',
-    },
   });
   return {
     url,
