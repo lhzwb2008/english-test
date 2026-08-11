@@ -104,6 +104,42 @@ function maxSlides() {
   return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 5), 8) : 8;
 }
 
+/** 生图并发路数：每路独立 Agent，路内复用（Cursor 单 Agent 不能并行 run） */
+function imageConcurrency() {
+  const n = Number(process.env.GRAMMAR_VIDEO_IMAGE_CONCURRENCY || 3);
+  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 1), 6) : 3;
+}
+
+/**
+ * @template T, R
+ * @param {T[]} items
+ * @param {number} concurrency
+ * @param {(item: T, index: number, agentId: string|undefined) => Promise<{ value: R, agentId?: string }>} fn
+ * @returns {Promise<R[]>}
+ */
+async function mapWithAgentPool(items, concurrency, fn) {
+  /** @type {R[]} */
+  const out = new Array(items.length);
+  let cursor = 0;
+  const workers = Math.min(Math.max(1, concurrency), items.length);
+
+  await Promise.all(
+    Array.from({ length: workers }, async () => {
+      /** @type {string|undefined} */
+      let agentId;
+      while (true) {
+        const i = cursor;
+        cursor += 1;
+        if (i >= items.length) return;
+        const r = await fn(items[i], i, agentId);
+        out[i] = r.value;
+        if (r.agentId) agentId = r.agentId;
+      }
+    }),
+  );
+  return out;
+}
+
 /**
  * 口播文案：优先 Cursor Cloud Grok；未配置时回退 Qwen
  * @param {string} systemPrompt
@@ -210,18 +246,14 @@ async function runPipeline(jobId, publicBaseUrl) {
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
   const composeSlides = [];
 
-  // 3) 生图（Cursor 内置生图，同任务内复用 Agent；未配置回退万相）
+  // 3) 生图：Cursor Grok，多路并发 + 每路复用 Agent；未配置回退万相
   updateJob(jobId, { progress: 'images' });
-  const imagePaths = [];
-  /** @type {string|undefined} */
-  let imageAgentId;
-  for (let i = 0; i < slides.length; i += 1) {
-    const slide = slides[i] || {};
-    const labels = Array.isArray(slide.on_image_text)
+  const imageTasks = slides.map((slide, i) => {
+    const labels = Array.isArray(slide?.on_image_text)
       ? slide.on_image_text.filter((x) => typeof x === 'string').slice(0, 5)
       : [];
     const visual =
-      String(slide.visual_prompt || '').trim() ||
+      String(slide?.visual_prompt || '').trim() ||
       `English grammar teaching diagram about ${knowledgePoint}`;
     const prompt = buildWhiteboardPrompt({
       imagePrompt: visual,
@@ -231,15 +263,26 @@ async function runPipeline(jobId, publicBaseUrl) {
       chapterTitle: title,
     });
     const stem = `slide_${String(i).padStart(2, '0')}`;
-    const imgPath = path.join(workDir, `${stem}.png`);
-    imageAgentId = await generateSlideImage(
+    return {
       prompt,
-      imgPath,
-      `artifacts/${jobId}_${stem}.png`,
-      imageAgentId,
+      imgPath: path.join(workDir, `${stem}.png`),
+      artifactName: `artifacts/${jobId}_${stem}.png`,
+    };
+  });
+
+  const conc = imageConcurrency();
+  console.log(
+    `[grammar-video] images: ${imageTasks.length} slides, concurrency=${conc}, model=grok/reuse-pool`,
+  );
+  const imagePaths = await mapWithAgentPool(imageTasks, conc, async (task, _i, agentId) => {
+    const nextId = await generateSlideImage(
+      task.prompt,
+      task.imgPath,
+      task.artifactName,
+      agentId,
     );
-    imagePaths.push(imgPath);
-  }
+    return { value: task.imgPath, agentId: nextId };
+  });
 
   // 4) TTS
   updateJob(jobId, { progress: 'tts' });

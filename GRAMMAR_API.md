@@ -1,6 +1,6 @@
 # 词汇 / 语法薄弱点接口（Qwen）
 
-覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。文本默认 `qwen3.8-max`（`QWEN_TEXT_MODEL` 可覆盖）；口播视频**文案**优先 Cursor **`grok-4.5`**，**生图编排**默认 Cursor **`composer-2.5`**（内置 GenerateImage，`fast` 关闭；**不用 AiHubMix**），TTS 用百炼 CosyVoice，本机 ffmpeg 合成后上传 OSS。
+覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。文本默认 `qwen3.8-max`（`QWEN_TEXT_MODEL` 可覆盖）；口播视频文案与生图编排均优先 Cursor **`grok-4.5`**（`fast` 关闭；生图多路并发且每路复用 Agent；**不用 AiHubMix**），TTS 用百炼 CosyVoice，本机 ffmpeg 合成后上传 OSS。
 
 ## 调用说明
 
@@ -662,7 +662,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 ### 流水线说明
 
 1. **讲解 + 分镜文案**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）
-2. **生图**：Cursor 内置 GenerateImage（编排模型默认 **`composer-2.5`**，可用 `CURSOR_IMAGE_MODEL` 覆盖；同任务复用 Agent；未配置则回退百炼万相）。**不使用 AiHubMix**
+2. **生图**：Cursor 内置 GenerateImage（编排默认 **`grok-4.5`**；`GRAMMAR_VIDEO_IMAGE_CONCURRENCY` 路并发，每路复用同一 Agent；未配置则回退百炼万相）。**不使用 AiHubMix**
 3. TTS：百炼 CosyVoice；合成：本机 ffmpeg；上传：阿里云 OSS 签名 URL
 4. 目标时长 **1–3 分钟**，分镜约 5–8 页，强调例句 / 易混对比 / 口诀
 ### 错误码

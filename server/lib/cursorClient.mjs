@@ -1,7 +1,6 @@
 /**
  * Cursor Cloud Agents 客户端
- * 文案默认 grok-4.5；生图编排可用 CURSOR_IMAGE_MODEL（建议 composer-2.5）
- * 一律关闭 fast。本仓库不引入 AiHubMix。
+ * 文案 / 生图编排默认 grok-4.5（fast=false）。本仓库不引入 AiHubMix。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,9 +25,9 @@ export function cursorModelId() {
   return env('CURSOR_MODEL_ID', 'grok-4.5');
 }
 
-/** 生图编排模型（底层 GenerateImage 工具同一套；编排更快可缩短墙钟时间） */
+/** 生图编排模型（底层 GenerateImage 同一工具；默认与文案同为 grok-4.5） */
 export function cursorImageModelId() {
-  return env('CURSOR_IMAGE_MODEL', 'composer-2.5');
+  return env('CURSOR_IMAGE_MODEL', cursorModelId());
 }
 
 /**
