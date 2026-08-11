@@ -661,10 +661,10 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 
 ### 流水线说明
 
-1. **讲解 + 分镜文案**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）。分镜按**课堂教学**组织，**无吸睛引子 / cold_open**
-2. **生图**：Cursor 内置 GenerateImage（编排默认 **`grok-4.5`**；默认**全部并行**，`GRAMMAR_VIDEO_IMAGE_CONCURRENCY` 可限流；未配置则回退百炼万相）。**不使用 AiHubMix**
-3. TTS：百炼 CosyVoice（默认音色 **`longxiaoxia_v2` 温柔女声**）；合成：本机 ffmpeg；上传：阿里云 OSS 签名 URL
-4. 目标时长约 **1 分钟**，分镜 **3–5 页**；墙钟耗时主要在 Cursor 文案 2 次 + 生图一轮并行（约 1–2 分钟量级，视 Cursor 排队波动）
+1. **讲解+分镜一次完成**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）。按课堂教学组织，**无吸睛引子**
+2. **生图**：Cursor 内置 GenerateImage（默认**全部并行**；未配置则回退百炼万相）。**不使用 AiHubMix**
+3. TTS：百炼 CosyVoice（默认 **`longxiaoxia_v2` 温柔女声**）；本机 ffmpeg 合成 → OSS
+4. 目标约 **1 分钟**、**3–5 页**；墙钟主要是 1 次文案 + 1 轮并发生图
 ### 错误码
 
 | code | HTTP | 说明 |

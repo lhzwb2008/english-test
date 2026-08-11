@@ -198,7 +198,7 @@ async function runPipeline(jobId, publicBaseUrl) {
 
   updateJob(jobId, {
     status: 'running',
-    progress: 'drill',
+    progress: 'script',
     started_at: new Date().toISOString(),
     error: null,
   });
@@ -208,28 +208,10 @@ async function runPipeline(jobId, publicBaseUrl) {
   const workDir = job.work_dir;
   fs.mkdirSync(workDir, { recursive: true });
 
-  // 1) 讲解（Cursor Grok / 回退 Qwen）；视频只用 explanation
-  const drillPrompt = loadPrompt('grammar-drill.md');
-  const drillData = await completeVideoJson(drillPrompt, {
-    knowledge_point: knowledgePoint,
-    student_profile: input.student_profile,
-    focus_points: input.focus_points,
-    question_count: 3,
-    question_types: ['choice'],
-  });
-  const explanation = String(drillData.explanation_markdown || '').trim();
-  if (!explanation) throw new Error('讲解生成失败：explanation_markdown 为空');
-  fs.writeFileSync(
-    path.join(workDir, 'drill.json'),
-    JSON.stringify(drillData, null, 2),
-  );
-
-  // 2) 分镜脚本（约 1 分钟，3–5 页）
-  updateJob(jobId, { progress: 'script' });
+  // 1) 讲解+分镜一次完成（Cursor / 回退 Qwen）
   const scriptPrompt = loadPrompt('grammar-video-script.md');
   const script = await completeVideoJson(scriptPrompt, {
     knowledge_point: knowledgePoint,
-    explanation_markdown: explanation,
     student_profile: input.student_profile,
     focus_points: input.focus_points,
     max_slides: maxSlides(),
@@ -250,7 +232,7 @@ async function runPipeline(jobId, publicBaseUrl) {
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
   const composeSlides = [];
 
-  // 3) 生图：全部并行（每页独立 Agent）
+  // 2) 生图：全部并行
   updateJob(jobId, { progress: 'images' });
   const imageTasks = slides.map((slide, i) => {
     const labels = Array.isArray(slide?.on_image_text)
@@ -289,7 +271,7 @@ async function runPipeline(jobId, publicBaseUrl) {
     return { value: task.imgPath, agentId: nextId };
   });
 
-  // 4) TTS（百炼 CosyVoice；无 cold_open 引子）
+  // 3) TTS
   updateJob(jobId, { progress: 'tts' });
   for (let i = 0; i < slides.length; i += 1) {
     const narration = String(slides[i]?.narration || '').trim();
@@ -304,12 +286,12 @@ async function runPipeline(jobId, publicBaseUrl) {
   }
   if (!composeSlides.length) throw new Error('无有效口播音频');
 
-  // 5) 合成
+  // 4) 合成
   updateJob(jobId, { progress: 'compose' });
   const outMp4 = path.join(workDir, 'output.mp4');
   composeVerticalVideo(composeSlides, outMp4);
 
-  // 6) 上传 OSS
+  // 5) 上传 OSS
   updateJob(jobId, { progress: 'upload' });
   let videoUrl = '';
   /** @type {string | null} */
