@@ -27,35 +27,49 @@
 | | Think | PET |
 |---|---|---|
 | 何时 | Think 某 Unit 学完 | PET 某次 Test 考完 |
-| 显式标记 | `curriculum: "think"` | `curriculum: "PET"` |
-| 接口做什么 | 任务完成度总结 + 薄弱点 + 知识点列表（供下游讲解出题） | **与 Think 相同**，并多一块**成绩展示** |
-| 成绩从哪来 | 无剑桥量表 | 改卷得到的各科**原始分**已在 `taskTypes[].homework` 里；服务端用内置剑桥表换成量表分/等级，回传 `pet_score_report` |
-| 前端不要传 | — | **不要传换算标准**；不必再单独传 `pet_scores` 对象 |
+| 显式标记 | `curriculum: "think"`（或 `course`） | `curriculum: "PET"`（或 `course: "PET"`） |
+| 接口做什么 | 任务完成度总结 + 薄弱点 + 知识点列表 | **与 Think 相同**，并多一块**成绩展示** `pet_score_report` |
+| 成绩怎么来 | 无 | **前端不用传分数**。有 `correctCount` + 总题数即可；服务端按「每题等分」换算到该科官方满分，再套剑桥量表 |
+| 前端不要传 | — | 换算标准、`rawScore`、独立 `pet_scores` 都**不必传** |
 
-未传 `curriculum` 时服务端按 `think` 处理。产品侧约定：**Allen 统一显式传入** `think` 或 `PET`。
+未传 `curriculum`/`course` 时按 `think`。建议 Allen **显式**传 `think` 或 `PET`。
 
 ### 入参
 
-Body 即业务侧已有的 `unit_review`（也可包在 `unit_review` / `input` 下）。**Think / PET 字段结构相同**，PET 只是听说读写作业上多带改卷原始分。
+Body 即现有 `unit_review`（也可包在 `unit_review` / `input` 下）。Think / PET **同一套字段**。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `unit` | string | 是 | Think：`Unit3`；PET：`Test1` / `Test9` 等 |
-| `curriculum` | string | 建议 | 显式传 `"think"` 或 `"PET"` |
+| `curriculum` / `course` | string | 建议 | `"think"` 或 `"PET"` |
 | `totalTaskCount` | number | 否 | 任务总数 |
-| `taskTypes` | array | 是 | 按类型聚合的学习 / 考试数据，非空 |
-| `taskTypes[].type` | string | 是 | Think 如 `listening` / `oral` / `word_cn_to_en`；PET 如 `reading` / `writing` / `listening` / `speaking`（或 `oral`） |
+| `taskTypes` | array | 是 | 按类型聚合，非空 |
+| `taskTypes[].type` | string | 是 | 见下 |
 | `taskTypes[].typeLabel` | string | 否 | 中文标签 |
 | `taskTypes[].taskCount` | number | 否 | 该类型任务数 |
 | `taskTypes[].homework` | object | 否 | 见下 |
 
-`homework`（有则传，缺省即可）：
+PET 科目识别（`type` / `typeLabel`）：
 
-- 完成度 / 对错：`totalQuestions`、`correctCount`、`wrongCount`、`hasHomework` 等
-- 错词 / 错题：`wrongWords`、`wrongQuestions[]`
-- 口语：`averageScore`、`grammarIssues[]`
-- **PET 改卷原始分**（成绩展示用）：写在对应科的 `homework.rawScore`（或 `score`）  
-  - 阅读满分 32、写作 40、听力 25、口语 30
+| 科 | 推荐 type | 也认 |
+|----|-----------|------|
+| 阅读 | `reading` | `image_free_upload`、标签含「书面」「阅读」 |
+| 写作 | `writing` | 标签含「写作」「作文」 |
+| 听力 | `listening` | 标签含「听力」 |
+| 口语 | `oral` / `speaking` | 标签含「口语」 |
+
+`homework`（有则传）：
+
+- **成绩用（PET）**：`correctCount` + `totalQuestions`（或 `totalWords` / `totalSentences`；没有总数时可用 `correctCount + wrongCount`）
+- 其它照旧：`wrongQuestions`、`wrongWords`、`grammarIssues`、`averageScore`、`hasHomework` 等
+- 若偶发已有 `rawScore` / `score`，服务端仍兼容，但**不要求传**
+
+**等分换算**（服务端）：
+
+`原始分 = round(correctCount / 总题数 × 该科满分)`  
+满分：阅读 32、写作 40、听力 25、口语 30。
+
+例：听力对 20 / 共 25 → 原始分 20；阅读对 28 / 共 32 → 28；若只有 10 题对了 8 → 阅读原始分 `round(8/10×32)=26`。
 
 `instruction` 若存在会被忽略。
 
@@ -64,19 +78,13 @@ Body 即业务侧已有的 `unit_review`（也可包在 `unit_review` / `input` 
 | 字段 | 说明 |
 |------|------|
 | `ok` / `model` / `usage` | 同其他接口 |
-| `data.summary` | 总评（完成情况、强弱项、各类型摘要） |
-| `data.knowledge_points[]` | 待巩固词汇/语法点（供 `/v1/grammar/drill`、口播） |
-| `data.pet_score_report` | **仅 PET** 且读到原始分时有：量表分 + 等级（前端成绩展示用这个，不要让模型改算） |
+| `data.summary` | 总评 |
+| `data.knowledge_points[]` | 待巩固知识点 |
+| `data.pet_score_report` | **仅 PET** 且至少抽到一科对题数据时有；前端成绩展示用这个 |
 
-`data.summary` 主要字段：`unit_label`、`overall_assessment`、`strengths`、`priority_focus`、`task_highlights`、`assumptions`；PET 成功算分时另有 `pet_overall_scale`、`pet_overall_label_zh`。
+`data.summary` 主要字段：`unit_label`、`overall_assessment`、`strengths`、`priority_focus`、`task_highlights`、`assumptions`；有综合分时另有 `pet_overall_scale`、`pet_overall_label_zh`。
 
-`data.pet_score_report`（PET）要点：
-
-| 字段 | 说明 |
-|------|------|
-| `skills.reading/writing/listening/speaking` | 各科 `raw`、`scale_rounded`、`label_zh`（卓越/优秀/通过/不通过）等 |
-| `overall.scale` / `overall.label_zh` | 四科齐全时的综合量表分与等级文案（如 `通过 Grade C`） |
-| `missing_skills` | 缺原始分的科目 |
+`data.pet_score_report` 要点：`skills.*`（`raw` / `scale_rounded` / `label_zh`）、四科齐全时的 `overall`、`missing_skills`（缺数据的科）。
 
 ### Think 入参示例
 
@@ -114,24 +122,24 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
   }'
 ```
 
-### PET 入参示例（同一 URL；多成绩展示）
-
-与 Think 相同结构；`curriculum` 为 `PET`，听说读写作业带上**改卷原始分**即可。
+### PET 入参示例（同一 URL；用对题数，不必传分）
 
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
   -H 'Content-Type: application/json' \
   -d '{
     "unit": "Test9",
-    "curriculum": "PET",
-    "totalTaskCount": 6,
+    "course": "PET",
+    "totalTaskCount": 4,
     "taskTypes": [
       {
-        "type": "reading",
-        "typeLabel": "阅读",
+        "type": "image_free_upload",
+        "typeLabel": "书面作业",
         "taskCount": 1,
         "homework": {
-          "rawScore": 28,
+          "totalQuestions": 32,
+          "correctCount": 28,
+          "wrongCount": 4,
           "wrongQuestions": [{ "question": "Part 5", "explanation": "词汇搭配错误" }]
         }
       },
@@ -139,25 +147,40 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
         "type": "writing",
         "typeLabel": "写作",
         "taskCount": 1,
-        "homework": { "rawScore": 29 }
+        "homework": {
+          "totalQuestions": 40,
+          "correctCount": 29,
+          "wrongCount": 11
+        }
       },
       {
         "type": "listening",
         "typeLabel": "听力",
         "taskCount": 1,
-        "homework": { "rawScore": 20 }
+        "homework": {
+          "totalQuestions": 25,
+          "correctCount": 20,
+          "wrongCount": 5
+        }
       },
       {
         "type": "oral",
         "typeLabel": "口语",
         "taskCount": 1,
-        "homework": { "rawScore": 24 }
+        "homework": {
+          "totalQuestions": 30,
+          "correctCount": 24,
+          "wrongCount": 6,
+          "grammarIssues": [
+            { "issue": "主谓不一致", "suggestion": "He likes..." }
+          ]
+        }
       }
     ]
   }'
 ```
 
-上例服务端算分：`data.pet_score_report.overall.scale` = **152**（通过 Grade C）。前端成绩展示直接用 `pet_score_report`。
+上例换算后四科原始分为 28 / 29 / 20 / 24，`data.pet_score_report.overall.scale` = **152**（通过 Grade C）。某科没有 `correctCount`（或总数）则该科进 `missing_skills`，有数据的科仍会出分。
 
 ### 错误码
 

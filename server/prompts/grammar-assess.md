@@ -21,7 +21,7 @@
     - 词汇错词：`wrongWords`（字符串数组）
     - 错题明细：`wrongQuestions[]`（`question` / `studentAnswer` / `correctAnswer` / `explanation`，字段可能不全）
     - 口语：`averageScore`、`grammarIssues[]`（`issue` / `suggestion`）
-    - PET 改卷原始分：听说读写对应任务的 `rawScore` / `score`（阅读满分 32、写作 40、听力 25、口语 30）
+    - PET 成绩：一般用 `correctCount` + `totalQuestions`（服务端按每题等分换算到该科满分）；也可兼容 `rawScore`
     - 无作业：`hasHomework: false`
 - **`pet_score_report`（若存在）**：服务端已按剑桥 PET 官方规则算好的量表分与等级。**必须当作事实**写进总评；**禁止**自行改算、四舍五入冲突或以经验覆盖。
 

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { completeQwenText } from '../qwen/client.mjs';
 import { parseJsonFromModel } from '../lib/jsonParse.mjs';
 import { buildUserPayload, loadPrompt, textModel } from '../lib/prompts.mjs';
-import { scorePetTest } from '../lib/petScoring.mjs';
+import { PET_SKILL_TABLES, scorePetTest } from '../lib/petScoring.mjs';
 import {
   cleanupExpiredJobs,
   createJob,
@@ -62,11 +62,11 @@ function isPetMode(source) {
 }
 
 /**
- * 从 homework / 对象里取改卷原始分。
+ * 显式原始分（兼容旧字段；产品约定前端可不传，优先用对题数换算）。
  * @param {Record<string, unknown> | null | undefined} obj
  * @returns {number | undefined}
  */
-function pickRawScore(obj) {
+function pickExplicitRawScore(obj) {
   if (!obj || typeof obj !== 'object') return undefined;
   return (
     asFiniteNumber(obj.rawScore) ??
@@ -78,7 +78,79 @@ function pickRawScore(obj) {
 }
 
 /**
- * 从 taskTypes 作业数据抽出 PET 四科原始分（改卷结果，不是换算标准）。
+ * 从对题数 / 总题数换算到该科官方满分刻度（每题等分）。
+ * raw = round(correctCount / total * maxRaw)
+ * @param {Record<string, unknown> | null | undefined} obj
+ * @param {number} maxRaw
+ * @returns {number | undefined}
+ */
+function rawFromCorrectRatio(obj, maxRaw) {
+  if (!obj || typeof obj !== 'object' || !Number.isFinite(maxRaw) || maxRaw <= 0) {
+    return undefined;
+  }
+  const correct = asFiniteNumber(obj.correctCount ?? obj.correct_count);
+  if (correct === undefined) return undefined;
+
+  let total =
+    asFiniteNumber(obj.totalQuestions) ??
+    asFiniteNumber(obj.total_questions) ??
+    asFiniteNumber(obj.totalWords) ??
+    asFiniteNumber(obj.total_words) ??
+    asFiniteNumber(obj.totalSentences) ??
+    asFiniteNumber(obj.total_sentences);
+
+  if (total === undefined) {
+    const wrong = asFiniteNumber(obj.wrongCount ?? obj.wrong_count);
+    if (wrong !== undefined) total = correct + wrong;
+  }
+  if (total === undefined || total <= 0) return undefined;
+
+  const cappedCorrect = Math.min(Math.max(correct, 0), total);
+  return Math.round((cappedCorrect / total) * maxRaw);
+}
+
+/**
+ * @param {Record<string, unknown> | null | undefined} hw
+ * @param {Record<string, unknown>} task
+ * @param {number} maxRaw
+ */
+function resolveSkillRaw(hw, task, maxRaw) {
+  return (
+    pickExplicitRawScore(hw) ??
+    pickExplicitRawScore(task) ??
+    rawFromCorrectRatio(hw, maxRaw) ??
+    rawFromCorrectRatio(task, maxRaw)
+  );
+}
+
+/**
+ * @param {string} type
+ * @param {string} label
+ * @returns {'reading'|'writing'|'listening'|'speaking'|null}
+ */
+function classifyPetSkill(type, label) {
+  if (type.includes('read') || label.includes('阅读')) return 'reading';
+  // Allen 侧阅读常落在书面作业 / 图片批改
+  if (
+    type.includes('image_free_upload') ||
+    type.includes('image_homework') ||
+    label.includes('书面') ||
+    label.includes('阅读理解')
+  ) {
+    return 'reading';
+  }
+  if (type.includes('writ') || label.includes('写作') || label.includes('作文')) {
+    return 'writing';
+  }
+  if (type.includes('listen') || label.includes('听力')) return 'listening';
+  if (type.includes('oral') || type.includes('speak') || label.includes('口语')) {
+    return 'speaking';
+  }
+  return null;
+}
+
+/**
+ * 从 taskTypes 抽出 PET 四科原始分：优先显式分；否则用 correctCount/总题数按满分等比例换算。
  * @param {Record<string, unknown>} source
  */
 function extractPetRawScores(source) {
@@ -96,24 +168,15 @@ function extractPetRawScores(source) {
     const type = asNonEmptyString(t.type).toLowerCase();
     const label = asNonEmptyString(t.typeLabel).toLowerCase();
     const hw = t.homework && typeof t.homework === 'object' ? t.homework : null;
-    const raw = pickRawScore(hw) ?? pickRawScore(t);
+    const skill = classifyPetSkill(type, label);
+    if (!skill) continue;
 
-    const isReading = type.includes('read') || label.includes('阅读');
-    const isWriting =
-      type.includes('writ') || label.includes('写作') || label.includes('作文');
-    const isListening = type.includes('listen') || label.includes('听力');
-    const isSpeaking =
-      type.includes('oral') ||
-      type.includes('speak') ||
-      label.includes('口语');
+    const maxRaw = PET_SKILL_TABLES[skill].maxRaw;
+    const raw = resolveSkillRaw(hw, t, maxRaw);
 
-    if (isReading && out.reading === undefined && raw !== undefined) out.reading = raw;
-    if (isWriting && out.writing === undefined && raw !== undefined) out.writing = raw;
-    if (isListening && out.listening === undefined && raw !== undefined) {
-      out.listening = raw;
-    }
-    if (isSpeaking) {
-      if (out.speaking === undefined && raw !== undefined) out.speaking = raw;
+    if (out[skill] === undefined && raw !== undefined) out[skill] = raw;
+
+    if (skill === 'speaking') {
       const hwDims = hw?.speaking_dimensions || hw?.speakingDimensions || hw?.exam_rubric;
       if (!out.speaking_dimensions && hwDims && typeof hwDims === 'object') {
         if (Array.isArray(hwDims.dimensions)) {
