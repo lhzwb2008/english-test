@@ -602,17 +602,20 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 ## 3. 知识点口播短视频（异步）
 
-只把**讲解**做成竖屏口播短视频（目标约 **1 分钟**，3–5 页分镜），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
+把单个知识点做成**竖屏讲解口播**（目标约 **1 分钟**、分镜 **3–5 页**），**不含题目、无吸睛引子**。入参与第二节 `/v1/grammar/drill` 一致（`question_*` 可传但视频链路忽略）。
 
-成片合成后上传到**阿里云 OSS**（`nba-dev-sh` / 前缀 `wenbo`）。当前 Bucket 为**私有**，`video_url` 为**签名 HTTPS**（默认约 7 天，查询接口会刷新签名），流量走 OSS 不走业务机。未配置 OSS 时才回退本服务 `/file`。
-
-说明：控制台里的 CNAME `nba-dev-sh.cn-shanghai.taihangpfm.cn` 目前证书与域名不匹配，暂用默认 `*.oss-cn-shanghai.aliyuncs.com` 签名地址；CNAME 证书配好后可改 `OSS_URL_MODE=public` + `OSS_PUBLIC_BASE_URL`。
+成片上传**阿里云 OSS**（Bucket `nba-dev-sh`，前缀 `wenbo`）。Bucket 为**私有**时，`video_url` 为**签名 HTTPS**（默认约 7 天；查询接口会刷新签名）。未配置 OSS 时回退本服务 `/file`。
 
 ### 3.1 创建任务
 
 `POST /v1/grammar/video` → HTTP **202**
 
-入参字段同第二节（`knowledge_point` 必填；`student_profile` / `focus_points` 等可选；`question_*` 可传但视频链路忽略题目）。
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `knowledge_point` | 是 | 知识点标题 |
+| `student_profile` | 否 | 年级 / 特点等，影响例句难度与口吻 |
+| `focus_points` | 否 | 优先覆盖的子点数组 |
+| `question_count` / `question_types` | 否 | 视频链路忽略 |
 
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
@@ -620,10 +623,10 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
   -d '{
     "knowledge_point": "现在进行时",
     "student_profile": {
-      "grade": "三年级",
-      "traits": "喜欢用例子讲故事"
+      "grade": "五年级",
+      "traits": "喜欢对比记忆"
     },
-    "focus_points": ["be + doing", "Look!/now 线索"]
+    "focus_points": ["be + doing", "Look!/now 线索", "与一般现在时易混"]
   }'
 ```
 
@@ -632,9 +635,9 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 ```json
 {
   "ok": true,
-  "job_id": "vid_...",
-  "status": "queued",
-  "poll_url": "/v1/grammar/video/vid_..."
+  "job_id": "vid_e237b79a2eca4a1198be",
+  "status": "running",
+  "poll_url": "/v1/grammar/video/vid_e237b79a2eca4a1198be"
 }
 ```
 
@@ -645,26 +648,63 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 | 字段 | 说明 |
 |------|------|
 | `status` | `queued` / `running` / `succeeded` / `failed` |
-| `progress` | `queued` / `drill` / `script` / `images` / `tts` / `compose` / `upload` / `done` |
+| `progress` | `queued` → `script` → `images` → `tts` → `compose` → `upload` → `done` |
 | `video_url` | 成功时的可播放地址（OSS 签名 URL；查询时刷新） |
-| `expires_at` | 当前签名过期时间（私有桶）；公有读时可为 `null` |
+| `expires_at` | 当前签名过期时间 |
 | `error` | 失败原因 |
+| `knowledge_point` | 回显知识点 |
 
-建议每 5–10 秒轮询，直至 `succeeded` / `failed`。单次可能数分钟。
+建议每 **5–10 秒**轮询，直至 `succeeded` / `failed`。整单约 **3–6 分钟**。
+
+成功示例（字段节选）：
+
+```json
+{
+  "ok": true,
+  "job_id": "vid_e237b79a2eca4a1198be",
+  "status": "succeeded",
+  "progress": "done",
+  "knowledge_point": "现在进行时",
+  "video_url": "https://nba-dev-sh.oss-cn-shanghai.aliyuncs.com/wenbo/grammar-video/vid_....mp4?Expires=...&Signature=...",
+  "expires_at": "2026-08-18T07:30:21.536Z",
+  "error": null
+}
+```
+
+```bash
+curl -sS 'http://101.201.237.149:8000/v1/grammar/video/vid_e237b79a2eca4a1198be'
+```
 
 ### 3.3 播放
 
-优先直接使用查询结果里的 `video_url`（OSS）。  
-兼容：`GET /v1/grammar/video/:jobId/file` 仍可拉本机缓存（若尚未清理）。
+优先使用查询结果里的 `video_url`（OSS）。  
+兼容：`GET /v1/grammar/video/:jobId/file` 可拉本机缓存（若尚未清理）。
 
-对象路径约定：`wenbo/grammar-video/{job_id}.mp4`。
+对象路径：`wenbo/grammar-video/{job_id}.mp4`。
 
-### 流水线说明
+### 3.4 流水线与依赖
 
-1. **讲解+分镜一次完成**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）
-2. **生图**：百炼万相 **`wan2.5-t2i-preview`**（全部并行；可用 `DASHSCOPE_IMAGE_MODEL` 覆盖）
-3. TTS：百炼 CosyVoice（默认 **`longxiaoxia_v2` 温柔女声**）；本机 ffmpeg 合成 → OSS
-4. 目标约 **1 分钟**、**3–5 页**
+| 步骤 | 实现 |
+|------|------|
+| 讲解 + 分镜文案 | **一次** Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen） |
+| 生图 | 百炼万相 **`wan2.5-t2i-preview`**，竖屏 `960*1696`，**全部并行** |
+| TTS | 百炼 CosyVoice，默认音色 **`longxiaoxia_v2`（温柔女声）** |
+| 合成 / 上传 | 本机 ffmpeg → OSS 签名 URL |
+
+相关环境变量（服务端 `.env`，勿提交密钥）：
+
+| 变量 | 默认 / 说明 |
+|------|-------------|
+| `CURSOR_API_KEY` / `CURSOR_SANDBOX_REPO_URL` | Cursor 文案 |
+| `CURSOR_MODEL_ID` | `grok-4.5` |
+| `DASHSCOPE_API_KEY` | 百炼 TTS / 生图 |
+| `DASHSCOPE_IMAGE_MODEL` | `wan2.5-t2i-preview` |
+| `DASHSCOPE_IMAGE_SIZE` | `960*1696` |
+| `DASHSCOPE_TTS_VOICE` | `longxiaoxia_v2` |
+| `GRAMMAR_VIDEO_MAX_SLIDES` | `5`（范围 3–5） |
+| `GRAMMAR_VIDEO_IMAGE_CONCURRENCY` | 默认等于页数（全并行） |
+| `OSS_*` | 成片上传与签名 |
+
 ### 错误码
 
 | code | HTTP | 说明 |
