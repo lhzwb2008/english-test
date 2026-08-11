@@ -1,6 +1,6 @@
 # 词汇 / 语法薄弱点接口（Qwen）
 
-仅覆盖两个接口：**单元总评 + 知识点列表**、**知识点讲解 + 出题**。模型：`qwen3.8-max`（可用环境变量 `QWEN_TEXT_MODEL` 覆盖）。
+仅覆盖两个接口：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**。模型：`qwen3.8-max`（可用环境变量 `QWEN_TEXT_MODEL` 覆盖）。
 
 ## 调用说明
 
@@ -24,19 +24,23 @@
 
 根据单元学习数据（任务数、各类型正确/错误、错词、错题明细、口语语法问题等）生成总评，并产出待巩固的**词汇/语法知识点列表**（供接口 2 逐个调用）。
 
+**PET Test 总结**也走本接口（不另开 URL）：当入参可识别为 PET 且带有四项原始分时，服务端按剑桥官方规则**先算量表分/等级**，再交给模型写总评；算分结果回传 `data.pet_score_report`。
+
 ### 入参
 
 Body 即为单元学习 JSON（与业务侧 `unit_review` 同结构）。也可包在 `unit_review` 或 `input` 字段下。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `unit` | string | 是 | 单元，如 `Unit3` |
+| `unit` | string | 是 | 单元，如 `Unit3`；PET 常见 `Test1` |
+| `curriculum` / `course` | string | 否 | 如 `PET` / `think2`；含 `PET` 时启用 PET 算分 |
 | `totalTaskCount` | number | 否 | 任务总数（可与各 type 之和略有出入） |
 | `taskTypes` | array | 是 | 按类型聚合的学习数据，非空 |
 | `taskTypes[].type` | string | 是 | 如 `listening` / `oral` / `word_cn_to_en` |
 | `taskTypes[].typeLabel` | string | 否 | 中文标签 |
 | `taskTypes[].taskCount` | number | 否 | 该类型任务数 |
 | `taskTypes[].homework` | object | 否 | 见下 |
+| `pet_scores` | object | PET 建议 | `{ reading, writing, listening, speaking }` 原始分；也可写在各 `homework.rawScore` |
 
 `homework` 常见字段（按类型出现，缺省即可）：
 
@@ -45,8 +49,11 @@ Body 即为单元学习 JSON（与业务侧 `unit_review` 同结构）。也可�
 - 词汇错词：`wrongWords: string[]`
 - 错题：`wrongQuestions: [{ question, studentAnswer, correctAnswer, explanation }]`（字段可不全）
 - 口语：`averageScore`、`grammarIssues: [{ issue, suggestion }]`
+- PET 原始分：`rawScore` / `score`（阅读满分 32、写作 40、听力 25、口语 30）；口语也可传 `speaking_dimensions`
 
 输入中的 `instruction` 若存在会被忽略，任务以服务端 Prompt 为准。
+
+PET 识别条件（满足其一且能抽出至少一项原始分即算分）：`curriculum`/`course` 含 PET、或存在 `pet_scores`、或 `unit` 形如 `Test1`。
 
 ### 出参
 
@@ -57,17 +64,41 @@ Body 即为单元学习 JSON（与业务侧 `unit_review` 同结构）。也可�
 | `usage` | object | `token_count` / `input_count` / `output_count` |
 | `data.summary` | object | 总评 |
 | `data.knowledge_points` | array | 知识点列表 |
+| `data.pet_score_report` | object \| 缺省 | 仅 PET 且成功算分时有；服务端确定性结果，勿再让模型改算 |
 
 `data.summary`：
 
 | 字段 | 说明 |
 |------|------|
 | `unit_label` | 单元标签 |
-| `overall_assessment` | 总评正文 |
+| `overall_assessment` | 总评正文（PET 时须含综合量表分与等级） |
 | `strengths` | 优点 |
 | `priority_focus` | 优先攻克方向 |
 | `task_highlights` | 各类型一句摘要 |
 | `assumptions` | 推断说明 |
+| `pet_overall_scale` | PET 综合量表分（有算分时由服务端回填） |
+| `pet_overall_label_zh` | PET 综合等级文案（有算分时由服务端回填） |
+
+`data.pet_score_report`（PET）：
+
+| 字段 | 说明 |
+|------|------|
+| `exam` | 固定 `"PET"` |
+| `skills.<skill>` | `reading` / `writing` / `listening` / `speaking`（有原始分才出现） |
+| `skills.<skill>.raw` | 原始分 |
+| `skills.<skill>.max_raw` | 满分（32 / 40 / 25 / 30） |
+| `skills.<skill>.scale` | 量表分（可含小数，供平均） |
+| `skills.<skill>.scale_rounded` | 量表分四舍五入 |
+| `skills.<skill>.label_zh` | `卓越` / `优秀` / `通过` / `不通过` |
+| `skills.<skill>.cambridge_grade` | `Grade A/B/C` 或 `null`（未过 B1） |
+| `skills.<skill>.cefr` | `B2` / `B1` / `A2` / `null` |
+| `overall` | 四项齐全时才有；否则为 `null` |
+| `overall.scale` | 综合量表分（四项 `scale` 平均后四舍五入） |
+| `overall.label_zh` | 如 `通过 Grade C` |
+| `overall.cefr` | 证书对应 CEFR |
+| `overall.certificate` | 是否发证 |
+| `missing_skills` | 未提供原始分的技能名数组 |
+| `notes_zh` | 换算说明（展示用） |
 
 `data.knowledge_points[]`：
 
@@ -233,6 +264,213 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 }
 ```
 
+### PET 入参示例（仍调同一 URL）
+
+```bash
+curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "unit": "Test9",
+    "curriculum": "PET",
+    "totalTaskCount": 6,
+    "pet_scores": {
+      "reading": 28,
+      "writing": 29,
+      "listening": 20,
+      "speaking": 24
+    },
+    "taskTypes": [
+      {
+        "type": "reading",
+        "typeLabel": "阅读",
+        "taskCount": 1,
+        "homework": {
+          "rawScore": 28,
+          "wrongQuestions": [
+            {
+              "question": "Part 5 gap 12",
+              "explanation": "词汇搭配错误"
+            }
+          ]
+        }
+      },
+      {
+        "type": "writing",
+        "typeLabel": "写作",
+        "taskCount": 1,
+        "homework": {
+          "rawScore": 29,
+          "wrongQuestions": [
+            {
+              "explanation": "词汇和句式多样化不足"
+            }
+          ]
+        }
+      },
+      {
+        "type": "oral",
+        "typeLabel": "口语",
+        "taskCount": 1,
+        "homework": {
+          "rawScore": 24,
+          "grammarIssues": [
+            {
+              "issue": "讲过去的事情动词忘记变成过去式",
+              "suggestion": "注意过去时一致性"
+            }
+          ]
+        }
+      },
+      {
+        "type": "listening",
+        "typeLabel": "听力",
+        "taskCount": 1,
+        "homework": {
+          "rawScore": 20,
+          "wrongQuestions": [
+            {
+              "question": "Part 4",
+              "explanation": "细节遗漏"
+            }
+          ]
+        }
+      }
+    ]
+  }'
+```
+
+成功时 `data.pet_score_report.overall.scale` 应为 `152`（通过 Grade C）；总评正文须与此一致。
+
+### PET 示例响应（节选）
+
+```json
+{
+  "ok": true,
+  "model": "qwen3.8-max",
+  "usage": {
+    "token_count": 3800,
+    "input_count": 1600,
+    "output_count": 2200
+  },
+  "data": {
+    "summary": {
+      "unit_label": "Test9",
+      "overall_assessment": "本 Test 综合量表分 152，证书等级为通过 Grade C（合格线 140，距优秀 153 差 1 分）。阅读 28→约 157（优秀）、口语 24→153（优秀）相对更好；写作 29、听力 20 均为通过档，写作句式多样与听力 Part4 细节仍是短板。建议优先补写作语言准确性与听力长对话细节。",
+      "strengths": ["阅读接近卓越线", "口语已达优秀档"],
+      "priority_focus": "写作句式多样与听力 Part4 细节",
+      "task_highlights": [
+        {
+          "type": "reading",
+          "typeLabel": "阅读",
+          "note": "原始分 28，量表约 157，等级优秀；Part5 词汇搭配仍有错"
+        },
+        {
+          "type": "writing",
+          "typeLabel": "写作",
+          "note": "原始分 29，量表约 149，等级通过；句式多样化不足"
+        },
+        {
+          "type": "oral",
+          "typeLabel": "口语",
+          "note": "原始分 24，量表 153，等级优秀；过去时一致性需巩固"
+        },
+        {
+          "type": "listening",
+          "typeLabel": "听力",
+          "note": "原始分 20，量表约 149，等级通过；Part4 细节遗漏"
+        }
+      ],
+      "assumptions": [],
+      "pet_overall_scale": 152,
+      "pet_overall_label_zh": "通过 Grade C"
+    },
+    "knowledge_points": [
+      {
+        "id": "kp_1",
+        "title": "一般过去时动词变形",
+        "category": "grammar",
+        "priority": "high",
+        "reason": "口语指出讲过去的事情忘记用过去式",
+        "focus_points": ["规则动词 -ed", "常见不规则过去式"],
+        "evidence_types": ["oral"],
+        "suggested_question_types": ["choice", "blank", "translation"]
+      },
+      {
+        "id": "kp_2",
+        "title": "写作词汇与句式多样化",
+        "category": "vocabulary",
+        "priority": "medium",
+        "reason": "写作反馈提到词汇和句式多样化不足",
+        "focus_points": ["同义替换", "从句补充细节"],
+        "evidence_types": ["writing"],
+        "suggested_question_types": ["translation", "blank"]
+      }
+    ],
+    "pet_score_report": {
+      "exam": "PET",
+      "skills": {
+        "reading": {
+          "skill": "reading",
+          "raw": 28,
+          "max_raw": 32,
+          "scale": 156.5,
+          "scale_rounded": 157,
+          "label_zh": "优秀",
+          "cambridge_grade": "Grade B",
+          "cefr": "B1"
+        },
+        "writing": {
+          "skill": "writing",
+          "raw": 29,
+          "max_raw": 40,
+          "scale": 149.28571428571428,
+          "scale_rounded": 149,
+          "label_zh": "通过",
+          "cambridge_grade": "Grade C",
+          "cefr": "B1"
+        },
+        "listening": {
+          "skill": "listening",
+          "raw": 20,
+          "max_raw": 25,
+          "scale": 148.66666666666666,
+          "scale_rounded": 149,
+          "label_zh": "通过",
+          "cambridge_grade": "Grade C",
+          "cefr": "B1"
+        },
+        "speaking": {
+          "skill": "speaking",
+          "raw": 24,
+          "max_raw": 30,
+          "scale": 153,
+          "scale_rounded": 153,
+          "label_zh": "优秀",
+          "cambridge_grade": "Grade B",
+          "cefr": "B1"
+        }
+      },
+      "overall": {
+        "scale": 152,
+        "average_exact": 151.86309523809524,
+        "label_zh": "通过 Grade C",
+        "cambridge_grade": "Grade C",
+        "cefr": "B1",
+        "certificate": true,
+        "formula_zh": "总分 = (阅读量表分 + 写作量表分 + 听力量表分 + 口语量表分) ÷ 4，四舍五入取整"
+      },
+      "missing_skills": [],
+      "notes_zh": [
+        "四项权重相等，各占 25%",
+        "写作：两篇作文各 0–20（四维各 0–5），原始满分 40",
+        "口语原始分 = 四项分项之和 + 整体表现×2，满分 30",
+        "中间原始分按锚点线性插值；官方完整对照表未公开时与证书可能有 ±1 偏差"
+      ]
+    }
+  }
+}
+```
+
 ### 错误码
 
 | code | HTTP | 说明 |
@@ -364,6 +602,6 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 ## 推荐调用顺序
 
-1. 单元结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`。
+1. 单元 / PET Test 结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`（PET 时另有 `pet_score_report`）。
 2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`。
-3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。
+3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。
