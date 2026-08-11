@@ -662,7 +662,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 ### 流水线说明
 
 1. **讲解+分镜一次完成**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）
-2. **生图**：百炼万相 **`wan2.6-t2i`**（全部并行；可用 `DASHSCOPE_IMAGE_MODEL` 覆盖）
+2. **生图**：百炼万相 **`wan2.5-t2i-preview`**（全部并行；可用 `DASHSCOPE_IMAGE_MODEL` 覆盖）
 3. TTS：百炼 CosyVoice（默认 **`longxiaoxia_v2` 温柔女声**）；本机 ffmpeg 合成 → OSS
 4. 目标约 **1 分钟**、**3–5 页**
 ### 错误码

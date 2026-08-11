@@ -24,12 +24,12 @@ function dashscopeRoot() {
 }
 
 function imageModel() {
-  // 质量优先：wan2.6-t2i；退而求其次可用 wan2.2-t2i-plus
-  return process.env.DASHSCOPE_IMAGE_MODEL || 'wan2.6-t2i';
+  // 质量优先：当前异步协议可用最高档为 wan2.5-t2i-preview（wan2.6 需另一套 multimodal 接口）
+  return process.env.DASHSCOPE_IMAGE_MODEL || 'wan2.5-t2i-preview';
 }
 
 function imageSize() {
-  // 竖屏 9:16；wan2.5/2.6 推荐 960*1696
+  // 竖屏 9:16（wan2.5 推荐档）
   return process.env.DASHSCOPE_IMAGE_SIZE || '960*1696';
 }
 

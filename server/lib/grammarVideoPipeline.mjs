@@ -121,7 +121,7 @@ function imageConcurrency(slideCount) {
  */
 async function generateSlideImage(prompt, outPath) {
   console.log(
-    `[grammar-video] image via Bailian ${process.env.DASHSCOPE_IMAGE_MODEL || 'wan2.6-t2i'}`,
+    `[grammar-video] image via Bailian ${process.env.DASHSCOPE_IMAGE_MODEL || 'wan2.5-t2i-preview'}`,
   );
   await generateImageToFile(prompt, outPath);
 }
