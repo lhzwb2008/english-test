@@ -1,6 +1,6 @@
 # 词汇 / 语法薄弱点接口（Qwen）
 
-覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。模型：`qwen3.8-max`（可用环境变量 `QWEN_TEXT_MODEL` 覆盖）；口播视频另用百炼 CosyVoice TTS + 万相生图 + 本机 ffmpeg。
+覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。文本默认 `qwen3.8-max`（`QWEN_TEXT_MODEL` 可覆盖）；口播视频的**文案与生图**均优先 Cursor Cloud **`grok-4.5`（fast 关闭）**，TTS 用百炼 CosyVoice，本机 ffmpeg 合成后上传 OSS。
 
 ## 调用说明
 
@@ -602,7 +602,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 ## 3. 知识点口播短视频（异步）
 
-只把**讲解**做成竖屏口播短视频（约 60–90 秒），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
+只把**讲解**做成竖屏口播短视频（目标 **1–3 分钟**，高教学密度），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
 
 成片合成后上传到**阿里云 OSS**（`nba-dev-sh` / 前缀 `wenbo`）。当前 Bucket 为**私有**，`video_url` 为**签名 HTTPS**（默认约 7 天，查询接口会刷新签名），流量走 OSS 不走业务机。未配置 OSS 时才回退本服务 `/file`。
 
@@ -646,8 +646,8 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 |------|------|
 | `status` | `queued` / `running` / `succeeded` / `failed` |
 | `progress` | `queued` / `drill` / `script` / `images` / `tts` / `compose` / `upload` / `done` |
-| `video_url` | 成功时的可播放地址（优先 OSS/CNAME；未配 OSS 时为本服务 `/file`） |
-| `expires_at` | 签名 URL 过期时间；公有读 OSS 时多为 `null` |
+| `video_url` | 成功时的可播放地址（OSS 签名 URL；查询时刷新） |
+| `expires_at` | 当前签名过期时间（私有桶）；公有读时可为 `null` |
 | `error` | 失败原因 |
 
 建议每 5–10 秒轮询，直至 `succeeded` / `failed`。单次可能数分钟。
@@ -661,13 +661,10 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 
 ### 流水线说明
 
-1. 复用 drill 生成 `explanation_markdown`
-2. Qwen 压口播分镜（3–5 页）
-3. 百炼万相生图 + CosyVoice TTS
-4. 本机 ffmpeg 合成竖屏
-5. 上传阿里云 OSS，返回公网/CNAME URL
-
-依赖：服务器 `ffmpeg`；`.env` 配置 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET` / `OSS_BUCKET` 等（见 `.env.example`）。
+1. **讲解 + 分镜文案**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）
+2. **生图**：同一 Cursor Agent 内置生图（白板手绘竖图 → artifacts 下载；未配置则回退百炼万相）
+3. TTS：百炼 CosyVoice；合成：本机 ffmpeg；上传：阿里云 OSS 签名 URL
+4. 目标时长 **1–3 分钟**，分镜约 5–8 页，强调例句 / 易混对比 / 口诀
 ### 错误码
 
 | code | HTTP | 说明 |

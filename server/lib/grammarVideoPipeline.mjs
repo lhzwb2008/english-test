@@ -9,6 +9,13 @@ import { parseJsonFromModel } from './jsonParse.mjs';
 import { buildUserPayload, loadPrompt, textModel } from './prompts.mjs';
 import { synthesizeToFile } from './bailianTts.mjs';
 import { generateImageToFile } from './bailianImage.mjs';
+import {
+  buildWhiteboardPrompt,
+  completeCursorJson,
+  cursorConfigured,
+  cursorModelId,
+  generateCursorImageToFile,
+} from './cursorClient.mjs';
 import { composeVerticalVideo } from './videoCompose.mjs';
 import { updateJob, getJob } from './videoJobs.mjs';
 import { ossConfigured, uploadGrammarVideo } from './ossUpload.mjs';
@@ -93,8 +100,42 @@ function kick() {
 }
 
 function maxSlides() {
-  const n = Number(process.env.GRAMMAR_VIDEO_MAX_SLIDES || 5);
-  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 3), 6) : 5;
+  const n = Number(process.env.GRAMMAR_VIDEO_MAX_SLIDES || 8);
+  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), 5), 8) : 8;
+}
+
+/**
+ * 口播文案：优先 Cursor Cloud Grok；未配置时回退 Qwen
+ * @param {string} systemPrompt
+ * @param {Record<string, unknown>} fields
+ */
+async function completeVideoJson(systemPrompt, fields) {
+  const userPayload = buildUserPayload(fields);
+  if (cursorConfigured()) {
+    console.log(`[grammar-video] text via Cursor ${cursorModelId()}`);
+    return completeCursorJson(systemPrompt, userPayload);
+  }
+  console.warn('[grammar-video] CURSOR 未配置，回退 Qwen 文本');
+  const { fullText } = await completeQwenText({
+    model: textModel(),
+    systemPrompt,
+    userText: userPayload,
+    json: true,
+    temperature: 0.4,
+  });
+  return parseJsonFromModel(fullText);
+}
+
+/**
+ * 生图：优先 Cursor Cloud Grok 内置生图；未配置时回退百炼万相
+ */
+async function generateSlideImage(prompt, outPath, artifactName) {
+  if (cursorConfigured()) {
+    await generateCursorImageToFile(prompt, outPath, { artifactName });
+    return;
+  }
+  console.warn('[grammar-video] CURSOR 未配置，回退百炼万相生图');
+  await generateImageToFile(prompt, outPath);
 }
 
 /**
@@ -117,24 +158,15 @@ async function runPipeline(jobId, publicBaseUrl) {
   const workDir = job.work_dir;
   fs.mkdirSync(workDir, { recursive: true });
 
-  // 1) 讲解（复用 drill prompt；题目可生成但视频不用）
-  const model = textModel();
+  // 1) 讲解（Cursor Grok / 回退 Qwen）；视频只用 explanation
   const drillPrompt = loadPrompt('grammar-drill.md');
-  const drillUser = buildUserPayload({
+  const drillData = await completeVideoJson(drillPrompt, {
     knowledge_point: knowledgePoint,
     student_profile: input.student_profile,
     focus_points: input.focus_points,
     question_count: 3,
     question_types: ['choice'],
   });
-  const drillRes = await completeQwenText({
-    model,
-    systemPrompt: drillPrompt,
-    userText: drillUser,
-    json: true,
-    temperature: 0.4,
-  });
-  const drillData = parseJsonFromModel(drillRes.fullText);
   const explanation = String(drillData.explanation_markdown || '').trim();
   if (!explanation) throw new Error('讲解生成失败：explanation_markdown 为空');
   fs.writeFileSync(
@@ -142,41 +174,34 @@ async function runPipeline(jobId, publicBaseUrl) {
     JSON.stringify(drillData, null, 2),
   );
 
-  // 2) 分镜脚本
+  // 2) 分镜脚本（1–3 分钟，高教学密度）
   updateJob(jobId, { progress: 'script' });
   const scriptPrompt = loadPrompt('grammar-video-script.md');
-  const scriptUser = buildUserPayload({
+  const script = await completeVideoJson(scriptPrompt, {
     knowledge_point: knowledgePoint,
     explanation_markdown: explanation,
     student_profile: input.student_profile,
     focus_points: input.focus_points,
     max_slides: maxSlides(),
+    duration_target: '1-3 minutes',
   });
-  const scriptRes = await completeQwenText({
-    model,
-    systemPrompt: scriptPrompt,
-    userText: scriptUser,
-    json: true,
-    temperature: 0.5,
-  });
-  const script = parseJsonFromModel(scriptRes.fullText);
   let slides = Array.isArray(script.slides) ? script.slides : [];
   slides = slides.slice(0, maxSlides());
-  if (slides.length < 3) {
-    throw new Error(`分镜页数不足: ${slides.length}`);
+  if (slides.length < 5) {
+    throw new Error(`分镜页数不足（需要≥5）: ${slides.length}`);
   }
   fs.writeFileSync(
     path.join(workDir, 'script.json'),
     JSON.stringify(script, null, 2),
   );
 
-  // cold_open 作为可选首段 TTS（叠到第一页前：单独短页）
   const coldOpen = String(script.cold_open || '').trim();
+  const title = String(script.title || knowledgePoint).trim();
 
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
   const composeSlides = [];
 
-  // 3) 生图
+  // 3) 生图（Cursor Grok 内置生图 / 回退万相）
   updateJob(jobId, { progress: 'images' });
   const imagePaths = [];
   for (let i = 0; i < slides.length; i += 1) {
@@ -186,16 +211,17 @@ async function runPipeline(jobId, publicBaseUrl) {
       : [];
     const visual =
       String(slide.visual_prompt || '').trim() ||
-      `Simple educational whiteboard sketch about ${knowledgePoint}, clean flat illustration, vertical poster`;
-    const prompt = [
-      visual,
-      'style: clean whiteboard hand-drawn teaching illustration, soft paper background, no photorealistic face, no watermark',
-      labels.length ? `on-image labels (draw as handwritten Chinese notes): ${labels.join(' / ')}` : '',
-    ]
-      .filter(Boolean)
-      .join('. ');
-    const imgPath = path.join(workDir, `slide_${String(i).padStart(2, '0')}.png`);
-    await generateImageToFile(prompt, imgPath);
+      `English grammar teaching diagram about ${knowledgePoint}`;
+    const prompt = buildWhiteboardPrompt({
+      imagePrompt: visual,
+      onImageText: labels,
+      pageIndex: i + 1,
+      totalPages: slides.length,
+      chapterTitle: title,
+    });
+    const stem = `slide_${String(i).padStart(2, '0')}`;
+    const imgPath = path.join(workDir, `${stem}.png`);
+    await generateSlideImage(prompt, imgPath, `artifacts/${jobId}_${stem}.png`);
     imagePaths.push(imgPath);
   }
 
@@ -229,7 +255,7 @@ async function runPipeline(jobId, publicBaseUrl) {
   const outMp4 = path.join(workDir, 'output.mp4');
   composeVerticalVideo(composeSlides, outMp4);
 
-  // 6) 上传：优先正式 OSS；未配置时回退本服务临时文件 URL
+  // 6) 上传 OSS
   updateJob(jobId, { progress: 'upload' });
   let videoUrl = '';
   /** @type {string | null} */
