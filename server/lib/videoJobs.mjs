@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { buildObjectUrl, ossConfigured } from './ossUpload.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '../data/video-jobs');
@@ -124,7 +125,6 @@ export function publicJobView(job) {
   // 私有 Bucket：每次查询刷新签名，避免存库里的 URL 过期
   if (job.oss_key && ossConfigured()) {
     try {
-      const { buildObjectUrl } = awaitableOss();
       const built = buildObjectUrl(job.oss_key);
       videoUrl = built.url;
       expiresAt = built.expires_at;
@@ -146,11 +146,6 @@ export function publicJobView(job) {
     started_at: job.started_at,
     finished_at: job.finished_at,
   };
-}
-
-function awaitableOss() {
-  // 同步 import 已在模块顶层；此处仅避免循环依赖写法
-  return requireOss();
 }
 
 /**
