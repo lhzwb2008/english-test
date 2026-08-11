@@ -127,15 +127,24 @@ async function completeVideoJson(systemPrompt, fields) {
 }
 
 /**
- * 生图：优先 Cursor Cloud Grok 内置生图；未配置时回退百炼万相
+ * 生图：优先 Cursor 内置生图；未配置时回退百炼万相
+ * @param {string} prompt
+ * @param {string} outPath
+ * @param {string} artifactName
+ * @param {string} [reuseAgentId]
+ * @returns {Promise<string|undefined>} 可复用的 agentId
  */
-async function generateSlideImage(prompt, outPath, artifactName) {
+async function generateSlideImage(prompt, outPath, artifactName, reuseAgentId) {
   if (cursorConfigured()) {
-    await generateCursorImageToFile(prompt, outPath, { artifactName });
-    return;
+    const r = await generateCursorImageToFile(prompt, outPath, {
+      artifactName,
+      agentId: reuseAgentId,
+    });
+    return r.agentId;
   }
   console.warn('[grammar-video] CURSOR 未配置，回退百炼万相生图');
   await generateImageToFile(prompt, outPath);
+  return undefined;
 }
 
 /**
@@ -201,9 +210,11 @@ async function runPipeline(jobId, publicBaseUrl) {
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
   const composeSlides = [];
 
-  // 3) 生图（Cursor Grok 内置生图 / 回退万相）
+  // 3) 生图（Cursor 内置生图，同任务内复用 Agent；未配置回退万相）
   updateJob(jobId, { progress: 'images' });
   const imagePaths = [];
+  /** @type {string|undefined} */
+  let imageAgentId;
   for (let i = 0; i < slides.length; i += 1) {
     const slide = slides[i] || {};
     const labels = Array.isArray(slide.on_image_text)
@@ -221,7 +232,12 @@ async function runPipeline(jobId, publicBaseUrl) {
     });
     const stem = `slide_${String(i).padStart(2, '0')}`;
     const imgPath = path.join(workDir, `${stem}.png`);
-    await generateSlideImage(prompt, imgPath, `artifacts/${jobId}_${stem}.png`);
+    imageAgentId = await generateSlideImage(
+      prompt,
+      imgPath,
+      `artifacts/${jobId}_${stem}.png`,
+      imageAgentId,
+    );
     imagePaths.push(imgPath);
   }
 

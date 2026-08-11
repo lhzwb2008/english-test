@@ -1,6 +1,7 @@
 /**
- * Cursor Cloud Agents 客户端（对齐 AIVideo cursor_client.py）
- * 文案 + 生图均走 grok-4.5，强制关闭 fast
+ * Cursor Cloud Agents 客户端
+ * 文案默认 grok-4.5；生图编排可用 CURSOR_IMAGE_MODEL（建议 composer-2.5）
+ * 一律关闭 fast。本仓库不引入 AiHubMix。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,14 +23,20 @@ function baseUrl() {
 }
 
 export function cursorModelId() {
-  // 关闭 fast：用 grok-4.5，勿用 composer-2-fast / *-fast 变体
   return env('CURSOR_MODEL_ID', 'grok-4.5');
 }
 
-/** @returns {{ id: string, params?: Array<{ id: string, value: string }> }} */
-function modelSelection() {
-  const id = cursorModelId();
-  // 仅 grok 系列带 effort/fast；一律关掉 fast
+/** 生图编排模型（底层 GenerateImage 工具同一套；编排更快可缩短墙钟时间） */
+export function cursorImageModelId() {
+  return env('CURSOR_IMAGE_MODEL', 'composer-2.5');
+}
+
+/**
+ * @param {string} [modelId]
+ * @returns {{ id: string, params?: Array<{ id: string, value: string }> }}
+ */
+function modelSelection(modelId) {
+  const id = (modelId || cursorModelId()).trim();
   if (id.startsWith('grok')) {
     return {
       id,
@@ -58,15 +65,15 @@ const RETRY_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 /**
  * @param {string} method
- * @param {string} path
+ * @param {string} reqPath
  * @param {object} [body]
  */
-async function http(method, path, body) {
+async function http(method, reqPath, body) {
   const maxAttempts = Math.max(1, Number(env('CURSOR_HTTP_MAX_RETRIES', '6')));
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const resp = await fetch(`${baseUrl()}${path}`, {
+      const resp = await fetch(`${baseUrl()}${reqPath}`, {
         method,
         headers: {
           Authorization: authHeader(),
@@ -85,7 +92,7 @@ async function http(method, path, body) {
       if (RETRY_CODES.has(resp.status) && attempt < maxAttempts) {
         const wait = resp.status === 429 ? 60 : Math.min(120, 2 * attempt);
         console.warn(
-          `[cursor] ${method} ${path} → ${resp.status}，${wait}s 后重试 (${attempt})`,
+          `[cursor] ${method} ${reqPath} → ${resp.status}，${wait}s 后重试 (${attempt})`,
         );
         await new Promise((r) => setTimeout(r, wait * 1000));
         continue;
@@ -97,16 +104,20 @@ async function http(method, path, body) {
         await new Promise((r) => setTimeout(r, Math.min(30, 0.5 * attempt) * 1000));
         continue;
       }
-      throw new Error(`Cursor HTTP ${method} ${path} 失败: ${err.message}`);
+      throw new Error(`Cursor HTTP ${method} ${reqPath} 失败: ${err.message}`);
     }
   }
   throw new Error(`Cursor HTTP 失败: ${lastErr?.message || 'unknown'}`);
 }
 
-async function createAgent(prompt) {
+/**
+ * @param {string} prompt
+ * @param {string} [modelId]
+ */
+async function createAgent(prompt, modelId) {
   const { status, data, raw } = await http('POST', '/v1/agents', {
     prompt: { text: prompt },
-    model: modelSelection(),
+    model: modelSelection(modelId),
     repos: [{ url: sandboxRepoUrl() }],
     autoCreatePR: false,
   });
@@ -144,7 +155,6 @@ async function getRun(agentId, runId) {
 }
 
 /**
- * 消费 run SSE，攒 assistant 文本（result 为空时兜底）
  * @param {string} agentId
  * @param {string} runId
  * @param {number} timeoutMs
@@ -207,7 +217,7 @@ async function consumeAssistantSse(agentId, runId, timeoutMs) {
       }
     }
   } catch {
-    /* abort / network — 靠 poll 结果 */
+    /* abort / network */
   } finally {
     clearTimeout(timer);
   }
@@ -216,20 +226,24 @@ async function consumeAssistantSse(agentId, runId, timeoutMs) {
 
 /**
  * @param {string} prompt
- * @param {{ requireText?: boolean }} [opts]
+ * @param {{ requireText?: boolean, agentId?: string, modelId?: string }} [opts]
  * @returns {Promise<{ text: string, agentId: string, runId: string, status: string }>}
  */
 export async function runCursorPrompt(prompt, opts = {}) {
   const requireText = opts.requireText !== false;
-  const reuse = env('AIVIDEO_CURSOR_REUSE_AGENT', '1') === '1';
-  const sticky = env('CURSOR_STICKY_AGENT_ID');
-  let agentId;
+  const modelId = opts.modelId || cursorModelId();
+  const stickyEnv = env('CURSOR_STICKY_AGENT_ID');
+  const reuseEnv = env('AIVIDEO_CURSOR_REUSE_AGENT', '1') === '1';
+  let agentId = opts.agentId || '';
   let runId;
-  if (reuse && sticky) {
-    agentId = sticky;
+
+  if (agentId) {
+    runId = await createRun(agentId, prompt);
+  } else if (reuseEnv && stickyEnv) {
+    agentId = stickyEnv;
     runId = await createRun(agentId, prompt);
   } else {
-    const created = await createAgent(prompt);
+    const created = await createAgent(prompt, modelId);
     agentId = created.agentId;
     runId = created.runId;
   }
@@ -237,7 +251,6 @@ export async function runCursorPrompt(prompt, opts = {}) {
   const timeoutMs = Number(env('CURSOR_AGENT_TIMEOUT_MS', '1500000'));
   const pollMs = Number(env('CURSOR_POLL_INTERVAL_MS', '4000'));
   const deadline = Date.now() + timeoutMs;
-
   const ssePromise = consumeAssistantSse(agentId, runId, timeoutMs);
 
   let finalStatus = 'TIMEOUT';
@@ -302,7 +315,9 @@ export async function completeCursorJson(systemPrompt, userPayload) {
     '',
     userPayload.trim(),
   ].join('\n');
-  const { text } = await runCursorPrompt(prompt);
+  const { text } = await runCursorPrompt(prompt, {
+    modelId: cursorModelId(),
+  });
   return parseJsonFromModel(text);
 }
 
@@ -382,10 +397,11 @@ export function buildWhiteboardPrompt({
 }
 
 /**
- * 用 Cursor Cloud Grok 内置生图工具生成一张图，经 artifacts API 下载到本地
+ * Cursor 内置生图 → artifacts 下载。可传入 agentId 复用同 Agent，避免每次冷启动。
  * @param {string} imagePrompt
  * @param {string} outPath
- * @param {{ artifactName?: string }} [opts]
+ * @param {{ artifactName?: string, agentId?: string, modelId?: string }} [opts]
+ * @returns {Promise<{ outPath: string, agentId: string, elapsedMs: number }>}
  */
 export async function generateCursorImageToFile(imagePrompt, outPath, opts = {}) {
   const artifactName =
@@ -394,10 +410,14 @@ export async function generateCursorImageToFile(imagePrompt, outPath, opts = {})
   const artifactRel = artifactName.startsWith('artifacts/')
     ? artifactName
     : `artifacts/${artifactName}`;
+  const modelId = opts.modelId || cursorImageModelId();
+  const t0 = Date.now();
+  const basename = path.basename(artifactRel);
 
   const prompt = [
-    'You must use Cursor\'s built-in image generation tool exactly once (GenerateImage / image generation).',
+    "You must use Cursor's built-in image generation tool exactly once (GenerateImage / image generation).",
     'Do NOT write code to call external image APIs. Do NOT create a pull request.',
+    'Be quick: call the image tool immediately, save the file, then finish.',
     '',
     'Generate ONE vertical 9:16 teaching illustration with this exact prompt:',
     '"""',
@@ -410,24 +430,35 @@ export async function generateCursorImageToFile(imagePrompt, outPath, opts = {})
     `When finished, reply with ONLY this JSON (no markdown): {"ok":true,"path":"${artifactRel}"}`,
   ].join('\n');
 
-  console.log(`[cursor-image] via ${cursorModelId()} (fast=false) → ${artifactRel}`);
-  const { agentId } = await runCursorPrompt(prompt, { requireText: false });
+  console.log(
+    `[cursor-image] via ${modelId} (fast=false)${opts.agentId ? ' reuse' : ' new'} → ${artifactRel}`,
+  );
+  const { agentId } = await runCursorPrompt(prompt, {
+    requireText: false,
+    agentId: opts.agentId,
+    modelId,
+  });
 
-  // artifacts 可能略晚于 FINISHED
   let match = null;
-  for (let i = 0; i < 12; i += 1) {
+  for (let i = 0; i < 15; i += 1) {
     const arts = await listArtifacts(agentId);
-    match =
-      arts.find((a) => {
-        const p = String(a.path || a);
-        return p === artifactRel || p.endsWith(`/${path.basename(artifactRel)}`) || p.endsWith(path.basename(artifactRel));
-      }) ||
-      arts.find((a) => {
+    match = arts.find((a) => {
+      const p = String(a.path || a);
+      return (
+        p === artifactRel ||
+        p.endsWith(`/${basename}`) ||
+        p.endsWith(basename) ||
+        p.includes(basename)
+      );
+    });
+    if (!match && !opts.agentId) {
+      match = arts.find((a) => {
         const p = String(a.path || a).toLowerCase();
         return p.endsWith('.png') || p.endsWith('.jpg') || p.endsWith('.webp');
       });
+    }
     if (match) break;
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 2000));
   }
   if (!match) {
     throw new Error(`Cursor 生图完成但未找到 artifact（期望 ${artifactRel}）`);
@@ -437,7 +468,9 @@ export async function generateCursorImageToFile(imagePrompt, outPath, opts = {})
   if (!buf.length) throw new Error('Cursor artifact 为空');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, buf);
-  return outPath;
+  const elapsedMs = Date.now() - t0;
+  console.log(`[cursor-image] done ${basename} ${elapsedMs}ms agent=${agentId}`);
+  return { outPath, agentId, elapsedMs };
 }
 
 export function cursorConfigured() {
