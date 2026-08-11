@@ -339,16 +339,33 @@ async function listArtifacts(agentId) {
  */
 async function downloadArtifact(agentId, artifactPath) {
   const q = encodeURIComponent(artifactPath);
-  const { status, data, raw } = await http(
-    'GET',
-    `/v1/agents/${agentId}/artifacts/download?path=${q}`,
-  );
-  if (status !== 200 || !data?.url) {
-    throw new Error(`downloadArtifact 失败 ${status}: ${raw.slice(0, 400)}`);
+  const maxAttempts = 5;
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const { status, data, raw } = await http(
+        'GET',
+        `/v1/agents/${agentId}/artifacts/download?path=${q}`,
+      );
+      if (status !== 200 || !data?.url) {
+        throw new Error(`downloadArtifact 失败 ${status}: ${raw.slice(0, 400)}`);
+      }
+      const img = await fetch(data.url, {
+        signal: AbortSignal.timeout(120000),
+      });
+      if (!img.ok) throw new Error(`下载 artifact 失败 HTTP ${img.status}`);
+      return Buffer.from(await img.arrayBuffer());
+    } catch (err) {
+      lastErr = err;
+      console.warn(
+        `[cursor-image] download retry ${attempt}/${maxAttempts}: ${err.message}`,
+      );
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, Math.min(20, 2 * attempt) * 1000));
+      }
+    }
   }
-  const img = await fetch(data.url);
-  if (!img.ok) throw new Error(`下载 artifact 失败 HTTP ${img.status}`);
-  return Buffer.from(await img.arrayBuffer());
+  throw new Error(`下载 artifact 失败: ${lastErr?.message || 'unknown'}`);
 }
 
 /**
