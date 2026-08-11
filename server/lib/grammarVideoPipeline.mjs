@@ -14,7 +14,6 @@ import {
   completeCursorJson,
   cursorConfigured,
   cursorModelId,
-  generateCursorImageToFile,
 } from './cursorClient.mjs';
 import { composeVerticalVideo } from './videoCompose.mjs';
 import { updateJob, getJob } from './videoJobs.mjs';
@@ -116,29 +115,37 @@ function imageConcurrency(slideCount) {
 }
 
 /**
+ * 生图：百炼万相（稳定）；全部并行时每页独立请求
+ * @param {string} prompt
+ * @param {string} outPath
+ */
+async function generateSlideImage(prompt, outPath) {
+  console.log(
+    `[grammar-video] image via Bailian ${process.env.DASHSCOPE_IMAGE_MODEL || 'wan2.6-t2i'}`,
+  );
+  await generateImageToFile(prompt, outPath);
+}
+
+/**
+ * 简单并发池（不依赖 Cursor Agent）
  * @template T, R
  * @param {T[]} items
  * @param {number} concurrency
- * @param {(item: T, index: number, agentId: string|undefined) => Promise<{ value: R, agentId?: string }>} fn
+ * @param {(item: T, index: number) => Promise<R>} fn
  * @returns {Promise<R[]>}
  */
-async function mapWithAgentPool(items, concurrency, fn) {
+async function mapPool(items, concurrency, fn) {
   /** @type {R[]} */
   const out = new Array(items.length);
   let cursor = 0;
-  const workers = Math.min(Math.max(1, concurrency), items.length);
-
+  const workers = Math.min(Math.max(1, concurrency), Math.max(1, items.length));
   await Promise.all(
     Array.from({ length: workers }, async () => {
-      /** @type {string|undefined} */
-      let agentId;
       while (true) {
         const i = cursor;
         cursor += 1;
         if (i >= items.length) return;
-        const r = await fn(items[i], i, agentId);
-        out[i] = r.value;
-        if (r.agentId) agentId = r.agentId;
+        out[i] = await fn(items[i], i);
       }
     }),
   );
@@ -165,27 +172,6 @@ async function completeVideoJson(systemPrompt, fields) {
     temperature: 0.4,
   });
   return parseJsonFromModel(fullText);
-}
-
-/**
- * 生图：优先 Cursor 内置生图；未配置时回退百炼万相
- * @param {string} prompt
- * @param {string} outPath
- * @param {string} artifactName
- * @param {string} [reuseAgentId]
- * @returns {Promise<string|undefined>} 可复用的 agentId
- */
-async function generateSlideImage(prompt, outPath, artifactName, reuseAgentId) {
-  if (cursorConfigured()) {
-    const r = await generateCursorImageToFile(prompt, outPath, {
-      artifactName,
-      agentId: reuseAgentId,
-    });
-    return r.agentId;
-  }
-  console.warn('[grammar-video] CURSOR 未配置，回退百炼万相生图');
-  await generateImageToFile(prompt, outPath);
-  return undefined;
 }
 
 /**
@@ -232,7 +218,7 @@ async function runPipeline(jobId, publicBaseUrl) {
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
   const composeSlides = [];
 
-  // 2) 生图：全部并行
+  // 2) 生图：百炼万相，全部并行
   updateJob(jobId, { progress: 'images' });
   const imageTasks = slides.map((slide, i) => {
     const labels = Array.isArray(slide?.on_image_text)
@@ -252,23 +238,16 @@ async function runPipeline(jobId, publicBaseUrl) {
     return {
       prompt,
       imgPath: path.join(workDir, `${stem}.png`),
-      artifactName: `artifacts/${jobId}_${stem}.png`,
     };
   });
 
   const conc = imageConcurrency(imageTasks.length);
   console.log(
-    `[grammar-video] images: ${imageTasks.length} slides, concurrency=${conc} (full parallel=${conc >= imageTasks.length})`,
+    `[grammar-video] bailian images: ${imageTasks.length} slides, concurrency=${conc}`,
   );
-  const imagePaths = await mapWithAgentPool(imageTasks, conc, async (task, _i, agentId) => {
-    // 全部并行时每路通常只处理 1 页；若限流则路内仍可复用 agentId
-    const nextId = await generateSlideImage(
-      task.prompt,
-      task.imgPath,
-      task.artifactName,
-      agentId,
-    );
-    return { value: task.imgPath, agentId: nextId };
+  const imagePaths = await mapPool(imageTasks, conc, async (task) => {
+    await generateSlideImage(task.prompt, task.imgPath);
+    return task.imgPath;
   });
 
   // 3) TTS

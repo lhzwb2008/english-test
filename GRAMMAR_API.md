@@ -1,6 +1,6 @@
 # 词汇 / 语法薄弱点接口（Qwen）
 
-覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。文本默认 `qwen3.8-max`（`QWEN_TEXT_MODEL` 可覆盖）；口播视频文案与生图编排均优先 Cursor **`grok-4.5`**（`fast` 关闭；生图多路并发且每路复用 Agent；**不用 AiHubMix**），TTS 用百炼 CosyVoice，本机 ffmpeg 合成后上传 OSS。
+覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。文本默认 `qwen3.8-max`（`QWEN_TEXT_MODEL` 可覆盖）；口播视频**文案**优先 Cursor **`grok-4.5`**，**生图**用百炼万相 **`wan2.6-t2i`**，TTS 用 CosyVoice，本机 ffmpeg 合成后上传 OSS。
 
 ## 调用说明
 
@@ -661,10 +661,10 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 
 ### 流水线说明
 
-1. **讲解+分镜一次完成**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）。按课堂教学组织，**无吸睛引子**
-2. **生图**：Cursor 内置 GenerateImage（默认**全部并行**；未配置则回退百炼万相）。**不使用 AiHubMix**
+1. **讲解+分镜一次完成**：Cursor Cloud **`grok-4.5`**（`fast=false`；未配置则回退 Qwen）
+2. **生图**：百炼万相 **`wan2.6-t2i`**（全部并行；可用 `DASHSCOPE_IMAGE_MODEL` 覆盖）
 3. TTS：百炼 CosyVoice（默认 **`longxiaoxia_v2` 温柔女声**）；本机 ffmpeg 合成 → OSS
-4. 目标约 **1 分钟**、**3–5 页**；墙钟主要是 1 次文案 + 1 轮并发生图
+4. 目标约 **1 分钟**、**3–5 页**
 ### 错误码
 
 | code | HTTP | 说明 |
