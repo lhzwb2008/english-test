@@ -24,7 +24,8 @@
 
 根据单元学习数据（任务数、各类型正确/错误、错词、错题明细、口语语法问题等）生成总评，并产出待巩固的**词汇/语法知识点列表**（供接口 2 逐个调用）。
 
-**PET Test 总结**也走本接口（不另开 URL）：当入参可识别为 PET 且带有四项原始分时，服务端按剑桥官方规则**先算量表分/等级**，再交给模型写总评；算分结果回传 `data.pet_score_report`。
+**PET Test 总结**也走本接口（不另开 URL）：当入参可识别为 PET，且各科作业里带有**学生原始分**时，服务端用内置剑桥换算表（已按你提供的评分标准落库）**先算量表分/等级**，再交给模型写总评；算分结果回传 `data.pet_score_report`。  
+**换算标准不需要、也不应从前端传入。**
 
 ### 入参
 
@@ -33,14 +34,13 @@ Body 即为单元学习 JSON（与业务侧 `unit_review` 同结构）。也可�
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `unit` | string | 是 | 单元，如 `Unit3`；PET 常见 `Test1` |
-| `curriculum` / `course` | string | 否 | 如 `PET` / `think2`；含 `PET` 时启用 PET 算分 |
+| `curriculum` / `course` | string | 否 | Think 可不传（默认按普通单元复盘）；PET 建议传 `"PET"` |
 | `totalTaskCount` | number | 否 | 任务总数（可与各 type 之和略有出入） |
 | `taskTypes` | array | 是 | 按类型聚合的学习数据，非空 |
-| `taskTypes[].type` | string | 是 | 如 `listening` / `oral` / `word_cn_to_en` |
+| `taskTypes[].type` | string | 是 | 如 `listening` / `oral` / `word_cn_to_en`；PET 用 `reading` / `writing` / `listening` / `speaking`（或中文 typeLabel） |
 | `taskTypes[].typeLabel` | string | 否 | 中文标签 |
 | `taskTypes[].taskCount` | number | 否 | 该类型任务数 |
 | `taskTypes[].homework` | object | 否 | 见下 |
-| `pet_scores` | object | PET 建议 | `{ reading, writing, listening, speaking }` 原始分；也可写在各 `homework.rawScore` |
 
 `homework` 常见字段（按类型出现，缺省即可）：
 
@@ -49,11 +49,13 @@ Body 即为单元学习 JSON（与业务侧 `unit_review` 同结构）。也可�
 - 词汇错词：`wrongWords: string[]`
 - 错题：`wrongQuestions: [{ question, studentAnswer, correctAnswer, explanation }]`（字段可不全）
 - 口语：`averageScore`、`grammarIssues: [{ issue, suggestion }]`
-- PET 原始分：`rawScore` / `score`（阅读满分 32、写作 40、听力 25、口语 30）；口语也可传 `speaking_dimensions`
+- **PET 学生原始分**（算量表分用，不是换算标准）：在对应听说读写任务的 `homework.rawScore`（或 `score`）里带上即可  
+  - 阅读满分 32、写作 40、听力 25、口语 30；口语也可传 `speaking_dimensions`
 
 输入中的 `instruction` 若存在会被忽略，任务以服务端 Prompt 为准。
 
-PET 识别条件（满足其一且能抽出至少一项原始分即算分）：`curriculum`/`course` 含 PET、或存在 `pet_scores`、或 `unit` 形如 `Test1`。
+**默认 Think**：不传 `curriculum`、没有 PET 原始分 → 普通单元复盘，无 `pet_score_report`。  
+**走 PET 算分**：`curriculum`/`course` 含 `PET`（或 `unit` 为 `Test1` 这类），且听说读写对应 `homework.rawScore` 能抽到分。换算表在服务端，**前端不要传标准表，也不必再单独传 `pet_scores` 对象**（兼容保留，但不推荐）。
 
 ### 出参
 
@@ -266,6 +268,8 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 
 ### PET 入参示例（仍调同一 URL）
 
+前端**只传学生这次考试的原始分**（写在各科 `homework.rawScore`），**不要传换算标准**。
+
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
   -H 'Content-Type: application/json' \
@@ -273,12 +277,6 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
     "unit": "Test9",
     "curriculum": "PET",
     "totalTaskCount": 6,
-    "pet_scores": {
-      "reading": 28,
-      "writing": 29,
-      "listening": 20,
-      "speaking": 24
-    },
     "taskTypes": [
       {
         "type": "reading",
@@ -312,13 +310,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
         "typeLabel": "口语",
         "taskCount": 1,
         "homework": {
-          "rawScore": 24,
-          "grammarIssues": [
-            {
-              "issue": "讲过去的事情动词忘记变成过去式",
-              "suggestion": "注意过去时一致性"
-            }
-          ]
+          "rawScore": 24
         }
       },
       {
@@ -326,13 +318,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
         "typeLabel": "听力",
         "taskCount": 1,
         "homework": {
-          "rawScore": 20,
-          "wrongQuestions": [
-            {
-              "question": "Part 4",
-              "explanation": "细节遗漏"
-            }
-          ]
+          "rawScore": 20
         }
       }
     ]
