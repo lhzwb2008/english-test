@@ -3,6 +3,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { completeQwenText } from '../qwen/client.mjs';
 import { parseJsonFromModel } from './jsonParse.mjs';
 import { buildUserPayload, loadPrompt, textModel } from './prompts.mjs';
@@ -14,13 +15,58 @@ import { updateJob, getJob } from './videoJobs.mjs';
 /** @type {string[]} */
 const queue = [];
 let running = false;
+let resumed = false;
+
+/**
+ * 进程启动后把磁盘上未完成的任务重新入队（pm2 重启场景）
+ * @param {string} [publicBaseUrl]
+ */
+export function resumeInterruptedJobs(publicBaseUrl = '') {
+  if (resumed) return;
+  resumed = true;
+  try {
+    const dir = path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../data/video-jobs',
+    );
+    if (!fs.existsSync(dir)) return;
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.endsWith('.json')) continue;
+      const job = getJob(name.replace(/\.json$/, ''));
+      if (!job) continue;
+      if (job.status === 'queued' || job.status === 'running') {
+        console.log('[grammar-video] resume job', job.job_id, job.status);
+        updateJob(job.job_id, {
+          status: 'queued',
+          progress: 'queued',
+          error: null,
+        });
+        enqueueVideoJob(job.job_id, publicBaseUrl || process.env.PUBLIC_BASE_URL || '');
+      }
+    }
+  } catch (err) {
+    console.warn('[grammar-video] resume failed', err?.message || err);
+  }
+}
 
 /**
  * @param {string} jobId
  * @param {string} [publicBaseUrl]
  */
 export function enqueueVideoJob(jobId, publicBaseUrl) {
-  queue.push(JSON.stringify({ jobId, publicBaseUrl: publicBaseUrl || '' }));
+  const payload = JSON.stringify({ jobId, publicBaseUrl: publicBaseUrl || '' });
+  if (queue.includes(payload)) return;
+  // 避免同一 job 重复入队
+  if (queue.some((x) => {
+    try {
+      return JSON.parse(x).jobId === jobId;
+    } catch {
+      return false;
+    }
+  })) {
+    return;
+  }
+  queue.push(payload);
   kick();
 }
 

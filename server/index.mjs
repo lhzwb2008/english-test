@@ -4,6 +4,7 @@ import { listBots } from './qwen/botRegistry.mjs';
 import filesRouter from './routes/files.mjs';
 import chatRouter from './routes/chat.mjs';
 import grammarRouter from './routes/grammar.mjs';
+import { resumeInterruptedJobs } from './lib/grammarVideoPipeline.mjs';
 
 const app = express();
 const port = Number(process.env.QWEN_PROXY_PORT || 8787);
@@ -45,4 +46,7 @@ app.listen(port, () => {
     '[qwen-proxy] text model:',
     process.env.QWEN_TEXT_MODEL || 'qwen3.8-max',
   );
+  const base =
+    process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${port}`;
+  resumeInterruptedJobs(base);
 });
