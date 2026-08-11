@@ -22,106 +22,70 @@
 
 `POST /v1/grammar/assess`
 
-根据单元学习数据（任务数、各类型正确/错误、错词、错题明细、口语语法问题等）生成总评，并产出待巩固的**词汇/语法知识点列表**（供接口 2 逐个调用）。
+### 场景（Think / PET 共用同一 URL）
 
-**PET Test 总结**也走本接口（不另开 URL）：当入参可识别为 PET，且各科作业里带有**学生原始分**时，服务端用内置剑桥换算表（已按你提供的评分标准落库）**先算量表分/等级**，再交给模型写总评；算分结果回传 `data.pet_score_report`。  
-**换算标准不需要、也不应从前端传入。**
+| | Think | PET |
+|---|---|---|
+| 何时 | Think 某 Unit 学完 | PET 某次 Test 考完 |
+| 显式标记 | `curriculum: "think"` | `curriculum: "PET"` |
+| 接口做什么 | 任务完成度总结 + 薄弱点 + 知识点列表（供下游讲解出题） | **与 Think 相同**，并多一块**成绩展示** |
+| 成绩从哪来 | 无剑桥量表 | 改卷得到的各科**原始分**已在 `taskTypes[].homework` 里；服务端用内置剑桥表换成量表分/等级，回传 `pet_score_report` |
+| 前端不要传 | — | **不要传换算标准**；不必再单独传 `pet_scores` 对象 |
+
+未传 `curriculum` 时服务端按 `think` 处理。产品侧约定：**Allen 统一显式传入** `think` 或 `PET`。
 
 ### 入参
 
-Body 即为单元学习 JSON（与业务侧 `unit_review` 同结构）。也可包在 `unit_review` 或 `input` 字段下。
+Body 即业务侧已有的 `unit_review`（也可包在 `unit_review` / `input` 下）。**Think / PET 字段结构相同**，PET 只是听说读写作业上多带改卷原始分。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `unit` | string | 是 | 单元，如 `Unit3`；PET 常见 `Test1` |
-| `curriculum` / `course` | string | 否 | Think 可不传（默认按普通单元复盘）；PET 建议传 `"PET"` |
-| `totalTaskCount` | number | 否 | 任务总数（可与各 type 之和略有出入） |
-| `taskTypes` | array | 是 | 按类型聚合的学习数据，非空 |
-| `taskTypes[].type` | string | 是 | 如 `listening` / `oral` / `word_cn_to_en`；PET 用 `reading` / `writing` / `listening` / `speaking`（或中文 typeLabel） |
+| `unit` | string | 是 | Think：`Unit3`；PET：`Test1` / `Test9` 等 |
+| `curriculum` | string | 建议 | 显式传 `"think"` 或 `"PET"` |
+| `totalTaskCount` | number | 否 | 任务总数 |
+| `taskTypes` | array | 是 | 按类型聚合的学习 / 考试数据，非空 |
+| `taskTypes[].type` | string | 是 | Think 如 `listening` / `oral` / `word_cn_to_en`；PET 如 `reading` / `writing` / `listening` / `speaking`（或 `oral`） |
 | `taskTypes[].typeLabel` | string | 否 | 中文标签 |
 | `taskTypes[].taskCount` | number | 否 | 该类型任务数 |
 | `taskTypes[].homework` | object | 否 | 见下 |
 
-`homework` 常见字段（按类型出现，缺省即可）：
+`homework`（有则传，缺省即可）：
 
-- 无作业：`hasHomework: false`
-- 计数：`totalQuestions` / `totalWords` / `totalSentences`、`correctCount`、`wrongCount`
-- 词汇错词：`wrongWords: string[]`
-- 错题：`wrongQuestions: [{ question, studentAnswer, correctAnswer, explanation }]`（字段可不全）
-- 口语：`averageScore`、`grammarIssues: [{ issue, suggestion }]`
-- **PET 学生原始分**（算量表分用，不是换算标准）：在对应听说读写任务的 `homework.rawScore`（或 `score`）里带上即可  
-  - 阅读满分 32、写作 40、听力 25、口语 30；口语也可传 `speaking_dimensions`
+- 完成度 / 对错：`totalQuestions`、`correctCount`、`wrongCount`、`hasHomework` 等
+- 错词 / 错题：`wrongWords`、`wrongQuestions[]`
+- 口语：`averageScore`、`grammarIssues[]`
+- **PET 改卷原始分**（成绩展示用）：写在对应科的 `homework.rawScore`（或 `score`）  
+  - 阅读满分 32、写作 40、听力 25、口语 30
 
-输入中的 `instruction` 若存在会被忽略，任务以服务端 Prompt 为准。
-
-**默认 Think**：不传 `curriculum`、没有 PET 原始分 → 普通单元复盘，无 `pet_score_report`。  
-**走 PET 算分**：`curriculum`/`course` 含 `PET`（或 `unit` 为 `Test1` 这类），且听说读写对应 `homework.rawScore` 能抽到分。换算表在服务端，**前端不要传标准表，也不必再单独传 `pet_scores` 对象**（兼容保留，但不推荐）。
+`instruction` 若存在会被忽略。
 
 ### 出参
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `ok` | boolean | 成功为 `true` |
-| `model` | string | 实际调用模型 |
-| `usage` | object | `token_count` / `input_count` / `output_count` |
-| `data.summary` | object | 总评 |
-| `data.knowledge_points` | array | 知识点列表 |
-| `data.pet_score_report` | object \| 缺省 | 仅 PET 且成功算分时有；服务端确定性结果，勿再让模型改算 |
+| 字段 | 说明 |
+|------|------|
+| `ok` / `model` / `usage` | 同其他接口 |
+| `data.summary` | 总评（完成情况、强弱项、各类型摘要） |
+| `data.knowledge_points[]` | 待巩固词汇/语法点（供 `/v1/grammar/drill`、口播） |
+| `data.pet_score_report` | **仅 PET** 且读到原始分时有：量表分 + 等级（前端成绩展示用这个，不要让模型改算） |
 
-`data.summary`：
+`data.summary` 主要字段：`unit_label`、`overall_assessment`、`strengths`、`priority_focus`、`task_highlights`、`assumptions`；PET 成功算分时另有 `pet_overall_scale`、`pet_overall_label_zh`。
+
+`data.pet_score_report`（PET）要点：
 
 | 字段 | 说明 |
 |------|------|
-| `unit_label` | 单元标签 |
-| `overall_assessment` | 总评正文（PET 时须含综合量表分与等级） |
-| `strengths` | 优点 |
-| `priority_focus` | 优先攻克方向 |
-| `task_highlights` | 各类型一句摘要 |
-| `assumptions` | 推断说明 |
-| `pet_overall_scale` | PET 综合量表分（有算分时由服务端回填） |
-| `pet_overall_label_zh` | PET 综合等级文案（有算分时由服务端回填） |
+| `skills.reading/writing/listening/speaking` | 各科 `raw`、`scale_rounded`、`label_zh`（卓越/优秀/通过/不通过）等 |
+| `overall.scale` / `overall.label_zh` | 四科齐全时的综合量表分与等级文案（如 `通过 Grade C`） |
+| `missing_skills` | 缺原始分的科目 |
 
-`data.pet_score_report`（PET）：
-
-| 字段 | 说明 |
-|------|------|
-| `exam` | 固定 `"PET"` |
-| `skills.<skill>` | `reading` / `writing` / `listening` / `speaking`（有原始分才出现） |
-| `skills.<skill>.raw` | 原始分 |
-| `skills.<skill>.max_raw` | 满分（32 / 40 / 25 / 30） |
-| `skills.<skill>.scale` | 量表分（可含小数，供平均） |
-| `skills.<skill>.scale_rounded` | 量表分四舍五入 |
-| `skills.<skill>.label_zh` | `卓越` / `优秀` / `通过` / `不通过` |
-| `skills.<skill>.cambridge_grade` | `Grade A/B/C` 或 `null`（未过 B1） |
-| `skills.<skill>.cefr` | `B2` / `B1` / `A2` / `null` |
-| `overall` | 四项齐全时才有；否则为 `null` |
-| `overall.scale` | 综合量表分（四项 `scale` 平均后四舍五入） |
-| `overall.label_zh` | 如 `通过 Grade C` |
-| `overall.cefr` | 证书对应 CEFR |
-| `overall.certificate` | 是否发证 |
-| `missing_skills` | 未提供原始分的技能名数组 |
-| `notes_zh` | 换算说明（展示用） |
-
-`data.knowledge_points[]`：
-
-| 字段 | 说明 |
-|------|------|
-| `id` | 如 `kp_1` |
-| `title` | 知识点标题（可直接作为接口 2 的 `knowledge_point`） |
-| `category` | `grammar` \| `vocabulary` |
-| `priority` | `high` \| `medium` \| `low` |
-| `reason` | 列入原因 |
-| `focus_points` | 子点 |
-| `evidence_types` | 证据来源的 `type` 列表 |
-| `suggested_question_types` | `choice` / `blank` / `translation` |
-
-### 示例请求
+### Think 入参示例
 
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
   -H 'Content-Type: application/json' \
   -d '{
     "unit": "Unit3",
+    "curriculum": "think",
     "totalTaskCount": 40,
     "taskTypes": [
       {
@@ -132,31 +96,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
           "totalWords": 20,
           "correctCount": 6,
           "wrongCount": 14,
-          "wrongWords": ["animated film", "comedy", "thriller", "talent show"]
-        }
-      },
-      {
-        "type": "image_free_upload",
-        "typeLabel": "书面作业",
-        "taskCount": 6,
-        "homework": {
-          "totalQuestions": 106,
-          "correctCount": 83,
-          "wrongCount": 23,
-          "wrongQuestions": [
-            {
-              "question": "bad 副词比较级：______",
-              "studentAnswer": "more badly",
-              "correctAnswer": "worse",
-              "explanation": "badly 的比较级是不规则变化 worse，不能加 more。"
-            },
-            {
-              "question": "用 (not) as ... as 完成句子",
-              "studentAnswer": "is modern than",
-              "correctAnswer": "isn'\''t as modern as",
-              "explanation": "题目要求 as...as 结构，不能写成比较级 than。"
-            }
-          ]
+          "wrongWords": ["animated film", "comedy"]
         }
       },
       {
@@ -166,32 +106,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
         "homework": {
           "averageScore": 3,
           "grammarIssues": [
-            {
-              "issue": "comedy film 泛指应用复数",
-              "suggestion": "改为 comedy films"
-            },
-            {
-              "issue": "a lot time 搭配错误",
-              "suggestion": "改为 a lot of time"
-            }
-          ]
-        }
-      },
-      {
-        "type": "listening",
-        "typeLabel": "听力",
-        "taskCount": 3,
-        "homework": {
-          "totalQuestions": 41,
-          "correctCount": 24,
-          "wrongCount": 17,
-          "wrongQuestions": [
-            {
-              "question": "What DVD does the shop assistant recommend?",
-              "studentAnswer": "the book set lieve",
-              "correctAnswer": "the box set of Glee",
-              "explanation": "细节听辨错误，box/book 混淆。"
-            }
+            { "issue": "comedy film 泛指应用复数", "suggestion": "改为 comedy films" }
           ]
         }
       }
@@ -199,76 +114,9 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
   }'
 ```
 
-### 示例响应（节选）
+### PET 入参示例（同一 URL；多成绩展示）
 
-```json
-{
-  "ok": true,
-  "model": "qwen3.8-max",
-  "usage": {
-    "token_count": 4200,
-    "input_count": 1500,
-    "output_count": 2700
-  },
-  "data": {
-    "summary": {
-      "unit_label": "Unit3",
-      "overall_assessment": "本单元词汇与书面语法仍是主要短板：中译英正确率偏低，比较级/最高级与 as…as 易混；口语有复数与固定搭配问题。建议先攻语法变形，再集中过影视类词汇。",
-      "strengths": ["书面作业整体完成量较大，部分 as…as 题已掌握"],
-      "priority_focus": "形容词/副词比较等级与影视主题词汇",
-      "task_highlights": [
-        {
-          "type": "word_cn_to_en",
-          "typeLabel": "单词中译英",
-          "note": "20 词错 14，影视类词汇薄弱"
-        },
-        {
-          "type": "oral",
-          "typeLabel": "口语",
-          "note": "平均分 3，存在复数与搭配问题"
-        }
-      ],
-      "assumptions": []
-    },
-    "knowledge_points": [
-      {
-        "id": "kp_1",
-        "title": "形容词与副词的比较级 / 最高级（含不规则）",
-        "category": "grammar",
-        "priority": "high",
-        "reason": "书面作业出现 more badly、变形拼写错误等",
-        "focus_points": ["规则变形", "不规则 worse/worst", "双音节 y→i"],
-        "evidence_types": ["image_free_upload"],
-        "suggested_question_types": ["choice", "blank", "translation"]
-      },
-      {
-        "id": "kp_2",
-        "title": "as…as 同级比较",
-        "category": "grammar",
-        "priority": "high",
-        "reason": "易写成比较级 than",
-        "focus_points": ["not as…as", "与比较级区分"],
-        "evidence_types": ["image_free_upload"],
-        "suggested_question_types": ["choice", "blank"]
-      },
-      {
-        "id": "kp_3",
-        "title": "影视 / 节目类词汇巩固",
-        "category": "vocabulary",
-        "priority": "high",
-        "reason": "中译英大量错词集中在 film/show 类",
-        "focus_points": ["animated film", "thriller", "talent show"],
-        "evidence_types": ["word_cn_to_en"],
-        "suggested_question_types": ["choice", "blank", "translation"]
-      }
-    ]
-  }
-}
-```
-
-### PET 入参示例（仍调同一 URL）
-
-前端**只传学生这次考试的原始分**（写在各科 `homework.rawScore`），**不要传换算标准**。
+与 Think 相同结构；`curriculum` 为 `PET`，听说读写作业带上**改卷原始分**即可。
 
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
@@ -284,178 +132,32 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
         "taskCount": 1,
         "homework": {
           "rawScore": 28,
-          "wrongQuestions": [
-            {
-              "question": "Part 5 gap 12",
-              "explanation": "词汇搭配错误"
-            }
-          ]
+          "wrongQuestions": [{ "question": "Part 5", "explanation": "词汇搭配错误" }]
         }
       },
       {
         "type": "writing",
         "typeLabel": "写作",
         "taskCount": 1,
-        "homework": {
-          "rawScore": 29,
-          "wrongQuestions": [
-            {
-              "explanation": "词汇和句式多样化不足"
-            }
-          ]
-        }
-      },
-      {
-        "type": "oral",
-        "typeLabel": "口语",
-        "taskCount": 1,
-        "homework": {
-          "rawScore": 24
-        }
+        "homework": { "rawScore": 29 }
       },
       {
         "type": "listening",
         "typeLabel": "听力",
         "taskCount": 1,
-        "homework": {
-          "rawScore": 20
-        }
+        "homework": { "rawScore": 20 }
+      },
+      {
+        "type": "oral",
+        "typeLabel": "口语",
+        "taskCount": 1,
+        "homework": { "rawScore": 24 }
       }
     ]
   }'
 ```
 
-成功时 `data.pet_score_report.overall.scale` 应为 `152`（通过 Grade C）；总评正文须与此一致。
-
-### PET 示例响应（节选）
-
-```json
-{
-  "ok": true,
-  "model": "qwen3.8-max",
-  "usage": {
-    "token_count": 3800,
-    "input_count": 1600,
-    "output_count": 2200
-  },
-  "data": {
-    "summary": {
-      "unit_label": "Test9",
-      "overall_assessment": "本 Test 综合量表分 152，证书等级为通过 Grade C（合格线 140，距优秀 153 差 1 分）。阅读 28→约 157（优秀）、口语 24→153（优秀）相对更好；写作 29、听力 20 均为通过档，写作句式多样与听力 Part4 细节仍是短板。建议优先补写作语言准确性与听力长对话细节。",
-      "strengths": ["阅读接近卓越线", "口语已达优秀档"],
-      "priority_focus": "写作句式多样与听力 Part4 细节",
-      "task_highlights": [
-        {
-          "type": "reading",
-          "typeLabel": "阅读",
-          "note": "原始分 28，量表约 157，等级优秀；Part5 词汇搭配仍有错"
-        },
-        {
-          "type": "writing",
-          "typeLabel": "写作",
-          "note": "原始分 29，量表约 149，等级通过；句式多样化不足"
-        },
-        {
-          "type": "oral",
-          "typeLabel": "口语",
-          "note": "原始分 24，量表 153，等级优秀；过去时一致性需巩固"
-        },
-        {
-          "type": "listening",
-          "typeLabel": "听力",
-          "note": "原始分 20，量表约 149，等级通过；Part4 细节遗漏"
-        }
-      ],
-      "assumptions": [],
-      "pet_overall_scale": 152,
-      "pet_overall_label_zh": "通过 Grade C"
-    },
-    "knowledge_points": [
-      {
-        "id": "kp_1",
-        "title": "一般过去时动词变形",
-        "category": "grammar",
-        "priority": "high",
-        "reason": "口语指出讲过去的事情忘记用过去式",
-        "focus_points": ["规则动词 -ed", "常见不规则过去式"],
-        "evidence_types": ["oral"],
-        "suggested_question_types": ["choice", "blank", "translation"]
-      },
-      {
-        "id": "kp_2",
-        "title": "写作词汇与句式多样化",
-        "category": "vocabulary",
-        "priority": "medium",
-        "reason": "写作反馈提到词汇和句式多样化不足",
-        "focus_points": ["同义替换", "从句补充细节"],
-        "evidence_types": ["writing"],
-        "suggested_question_types": ["translation", "blank"]
-      }
-    ],
-    "pet_score_report": {
-      "exam": "PET",
-      "skills": {
-        "reading": {
-          "skill": "reading",
-          "raw": 28,
-          "max_raw": 32,
-          "scale": 156.5,
-          "scale_rounded": 157,
-          "label_zh": "优秀",
-          "cambridge_grade": "Grade B",
-          "cefr": "B1"
-        },
-        "writing": {
-          "skill": "writing",
-          "raw": 29,
-          "max_raw": 40,
-          "scale": 149.28571428571428,
-          "scale_rounded": 149,
-          "label_zh": "通过",
-          "cambridge_grade": "Grade C",
-          "cefr": "B1"
-        },
-        "listening": {
-          "skill": "listening",
-          "raw": 20,
-          "max_raw": 25,
-          "scale": 148.66666666666666,
-          "scale_rounded": 149,
-          "label_zh": "通过",
-          "cambridge_grade": "Grade C",
-          "cefr": "B1"
-        },
-        "speaking": {
-          "skill": "speaking",
-          "raw": 24,
-          "max_raw": 30,
-          "scale": 153,
-          "scale_rounded": 153,
-          "label_zh": "优秀",
-          "cambridge_grade": "Grade B",
-          "cefr": "B1"
-        }
-      },
-      "overall": {
-        "scale": 152,
-        "average_exact": 151.86309523809524,
-        "label_zh": "通过 Grade C",
-        "cambridge_grade": "Grade C",
-        "cefr": "B1",
-        "certificate": true,
-        "formula_zh": "总分 = (阅读量表分 + 写作量表分 + 听力量表分 + 口语量表分) ÷ 4，四舍五入取整"
-      },
-      "missing_skills": [],
-      "notes_zh": [
-        "四项权重相等，各占 25%",
-        "写作：两篇作文各 0–20（四维各 0–5），原始满分 40",
-        "口语原始分 = 四项分项之和 + 整体表现×2，满分 30",
-        "中间原始分按锚点线性插值；官方完整对照表未公开时与证书可能有 ±1 偏差"
-      ]
-    }
-  }
-}
-```
+上例服务端算分：`data.pet_score_report.overall.scale` = **152**（通过 Grade C）。前端成绩展示直接用 `pet_score_report`。
 
 ### 错误码
 

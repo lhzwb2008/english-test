@@ -12,7 +12,7 @@
 顶层常见字段：
 
 - `unit`：单元，如 `Unit3`；PET 场景常见 `Test1` / `Test9`
-- `curriculum` / `course`：教材或考试类型（如 `PET`、`think2`）；可能缺省
+- `curriculum`：显式传入 `think` 或 `PET`（产品约定；未传时服务端按 `think`）
 - `totalTaskCount`：任务总数（可能与各 type 之和略有出入，以 `taskTypes` 为准做分析）
 - `taskTypes[]`：按类型聚合的学习数据
   - `type` / `typeLabel` / `taskCount`
@@ -21,7 +21,7 @@
     - 词汇错词：`wrongWords`（字符串数组）
     - 错题明细：`wrongQuestions[]`（`question` / `studentAnswer` / `correctAnswer` / `explanation`，字段可能不全）
     - 口语：`averageScore`、`grammarIssues[]`（`issue` / `suggestion`）
-    - PET 原始分：`rawScore` / `score`（阅读满分 32、写作 40、听力 25、口语 30）
+    - PET 改卷原始分：听说读写对应任务的 `rawScore` / `score`（阅读满分 32、写作 40、听力 25、口语 30）
     - 无作业：`hasHomework: false`
 - **`pet_score_report`（若存在）**：服务端已按剑桥 PET 官方规则算好的量表分与等级。**必须当作事实**写进总评；**禁止**自行改算、四舍五入冲突或以经验覆盖。
 

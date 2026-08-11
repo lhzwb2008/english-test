@@ -47,36 +47,22 @@ function asFiniteNumber(value) {
 function isPetCurriculum(value) {
   const s = asNonEmptyString(value).toLowerCase();
   if (!s) return false;
+  return s === 'pet' || /(^|[^a-z])pet([^a-z]|$)/i.test(s) || s.includes('b1 preliminary');
+}
+
+/**
+ * 仅当 curriculum 显式为 PET 时启用成绩换算（Allen 会统一显式传入）。
+ * @param {Record<string, unknown>} source
+ */
+function isPetMode(source) {
   return (
-    s === 'pet' ||
-    s.includes('pet') ||
-    s.includes('b1 preliminary') ||
-    s.includes('preliminary english')
+    isPetCurriculum(source.curriculum) ||
+    isPetCurriculum(source.course)
   );
 }
 
 /**
- * @param {Record<string, unknown>} source
- * @returns {boolean}
- */
-function looksLikePetUnitReview(source) {
-  if (
-    isPetCurriculum(source.curriculum) ||
-    isPetCurriculum(source.course) ||
-    isPetCurriculum(source.exam) ||
-    isPetCurriculum(source.exam_standard) ||
-    isPetCurriculum(source.material) ||
-    isPetCurriculum(source.教材)
-  ) {
-    return true;
-  }
-  if (source.pet_scores || source.petScores) return true;
-  const unit = asNonEmptyString(source.unit);
-  return /^test\s*\d+/i.test(unit);
-}
-
-/**
- * 从 homework / 对象里取原始分。
+ * 从 homework / 对象里取改卷原始分。
  * @param {Record<string, unknown> | null | undefined} obj
  * @returns {number | undefined}
  */
@@ -92,36 +78,17 @@ function pickRawScore(obj) {
 }
 
 /**
+ * 从 taskTypes 作业数据抽出 PET 四科原始分（改卷结果，不是换算标准）。
  * @param {Record<string, unknown>} source
- * @returns {{ reading?: number, writing?: number, listening?: number, speaking?: number, speaking_dimensions?: Record<string, number> } | null}
  */
 function extractPetRawScores(source) {
-  const bag =
-    (source.pet_scores && typeof source.pet_scores === 'object'
-      ? source.pet_scores
-      : null) ||
-    (source.petScores && typeof source.petScores === 'object'
-      ? source.petScores
-      : null) ||
-    (source.scores && typeof source.scores === 'object' ? source.scores : null) ||
-    {};
-
-  /** @type {Record<string, number | undefined>} */
+  /** @type {Record<string, number | undefined> & { speaking_dimensions?: Record<string, number> }} */
   const out = {
-    reading: asFiniteNumber(bag.reading ?? source.reading),
-    writing: asFiniteNumber(bag.writing ?? source.writing),
-    listening: asFiniteNumber(bag.listening ?? source.listening),
-    speaking: asFiniteNumber(bag.speaking ?? source.speaking),
+    reading: undefined,
+    writing: undefined,
+    listening: undefined,
+    speaking: undefined,
   };
-
-  const dims =
-    bag.speaking_dimensions ||
-    bag.speakingDimensions ||
-    source.speaking_dimensions ||
-    source.speakingDimensions;
-  if (dims && typeof dims === 'object') {
-    out.speaking_dimensions = dims;
-  }
 
   const taskTypes = Array.isArray(source.taskTypes) ? source.taskTypes : [];
   for (const t of taskTypes) {
@@ -132,7 +99,8 @@ function extractPetRawScores(source) {
     const raw = pickRawScore(hw) ?? pickRawScore(t);
 
     const isReading = type.includes('read') || label.includes('阅读');
-    const isWriting = type.includes('writ') || label.includes('写作') || label.includes('作文');
+    const isWriting =
+      type.includes('writ') || label.includes('写作') || label.includes('作文');
     const isListening = type.includes('listen') || label.includes('听力');
     const isSpeaking =
       type.includes('oral') ||
@@ -148,7 +116,6 @@ function extractPetRawScores(source) {
       if (out.speaking === undefined && raw !== undefined) out.speaking = raw;
       const hwDims = hw?.speaking_dimensions || hw?.speakingDimensions || hw?.exam_rubric;
       if (!out.speaking_dimensions && hwDims && typeof hwDims === 'object') {
-        // exam_rubric.dimensions[] → flat map if needed
         if (Array.isArray(hwDims.dimensions)) {
           const flat = {};
           for (const d of hwDims.dimensions) {
@@ -174,7 +141,6 @@ function extractPetRawScores(source) {
   ) {
     return null;
   }
-
   return out;
 }
 
@@ -183,7 +149,7 @@ function extractPetRawScores(source) {
  * @returns {Record<string, unknown> | null}
  */
 function maybeBuildPetScoreReport(source) {
-  if (!looksLikePetUnitReview(source)) return null;
+  if (!isPetMode(source)) return null;
   const raw = extractPetRawScores(source);
   if (!raw) return null;
   try {
@@ -207,23 +173,19 @@ function normalizeUnitReview(body) {
     const unit = asNonEmptyString(c.unit);
     const taskTypes = c.taskTypes;
     if (unit && Array.isArray(taskTypes) && taskTypes.length > 0) {
-      const curriculum =
+      const curriculumRaw =
         asNonEmptyString(c.curriculum) ||
         asNonEmptyString(c.course) ||
-        asNonEmptyString(c.exam) ||
-        asNonEmptyString(c.exam_standard) ||
-        asNonEmptyString(c.material) ||
-        asNonEmptyString(c.教材) ||
-        undefined;
-
-      const petScoreReport = maybeBuildPetScoreReport(c);
+        '';
+      // 未传时默认 think（与产品约定一致）；Allen 侧会显式传入
+      const curriculum = curriculumRaw || 'think';
+      const petScoreReport = maybeBuildPetScoreReport({ ...c, curriculum });
 
       return {
         unit,
+        curriculum,
         totalTaskCount: c.totalTaskCount,
         taskTypes,
-        ...(curriculum ? { curriculum } : {}),
-        // 服务端预计算；模型必须当作事实使用，不得自行改算
         ...(petScoreReport ? { pet_score_report: petScoreReport } : {}),
       };
     }
