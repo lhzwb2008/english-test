@@ -240,7 +240,6 @@ async function runPipeline(jobId, publicBaseUrl) {
     JSON.stringify(script, null, 2),
   );
 
-  const coldOpen = String(script.cold_open || '').trim();
   const title = String(script.title || knowledgePoint).trim();
 
   /** @type {Array<{ imagePath: string, audioPath: string, subtitle: string }>} */
@@ -272,7 +271,7 @@ async function runPipeline(jobId, publicBaseUrl) {
 
   const conc = imageConcurrency();
   console.log(
-    `[grammar-video] images: ${imageTasks.length} slides, concurrency=${conc}, model=grok/reuse-pool`,
+    `[grammar-video] images: ${imageTasks.length} slides, concurrency=${conc}`,
   );
   const imagePaths = await mapWithAgentPool(imageTasks, conc, async (task, _i, agentId) => {
     const nextId = await generateSlideImage(
@@ -284,18 +283,8 @@ async function runPipeline(jobId, publicBaseUrl) {
     return { value: task.imgPath, agentId: nextId };
   });
 
-  // 4) TTS
+  // 4) TTS（百炼 CosyVoice；无 cold_open 引子）
   updateJob(jobId, { progress: 'tts' });
-  if (coldOpen) {
-    const coldAudio = path.join(workDir, 'cold_open.mp3');
-    await synthesizeToFile(coldOpen, coldAudio);
-    composeSlides.push({
-      imagePath: imagePaths[0],
-      audioPath: coldAudio,
-      subtitle: coldOpen,
-    });
-  }
-
   for (let i = 0; i < slides.length; i += 1) {
     const narration = String(slides[i]?.narration || '').trim();
     if (!narration) continue;

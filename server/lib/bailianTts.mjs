@@ -31,7 +31,8 @@ function model() {
 }
 
 function voice() {
-  return process.env.DASHSCOPE_TTS_VOICE || 'longshu_v2';
+  // 默认温柔女声（龙小夏）；可用 DASHSCOPE_TTS_VOICE 覆盖
+  return process.env.DASHSCOPE_TTS_VOICE || 'longxiaoxia_v2';
 }
 
 function sampleRate() {
