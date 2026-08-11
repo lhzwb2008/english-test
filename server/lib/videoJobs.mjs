@@ -119,20 +119,38 @@ export function updateJob(jobId, patch) {
  * @param {VideoJob} job
  */
 export function publicJobView(job) {
+  let videoUrl = job.video_url;
+  let expiresAt = job.expires_at;
+  // 私有 Bucket：每次查询刷新签名，避免存库里的 URL 过期
+  if (job.oss_key && ossConfigured()) {
+    try {
+      const { buildObjectUrl } = awaitableOss();
+      const built = buildObjectUrl(job.oss_key);
+      videoUrl = built.url;
+      expiresAt = built.expires_at;
+    } catch {
+      /* 保留落库 URL */
+    }
+  }
   return {
     ok: true,
     job_id: job.job_id,
     status: job.status,
     progress: job.progress,
     knowledge_point: job.knowledge_point,
-    video_url: job.video_url,
-    expires_at: job.expires_at,
+    video_url: videoUrl,
+    expires_at: expiresAt,
     error: job.error,
     created_at: job.created_at,
     updated_at: job.updated_at,
     started_at: job.started_at,
     finished_at: job.finished_at,
   };
+}
+
+function awaitableOss() {
+  // 同步 import 已在模块顶层；此处仅避免循环依赖写法
+  return requireOss();
 }
 
 /**

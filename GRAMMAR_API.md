@@ -604,7 +604,9 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 只把**讲解**做成竖屏口播短视频（约 60–90 秒），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
 
-因百炼临时存储返回的是 `oss://` 且**不可给浏览器直接下载播放**，成片由本服务落盘并提供可播放 URL，**约 48 小时后清理**（与临时存储同级 TTL）。未配置正式 OSS AccessKey。
+成片合成后上传到**阿里云 OSS**（`nba-dev-sh` / 前缀 `wenbo`）。当前 Bucket 为**私有**，`video_url` 为**签名 HTTPS**（默认约 7 天，查询接口会刷新签名），流量走 OSS 不走业务机。未配置 OSS 时才回退本服务 `/file`。
+
+说明：控制台里的 CNAME `nba-dev-sh.cn-shanghai.taihangpfm.cn` 目前证书与域名不匹配，暂用默认 `*.oss-cn-shanghai.aliyuncs.com` 签名地址；CNAME 证书配好后可改 `OSS_URL_MODE=public` + `OSS_PUBLIC_BASE_URL`。
 
 ### 3.1 创建任务
 
@@ -644,17 +646,18 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 |------|------|
 | `status` | `queued` / `running` / `succeeded` / `failed` |
 | `progress` | `queued` / `drill` / `script` / `images` / `tts` / `compose` / `upload` / `done` |
-| `video_url` | 成功时的可播放地址（指向本服务 `/file`） |
-| `expires_at` | 过期时间（约创建后 48h） |
+| `video_url` | 成功时的可播放地址（优先 OSS/CNAME；未配 OSS 时为本服务 `/file`） |
+| `expires_at` | 签名 URL 过期时间；公有读 OSS 时多为 `null` |
 | `error` | 失败原因 |
 
 建议每 5–10 秒轮询，直至 `succeeded` / `failed`。单次可能数分钟。
 
-### 3.3 播放 / 下载
+### 3.3 播放
 
-`GET /v1/grammar/video/:jobId/file` → `video/mp4`
+优先直接使用查询结果里的 `video_url`（OSS）。  
+兼容：`GET /v1/grammar/video/:jobId/file` 仍可拉本机缓存（若尚未清理）。
 
-生产可设 `PUBLIC_BASE_URL=http://101.201.237.149:8000`，使 `video_url` 为绝对地址。
+对象路径约定：`wenbo/grammar-video/{job_id}.mp4`。
 
 ### 流水线说明
 
@@ -662,10 +665,9 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 2. Qwen 压口播分镜（3–5 页）
 3. 百炼万相生图 + CosyVoice TTS
 4. 本机 ffmpeg 合成竖屏
-5. 落盘并返回本服务临时 URL（48h）
+5. 上传阿里云 OSS，返回公网/CNAME URL
 
-依赖：服务器安装 `ffmpeg`（`deploy/deploy.sh` 会尝试安装）与中文字体（如文泉驿微米黑）。
-
+依赖：服务器 `ffmpeg`；`.env` 配置 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET` / `OSS_BUCKET` 等（见 `.env.example`）。
 ### 错误码
 
 | code | HTTP | 说明 |
@@ -682,4 +684,4 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 1. 单元 / PET Test 结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`（PET 时另有 `pet_score_report`）。
 2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`。
 3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。
-4. 若需要口播短视频：对同一知识点 POST `/v1/grammar/video`，轮询 `GET /v1/grammar/video/:jobId`，用 `video_url` 播放（注意 `expires_at`）。
+4. 若需要口播短视频：对同一知识点 POST `/v1/grammar/video`，轮询 `GET /v1/grammar/video/:jobId`，用 `video_url`（OSS）播放。

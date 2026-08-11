@@ -11,6 +11,7 @@ import { synthesizeToFile } from './bailianTts.mjs';
 import { generateImageToFile } from './bailianImage.mjs';
 import { composeVerticalVideo } from './videoCompose.mjs';
 import { updateJob, getJob } from './videoJobs.mjs';
+import { ossConfigured, uploadGrammarVideo } from './ossUpload.mjs';
 
 /** @type {string[]} */
 const queue = [];
@@ -228,13 +229,26 @@ async function runPipeline(jobId, publicBaseUrl) {
   const outMp4 = path.join(workDir, 'output.mp4');
   composeVerticalVideo(composeSlides, outMp4);
 
-  // 6) 「上传」：百炼临时 oss:// 不可浏览器播放；对外提供本服务 48h 文件 URL
+  // 6) 上传：优先正式 OSS；未配置时回退本服务临时文件 URL
   updateJob(jobId, { progress: 'upload' });
-  const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
-  const base = (publicBaseUrl || '').replace(/\/$/, '');
-  const videoUrl = base
-    ? `${base}/v1/grammar/video/${jobId}/file`
-    : `/v1/grammar/video/${jobId}/file`;
+  let videoUrl = '';
+  /** @type {string | null} */
+  let expiresAt = null;
+  /** @type {string | null} */
+  let ossKey = null;
+
+  if (ossConfigured()) {
+    const uploaded = await uploadGrammarVideo(jobId, outMp4);
+    videoUrl = uploaded.url;
+    expiresAt = uploaded.expires_at;
+    ossKey = uploaded.key;
+  } else {
+    expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+    const base = (publicBaseUrl || '').replace(/\/$/, '');
+    videoUrl = base
+      ? `${base}/v1/grammar/video/${jobId}/file`
+      : `/v1/grammar/video/${jobId}/file`;
+  }
 
   updateJob(jobId, {
     status: 'succeeded',
@@ -244,5 +258,6 @@ async function runPipeline(jobId, publicBaseUrl) {
     expires_at: expiresAt,
     finished_at: new Date().toISOString(),
     error: null,
+    ...(ossKey ? { oss_key: ossKey } : {}),
   });
 }
