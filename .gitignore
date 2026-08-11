@@ -34,3 +34,7 @@ scripts/.repro-*
 scripts/.real-*
 /input.txt
 /output.txt
+
+# 口播视频任务落盘与中间产物
+server/data/video-jobs/*.json
+!server/data/video-jobs/.gitkeep

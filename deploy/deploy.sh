@@ -91,6 +91,27 @@ else
   $SUDO npm install -g pm2
 fi
 
+# ---------- 3b. ffmpeg（口播视频合成）----------
+if command -v ffmpeg >/dev/null 2>&1; then
+  log "检测到 ffmpeg：$(ffmpeg -version 2>&1 | head -n1)"
+else
+  if [ -z "$PKG_MANAGER" ]; then
+    warn "未检测到 ffmpeg，且无法自动安装；/v1/grammar/video 合成会失败。"
+  else
+    log "安装 ffmpeg ..."
+    case "$PKG_MANAGER" in
+      apt)
+        $SUDO apt-get update -y
+        $SUDO apt-get install -y ffmpeg fonts-wqy-microhei
+        ;;
+      dnf|yum)
+        $SUDO "$PKG_MANAGER" install -y ffmpeg wqy-microhei-fonts || \
+          warn "yum/dnf 安装 ffmpeg 失败，请手动安装后重试口播视频接口。"
+        ;;
+    esac
+  fi
+fi
+
 # ---------- 4. 环境变量文件 ----------
 if [ ! -f "$APP_DIR/.env" ]; then
   if [ -f "$APP_DIR/.env.example" ]; then

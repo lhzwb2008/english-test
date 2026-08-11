@@ -22,6 +22,9 @@ app.get('/health', (_req, res) => {
       'POST /v3/chat',
       'POST /v1/grammar/assess',
       'POST /v1/grammar/drill',
+      'POST /v1/grammar/video',
+      'GET /v1/grammar/video/:jobId',
+      'GET /v1/grammar/video/:jobId/file',
     ],
     text_model: process.env.QWEN_TEXT_MODEL || 'qwen3.8-max',
   });

@@ -1,6 +1,6 @@
 # 词汇 / 语法薄弱点接口（Qwen）
 
-仅覆盖两个接口：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**。模型：`qwen3.8-max`（可用环境变量 `QWEN_TEXT_MODEL` 覆盖）。
+覆盖三个能力：**单元总评 + 知识点列表**（含 PET Test 总结与官方量表换算）、**知识点讲解 + 出题**、**知识点口播短视频（异步）**。模型：`qwen3.8-max`（可用环境变量 `QWEN_TEXT_MODEL` 覆盖）；口播视频另用百炼 CosyVoice TTS + 万相生图 + 本机 ffmpeg。
 
 ## 调用说明
 
@@ -600,8 +600,86 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 ---
 
+## 3. 知识点口播短视频（异步）
+
+只把**讲解**做成竖屏口播短视频（约 60–90 秒），**不含题目**。入参与第二节 `/v1/grammar/drill` 一致。
+
+因百炼临时存储返回的是 `oss://` 且**不可给浏览器直接下载播放**，成片由本服务落盘并提供可播放 URL，**约 48 小时后清理**（与临时存储同级 TTL）。未配置正式 OSS AccessKey。
+
+### 3.1 创建任务
+
+`POST /v1/grammar/video` → HTTP **202**
+
+入参字段同第二节（`knowledge_point` 必填；`student_profile` / `focus_points` 等可选；`question_*` 可传但视频链路忽略题目）。
+
+```bash
+curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "knowledge_point": "现在进行时",
+    "student_profile": {
+      "grade": "三年级",
+      "traits": "喜欢用例子讲故事"
+    },
+    "focus_points": ["be + doing", "Look!/now 线索"]
+  }'
+```
+
+出参：
+
+```json
+{
+  "ok": true,
+  "job_id": "vid_...",
+  "status": "queued",
+  "poll_url": "/v1/grammar/video/vid_..."
+}
+```
+
+### 3.2 查询任务
+
+`GET /v1/grammar/video/:jobId`
+
+| 字段 | 说明 |
+|------|------|
+| `status` | `queued` / `running` / `succeeded` / `failed` |
+| `progress` | `queued` / `drill` / `script` / `images` / `tts` / `compose` / `upload` / `done` |
+| `video_url` | 成功时的可播放地址（指向本服务 `/file`） |
+| `expires_at` | 过期时间（约创建后 48h） |
+| `error` | 失败原因 |
+
+建议每 5–10 秒轮询，直至 `succeeded` / `failed`。单次可能数分钟。
+
+### 3.3 播放 / 下载
+
+`GET /v1/grammar/video/:jobId/file` → `video/mp4`
+
+生产可设 `PUBLIC_BASE_URL=http://101.201.237.149:8000`，使 `video_url` 为绝对地址。
+
+### 流水线说明
+
+1. 复用 drill 生成 `explanation_markdown`
+2. Qwen 压口播分镜（3–5 页）
+3. 百炼万相生图 + CosyVoice TTS
+4. 本机 ffmpeg 合成竖屏
+5. 落盘并返回本服务临时 URL（48h）
+
+依赖：服务器安装 `ffmpeg`（`deploy/deploy.sh` 会尝试安装）与中文字体（如文泉驿微米黑）。
+
+### 错误码
+
+| code | HTTP | 说明 |
+|------|------|------|
+| `4000` | 400 | 缺少 `knowledge_point` |
+| `4040` | 404 | 任务不存在或已清理 |
+| `4090` | 409 | 视频尚未就绪（访问 `/file` 时） |
+| `4100` | 410 | 视频已过期 |
+
+---
+
 ## 推荐调用顺序
 
 1. 单元 / PET Test 结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`（PET 时另有 `pet_score_report`）。
 2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`。
 3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。
+4. 若需要口播短视频：对同一知识点 POST `/v1/grammar/video`，轮询 `GET /v1/grammar/video/:jobId`，用 `video_url` 播放（注意 `expires_at`）。

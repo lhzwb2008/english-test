@@ -1,8 +1,16 @@
+import fs from 'node:fs';
 import { Router } from 'express';
 import { completeQwenText } from '../qwen/client.mjs';
 import { parseJsonFromModel } from '../lib/jsonParse.mjs';
 import { buildUserPayload, loadPrompt, textModel } from '../lib/prompts.mjs';
 import { scorePetTest } from '../lib/petScoring.mjs';
+import {
+  cleanupExpiredJobs,
+  createJob,
+  getJob,
+  publicJobView,
+} from '../lib/videoJobs.mjs';
+import { enqueueVideoJob } from '../lib/grammarVideoPipeline.mjs';
 
 const router = Router();
 
@@ -379,6 +387,134 @@ router.post('/drill', async (req, res) => {
       msg: err.message || '知识点讲解与出题失败',
     });
   }
+});
+
+/**
+ * 解析 drill / video 共用入参
+ * @param {Record<string, unknown>} body
+ */
+function parseDrillLikeInput(body) {
+  const knowledgePoint = asNonEmptyString(
+    body.knowledge_point ?? body.knowledgePoint,
+  );
+  if (!knowledgePoint) return { error: 'knowledge_point 必填' };
+
+  const studentProfile = normalizeStudentProfile(
+    body.student_profile ?? body.studentProfile ?? body.student,
+  );
+
+  let questionTypes = Array.isArray(body.question_types)
+    ? body.question_types.filter((t) => ALLOWED_QUESTION_TYPES.has(t))
+    : Array.isArray(body.questionTypes)
+      ? body.questionTypes.filter((t) => ALLOWED_QUESTION_TYPES.has(t))
+      : [];
+  if (questionTypes.length === 0) {
+    questionTypes = ['choice', 'blank', 'translation'];
+  }
+
+  let questionCount = Number(body.question_count ?? body.questionCount);
+  if (!Number.isFinite(questionCount) || questionCount < 1) {
+    questionCount = 6;
+  }
+  questionCount = Math.min(Math.floor(questionCount), 20);
+
+  const focusRaw = body.focus_points ?? body.focusPoints;
+  const focusPoints = Array.isArray(focusRaw)
+    ? focusRaw.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim())
+    : [];
+
+  return {
+    knowledgePoint,
+    input: {
+      knowledge_point: knowledgePoint,
+      student_profile: studentProfile,
+      focus_points: focusPoints.length ? focusPoints : undefined,
+      question_count: questionCount,
+      question_types: questionTypes,
+    },
+  };
+}
+
+function requestPublicBase(req) {
+  const envBase = asNonEmptyString(process.env.PUBLIC_BASE_URL);
+  if (envBase) return envBase.replace(/\/$/, '');
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+  const host = req.get('x-forwarded-host') || req.get('host');
+  if (!host) return '';
+  return `${proto}://${host}`;
+}
+
+/**
+ * POST /v1/grammar/video
+ * 入参同 drill；异步生成知识点口播短视频，立即返回 job_id
+ */
+router.post('/video', (req, res) => {
+  cleanupExpiredJobs();
+  const parsed = parseDrillLikeInput(req.body || {});
+  if (parsed.error) {
+    return res.status(400).json({ code: 4000, msg: parsed.error });
+  }
+
+  const job = createJob(parsed.input, parsed.knowledgePoint);
+  const base = requestPublicBase(req);
+  enqueueVideoJob(job.job_id, base);
+
+  return res.status(202).json({
+    ok: true,
+    job_id: job.job_id,
+    status: job.status,
+    poll_url: `/v1/grammar/video/${job.job_id}`,
+  });
+});
+
+/**
+ * GET /v1/grammar/video/:jobId
+ * 查询任务状态与成片 URL（约 48h 有效）
+ */
+router.get('/video/:jobId', (req, res) => {
+  cleanupExpiredJobs();
+  const job = getJob(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({ code: 4040, msg: '任务不存在或已过期清理' });
+  }
+  const view = publicJobView(job);
+  if (view.video_url && view.video_url.startsWith('/')) {
+    const base = requestPublicBase(req);
+    if (base) view.video_url = `${base}${view.video_url}`;
+  }
+  return res.json(view);
+});
+
+/**
+ * GET /v1/grammar/video/:jobId/file
+ * 下载/播放成片（本地临时文件，约 48h）
+ */
+router.get('/video/:jobId/file', (req, res) => {
+  cleanupExpiredJobs();
+  const job = getJob(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({ code: 4040, msg: '任务不存在或已过期清理' });
+  }
+  if (job.status !== 'succeeded' || !job.video_path) {
+    return res.status(409).json({
+      code: 4090,
+      msg: '视频尚未就绪',
+      status: job.status,
+      progress: job.progress,
+    });
+  }
+  if (job.expires_at && Date.parse(job.expires_at) < Date.now()) {
+    return res.status(410).json({ code: 4100, msg: '视频已过期（约 48 小时）' });
+  }
+  if (!fs.existsSync(job.video_path)) {
+    return res.status(404).json({ code: 4040, msg: '视频文件缺失' });
+  }
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename="${job.job_id}.mp4"`,
+  );
+  fs.createReadStream(job.video_path).pipe(res);
 });
 
 export default router;

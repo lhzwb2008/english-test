@@ -84,7 +84,13 @@ pm2 stop qwen-oral-proxy       # 停止
 | `DASHSCOPE_API_KEY` | 阿里云百炼 API Key（必填，音频请求依赖；仅服务端持有） |
 | `QWEN_PROXY_PORT` | 监听端口，默认 `8787` |
 | `QWEN_ORAL_MODEL` / `QWEN_UNIVERSAL_MODEL` | 使用的 Qwen-Omni 模型，默认 `qwen3.5-omni-flash` |
+| `QWEN_TEXT_MODEL` | 语法总评 / 讲解 / 口播分镜文本模型，默认 `qwen3.8-max` |
+| `PUBLIC_BASE_URL` | 口播视频 `video_url` 绝对前缀，如 `http://101.201.237.149:8000` |
+| `DASHSCOPE_TTS_MODEL` / `DASHSCOPE_TTS_VOICE` | CosyVoice 模型与音色 |
+| `DASHSCOPE_IMAGE_MODEL` | 万相文生图模型，默认 `wan2.2-t2i-flash` |
 | `QWEN_FILE_TTL_MS` | 上传文件在内存中的保留时长（毫秒），默认 1 小时 |
+
+口播视频接口依赖本机 **ffmpeg**（及中文字体）；`deploy/deploy.sh` 会尝试自动安装。
 
 ## 建议：Nginx 反向代理 + HTTPS
 
