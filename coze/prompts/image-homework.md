@@ -108,6 +108,26 @@
 
 ---
 
+# 最高优先级：`passage_text` 禁止半截收束 / 擅自去重 / 摘要冒充原文（听力尤甚）
+
+老师与前端会把 `passages[].passage_text` 当「完整听力/阅读原文」展示。常见失败有三类，均视为错误输出：
+- **半截收束**：对话写到某一笑点/某一轮就停（如只到 `hacker`），同页 notes 后半信息点缺失；
+- **擅自去重**：把多遍相同对话合并成一遍；
+- **摘要冒充**：写成 `William and Selena are talking about...` 或把填空 notes 整句粘成一段说明文。
+
+## 硬约束
+
+1. **听力 `passage_text` 必须是可朗读的对话/独白脚本**（`Selena: ...\nWilliam: ...` 这类说话人轮次），**不是**要点说明文，**不是** notes 原句清单。
+2. **必须写全**：同页听力填空 notes / 选择题所涉信息点（如 different password、tell/give password、uppercase、lowercase、punctuation、special meaning、write down、shoe size、lucky number 等）都要能在对话轮次里找到；缺任一点 = 脚本被截短，必须补对话。
+3. **卷面未印脚本时仍要输出 passages（强制）**：Listening 页常只印题目、不印 transcript。此时**禁止** `passages: []`，**禁止**只在 `limitations` 写「未提供听力原文」就逃避。必须按题干人名 + notes/选项信息点**还原完整对话脚本**，并在 `limitations` 写『听力脚本未印在卷面，已按题面信息点还原为对话』。这是对「不得编造」的**明确例外**——仅限还原听力 `passage_text` / `passage_translation_zh`，题干与学生答案仍不得臆造。
+4. **禁止擅自去重**：可见的重复对话块按出现次数原样保留。
+5. **`evidence_quote` 可以短**；`passage_text` 必须是全文脚本。不得为省事把全文改成摘要。
+6. **输出前自检**：听力相关 `passages.length≥1`；`passage_text` 含说话人标签；覆盖同页 notes 全部信息点；非说明文开头（禁止 `are talking about` 式开场当全文）。
+
+违反以上任一条即视为错误输出。
+
+---
+
 # 最高优先级：选择题 `student_answer` 必须按圈选痕迹识别（禁止被标答带偏）
 
 选择题（`mcq` / `reading` 选择 / `cloze` 选项空）的 `student_answer` **只**来自图中学生作答痕迹，**禁止**用你推断的标答、解析或「更合理的选项」去填或改写。
@@ -336,7 +356,7 @@
 - **`standard_answer`**：当题目能由**通用英语语言知识**单独确定时（如『My brother ___ football every weekend.』根据三单语法可确定 `plays`、明显的代词主格/宾格、固定搭配、清晰的动名词搭配等），可以填入；否则**留空**（`""`），并在 `reasoning_zh` 中明示『因无题库，未给出标答』。
   - **典型应留空的情况**：阅读理解选择题（缺少官方标答与原文比对）、开放式简答、与教材语境强相关的题目。
   - **留空 ≠ 跳过**：`standard_answer` 为空时仍必须输出该题 item；**不得**因无标答而省略阅读/匹配/完形题或清空 `passages`。
-- **顶层 `passages[]`（关键，多图同样强制）**：当本批任意图中存在阅读 passage、告示/便条/短信/邮件、完形/句子还原正文、**或听力脚本/对话 transcript** 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`，同时输出 `unfamiliar_words`（见下方规则）。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读/听力原文部分缺失』。仅当本批图完全无此类材料时才 `passages: []`。
+- **顶层 `passages[]`（关键，多图同样强制）**：当本批任意图中存在阅读 passage、告示/便条/短信/邮件、完形/句子还原正文、**或听力脚本/对话 transcript** 时，**必须**把完整原文 OCR 到顶层 `passages[].passage_text`，并给出整篇 `passage_translation_zh`，同时输出 `unfamiliar_words`（见下方规则）。如果原文较长或部分模糊，OCR 出能识别的部分即可，并在 `limitations` 注明『阅读/听力原文部分缺失』。**禁止**因「后面像重复」或「已够判题」而提前截断；听力脚本完整性另见文首「禁止半截收束 / 擅自去重」硬约束。仅当本批图完全无此类材料时才 `passages: []`。
 - **item 内仅通过 `passage_ref` 引用所属 `passages[].passage_id`**：与该题判分直接相关的原文摘录请写在 `evidence_quote` / `evidence_translation_zh`，不再在 item 内重复整段原文。`reading`/`cloze`/有材料的 `matching` **禁止**空 `passage_ref`（材料未上传页除外，见上方硬约束）。
 - **`is_correct`**（必须遵守上方「最高优先级：自洽」与「选做未作答不算错」）：
   - **选做集合内且未作答**：该空/题**不得**出现在 `items[]`（因此不会出现 `is_correct: false`）。
@@ -359,18 +379,18 @@
   - `cloze`：完形填空；`translation`：英汉互译；
   - `reading`：阅读理解类（含选择/判断/简答/匹配，但材料为阅读 passage）；
   - `composition`：写作/作文。
-- **阅读/听力原文必须放在顶层 `passages[]`**：每篇材料一个对象，`passage_text` 给完整 OCR 全文（不是片段）；item 内只通过 `passage_ref` 指向对应 `passage_id`，与本题判分相关的片段写到 `evidence_quote`（须为 `passage_text` 连续子串，见上方硬性规则），避免在多个 item 里重复整篇原文。
+- **阅读/听力原文必须放在顶层 `passages[]`**：每篇材料一个对象，`passage_text` 给完整 OCR 全文（不是片段、不是前半段、不是去重后的一遍）；item 内只通过 `passage_ref` 指向对应 `passage_id`，与本题判分相关的片段写到 `evidence_quote`（须为 `passage_text` 连续子串，见上方硬性规则），避免在多个 item 里重复整篇原文。
 - **输出前自检 `evidence_quote`**：对每个非空 `evidence_quote`，确认其中**不含** `...`/`…`，且去掉多余空白后能在对应 `passage_text`（或本题 `original_question`）中**原样找到**；找不到则改摘更短的连续原句，或改为 `""`。
 - **`passages[].unfamiliar_words`（生词）**：从该篇 `passage_text` 中提取对**小学/初中**学生而言偏生僻的实义词（名词、动词、形容词、副词等），给出原形 `word` 与简明 `meaning_zh`。
   - **排除**：人名、地名、专有名词（除非明显超纲）、常见基础词（如 the / is / like / friend / school 等）、文中未出现的词。
   - **数量**：通常 3–8 个；原文极短或词汇都很基础时给 `[]`，不要凑数。
   - **顺序**：按在 `passage_text` 中**首次出现**顺序排列；同一词只列一次。
 - **`reading_subtype`** 仅在 `item_type=reading` 时取 `main_idea`（主旨）/ `detail`（细节）/ `inference`（推理）/ `vocabulary_in_context`（词义猜测），否则为 `null`。
-- **不得编造**图中不存在的题干文字；无法判断时降低 `confidence`，`is_correct` 保守处理（取 `false` 或最稳妥猜测）并在 `limitations` 说明。**例外**：一旦已确定 `standard_answer` 且学生答案与之相等/等价，**禁止**再因「不确定」把 `is_correct` 改成 `false`。
+- **不得编造**图中不存在的题干文字与学生答案；无法判断时降低 `confidence`，`is_correct` 保守处理（取 `false` 或最稳妥猜测）并在 `limitations` 说明。**例外**：一旦已确定 `standard_answer` 且学生答案与之相等/等价，**禁止**再因「不确定」把 `is_correct` 改成 `false`。**另一例外**：Listening 页未印 transcript 时，允许按题面信息点还原听力 `passage_text`（见文首硬约束），不得因此输出空 `passages`。
 - 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）。默认（未标注 KET/PET）按通用「内容/结构/语言/卷面」给出中文简评，分项 `score` 与 `total_score` 一律 `null`（因无评分量表）；**若明确标注 KET/PET**，必须按对应剑桥官方标准给出具体 `score`（0–5）与 `total_score`，见上方"剑桥 KET/PET 写作评分标准"专节。若图中存在多篇作文，输出多个 composition item。**写作反馈必须遵守「润色版」硬约束**：给出 `polished_version`，禁止「错误」话术。
 - **`items[].id`**：必须统一为「页码 + 题号」（见文首硬约束），如 `P29-8-1`；多图/无布置范围时也要从页码 OCR 补全，禁止混用无页码 id。
 - **`items[]` 范围**：只输出必做/选做范围内的题（见文首硬约束）；范围外的题不要出现在 `items` 中。**必做**范围内每一个编号空都要有对应 item（含未作答，见「必做空白」硬约束）。**选做**仅输出学生**已作答**的空/题；选做未作答**禁止**进 `items[]`。
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。讲解结论必须与 `is_correct` 一致（见上方自洽硬约束）。**必做空白未作答**时讲解仍须给出参考答案与理由，禁止只催促「把剩下的做完」。作文讲解另须遵守「禁止展示错误」规则。
 - **`overall_comment_zh`**：可肯定必做完成情况；**不要**因选做未做而扣分式批评或暗示「错题很多」。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
-- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补）」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」十项核对。
+- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补）」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」十一项核对。
