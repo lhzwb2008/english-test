@@ -15,6 +15,61 @@ import { enqueueVideoJob } from '../lib/grammarVideoPipeline.mjs';
 const router = Router();
 
 const ALLOWED_QUESTION_TYPES = new Set(['choice', 'blank', 'translation']);
+const EXPLANATION_STYLES = new Set(['logical', 'fun', 'visual', 'exam']);
+
+const EXPLANATION_STYLE_ALIASES = {
+  logical: 'logical',
+  logic: 'logical',
+  简洁逻辑: 'logical',
+  简洁逻辑型: 'logical',
+  fun: 'fun',
+  interesting: 'fun',
+  story: 'fun',
+  有趣吸引: 'fun',
+  有趣吸引型: 'fun',
+  visual: 'visual',
+  chart: 'visual',
+  diagram: 'visual',
+  视觉图表: 'visual',
+  视觉图表型: 'visual',
+  exam: 'exam',
+  test: 'exam',
+  考试速记: 'exam',
+  考试速记型: 'exam',
+};
+
+/**
+ * 解析讲解风格：显式入参优先，否则从 traits / study_history 推断，默认 fun。
+ * @param {Record<string, unknown>} body
+ * @param {Record<string, unknown> | undefined} studentProfile
+ * @returns {'logical'|'fun'|'visual'|'exam'}
+ */
+function resolveExplanationStyle(body, studentProfile) {
+  const candidates = [
+    body.explanation_style,
+    body.explanationStyle,
+    body.teach_style,
+    body.teachStyle,
+    studentProfile?.explanation_style,
+    studentProfile?.explanationStyle,
+    studentProfile?.teach_style,
+    studentProfile?.teachStyle,
+  ];
+  for (const c of candidates) {
+    const key = asNonEmptyString(c).toLowerCase().replace(/\s+/g, '');
+    if (!key) continue;
+    if (EXPLANATION_STYLES.has(key)) return /** @type {'logical'|'fun'|'visual'|'exam'} */ (key);
+    const aliased = EXPLANATION_STYLE_ALIASES[key] || EXPLANATION_STYLE_ALIASES[asNonEmptyString(c)];
+    if (aliased) return /** @type {'logical'|'fun'|'visual'|'exam'} */ (aliased);
+  }
+
+  const hint = `${asNonEmptyString(studentProfile?.traits)} ${asNonEmptyString(studentProfile?.study_history)}`;
+  if (/考试|应试|得分|刷题|口诀|速记|PET|KET|模考/.test(hint)) return 'exam';
+  if (/图表|流程图|看图|视觉|表格速记|思维导图/.test(hint)) return 'visual';
+  if (/逻辑|框架|规则清晰|理性|条理|流程判断/.test(hint)) return 'logical';
+  if (/故事|例子|有趣|吸引|画面|比喻|人设|急躁|注意力/.test(hint)) return 'fun';
+  return 'fun';
+}
 
 function mapUsage(usage) {
   if (!usage) {
@@ -380,11 +435,18 @@ router.post('/drill', async (req, res) => {
     ? focusRaw.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim())
     : [];
 
+  const explanationStyle = resolveExplanationStyle(body, studentProfile);
+  const hasStudentTraits = Boolean(
+    studentProfile && (studentProfile.traits || studentProfile.study_history),
+  );
+
   const model = textModel();
   const systemPrompt = loadPrompt('grammar-drill.md');
   const userText = buildUserPayload({
     knowledge_point: knowledgePoint,
+    explanation_style: explanationStyle,
     student_profile: studentProfile,
+    has_student_traits: hasStudentTraits,
     focus_points: focusPoints.length ? focusPoints : undefined,
     question_count: questionCount,
     question_types: questionTypes,
@@ -399,6 +461,7 @@ router.post('/drill', async (req, res) => {
       temperature: 0.4,
     });
     const data = parseJsonFromModel(fullText);
+    data.explanation_style = explanationStyle;
     return res.json({
       ok: true,
       model,
@@ -448,10 +511,13 @@ function parseDrillLikeInput(body) {
     ? focusRaw.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim())
     : [];
 
+  const explanationStyle = resolveExplanationStyle(body, studentProfile);
+
   return {
     knowledgePoint,
     input: {
       knowledge_point: knowledgePoint,
+      explanation_style: explanationStyle,
       student_profile: studentProfile,
       focus_points: focusPoints.length ? focusPoints : undefined,
       question_count: questionCount,

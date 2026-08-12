@@ -195,19 +195,33 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 
 `POST /v1/grammar/drill`
 
-输入**分开**为两部分：知识点 + 学生情况。输出讲解 Markdown 与结构化题目（含答案），题型为选择 / 填空 / 翻译。
+输入：知识点 + 学生情况 + **讲解风格**。输出按风格组织的讲解 Markdown，以及结构化题目（含答案）。
+
+**学生特点必跟**：若 `student_profile.traits`（或学习历史里的习惯描述）非空，讲解口吻、例子、分段密度与题目场景须贴合该生；`explanation_style` 只管结构骨架，不能盖过特点。无特点时按小学高年级默认。
+
+同一知识点可切换四种信息组织方式（内容要点等价，结构不同），对齐 `tmp/everyone_vs_all_四种讲解风格对比.docx`：
+
+| `explanation_style` | 名称 | 讲解骨架 | 适合 |
+|---------------------|------|----------|------|
+| `logical` | 简洁逻辑型 | 规则一览表 → 判断流程 → 例外 → 错题归因 | 理性、要框架 |
+| `fun` | 有趣吸引型 | 画面/人设 → 用法+口诀 → 踩坑预警 | 要趣味、注意力短（**默认**） |
+| `visual` | 视觉图表型 | 对照表 → 流程图 → 标签编码 → 图示例句 | 看图更快懂 |
+| `exam` | 考试速记型 | 口诀 → 3 条踩分点 → 答题模板 → 秒杀/丢分 | 应试得分 |
+
+未传风格时：服务端看 `traits` / `study_history` 关键词推断；仍无法判断则用 `fun`。
 
 ### 入参
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `knowledge_point` | string | 是 | 知识点，如 `现在进行时`（兼容 `knowledgePoint`） |
+| `knowledge_point` | string | 是 | 知识点，如 `everyone 与 all 的用法`（兼容 `knowledgePoint`） |
+| `explanation_style` | string | 否 | `logical` / `fun` / `visual` / `exam`（兼容中文名如 `有趣吸引型`；也可写在 `student_profile` 内） |
 | `student_profile` | object | 建议 | 学生情况（兼容 `student` / `studentProfile`） |
-| `student_profile.grade` | string | 否 | 年级，如 `三年级` |
+| `student_profile.grade` | string | 否 | 年级 |
 | `student_profile.current_score` | number\|string | 否 | 当前分数 |
 | `student_profile.target_score` | number\|string | 否 | 目标分数 |
-| `student_profile.study_history` | string | 否 | 学习历史（教材、进度、考试、习惯等） |
-| `student_profile.traits` | string | 否 | 后台自由输入的学生特点（如「喜欢用例子讲故事」「比较急躁」） |
+| `student_profile.study_history` | string | 否 | 学习历史 |
+| `student_profile.traits` | string | 否 | **学生特点（强烈建议）**，如「喜欢用例子讲故事」「比较急躁」「应试刷题」。有则文字讲解必贴合；也可用于推断风格 |
 | `focus_points` | string[] | 否 | 需要强调的子点 |
 | `question_count` | number | 否 | 题量，默认 `6`，最大 `20` |
 | `question_types` | string[] | 否 | `choice` / `blank` / `translation`；默认三类都出 |
@@ -220,19 +234,11 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 | `model` | string | 实际调用模型 |
 | `usage` | object | token 用量 |
 | `data.knowledge_point` | string | 回显知识点 |
-| `data.explanation_markdown` | string | 讲解全文（Markdown） |
-| `data.questions` | array | 题目列表 |
+| `data.explanation_style` | string | 实际使用的风格（服务端裁定后回写） |
+| `data.explanation_markdown` | string | 讲解全文（Markdown，结构随风格变化） |
+| `data.questions` | array | 题目列表（题型与风格无关） |
 
-`data.questions[]`：
-
-| 字段 | 说明 |
-|------|------|
-| `id` | 如 `q1` |
-| `type` | `choice` \| `blank` \| `translation` |
-| `stem` | 题干 |
-| `options` | 选择题为 4 项；其它为 `null` |
-| `answer` | 答案（选择为 `A`/`B`/`C`/`D`） |
-| `explanation` | 解析 |
+`data.questions[]`：`id` / `type` / `stem` / `options` / `answer` / `explanation`（选择题 `options` 为 4 项，其它为 `null`）。
 
 ### 示例请求
 
@@ -240,12 +246,10 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
   -H 'Content-Type: application/json' \
   -d '{
-    "knowledge_point": "现在进行时",
+    "knowledge_point": "everyone 与 all 的用法",
+    "explanation_style": "fun",
     "student_profile": {
-      "grade": "三年级",
-      "current_score": 110,
-      "target_score": 135,
-      "study_history": "孩子一直学剑桥英语教材，从 KIDS BOX 1 开始，目前学到 THINK 1 Unit 9。每周六下午线下课 1.5 小时。校内成绩中上，译林教材，每天有英语课。2026 年 3 月考过 KET，听力错 5 题、阅读错 10 题。作业认真，会主动背单词，但性格有些拖延，自主学习习惯不足，每天学习 0.5–1 小时。",
+      "grade": "五年级",
       "traits": "喜欢用例子、讲故事；有点急躁"
     },
     "question_count": 6,
@@ -253,52 +257,30 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
   }'
 ```
 
+换风格只需改 `explanation_style`（如 `"exam"` / `"logical"` / `"visual"`），其它字段可不变。
+
 ### 示例响应（节选）
 
 ```json
 {
   "ok": true,
   "model": "qwen3.8-max",
-  "usage": {
-    "token_count": 6800,
-    "input_count": 1200,
-    "output_count": 5600
-  },
   "data": {
-    "knowledge_point": "现在进行时",
-    "explanation_markdown": "## 一、现在进行时是什么？\n\n简单说：表示**此刻正在发生**的动作……\n",
+    "knowledge_point": "everyone 与 all 的用法",
+    "explanation_style": "fun",
+    "explanation_markdown": "## 一、先记住一个画面\n\n**Everyone** 像「点名员」……\n",
     "questions": [
       {
         "id": "q1",
         "type": "choice",
-        "stem": "Look! The boys ______ football on the playground.",
-        "options": [
-          "A. play",
-          "B. plays",
-          "C. are playing",
-          "D. is playing"
-        ],
-        "answer": "C",
-        "explanation": "Look! 提示此刻正在发生，boys 为复数，用 are playing。"
-      },
-      {
-        "id": "q2",
-        "type": "blank",
-        "stem": "She __________ (do) her homework now.",
-        "options": null,
-        "answer": "is doing",
-        "explanation": "now 表进行中，主语 she 用 is + doing。"
-      },
-      {
-        "id": "q3",
-        "type": "translation",
-        "stem": "中译英：他们正在看电影。",
-        "options": null,
-        "answer": "They are watching a film.",
-        "explanation": "are + watching 表示正在看。"
+        "stem": "Everyone ______ here.",
+        "options": ["A. are", "B. is", "C. be", "D. am"],
+        "answer": "B",
+        "explanation": "everyone 作主语，谓语用单数 is。"
       }
     ]
-  }
+  },
+  "usage": { "token_count": 6800, "input_count": 1200, "output_count": 5600 }
 }
 ```
 
@@ -315,6 +297,8 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 把单个知识点做成**竖屏讲解口播**（目标约 **1 分钟**、分镜 **3–5 页**），**不含题目、无吸睛引子**。入参与第二节 `/v1/grammar/drill` 一致（`question_*` 可传但视频链路忽略）。
 
+同样：与文字讲解共用四种风格——**有 `explanation_style`（或可由 traits 推断）时，口播分镜必须按该风格骨架排布**（logical / fun / visual / exam），不是只改语气。有 `traits` 时口播用词与画面标签还须贴合该生。
+
 成片上传**阿里云 OSS**（Bucket `nba-dev-sh`，前缀 `wenbo`）。Bucket 为**私有**时，`video_url` 为**签名 HTTPS**（默认约 7 天；查询接口会刷新签名）。未配置 OSS 时回退本服务 `/file`。
 
 ### 3.1 创建任务
@@ -324,7 +308,8 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 | 字段 | 必填 | 说明 |
 |------|------|------|
 | `knowledge_point` | 是 | 知识点标题 |
-| `student_profile` | 否 | 年级 / 特点等，影响例句难度与口吻 |
+| `explanation_style` | 否 | **同 drill 四风格**；决定分镜页顺序（规则表/人设/流程图/口诀模板）。不传则按 traits 推断，默认 `fun` |
+| `student_profile` | 否 | **建议传**。`traits` 非空时口播/画面必须按特点调整；年级影响难度 |
 | `focus_points` | 否 | 优先覆盖的子点数组 |
 | `question_count` / `question_types` | 否 | 视频链路忽略 |
 
@@ -332,15 +317,24 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
   -H 'Content-Type: application/json' \
   -d '{
-    "knowledge_point": "现在进行时",
+    "knowledge_point": "everyone 与 all 的用法",
+    "explanation_style": "exam",
     "student_profile": {
       "grade": "五年级",
-      "traits": "喜欢对比记忆"
+      "traits": "应试刷题，注意力一般"
     },
-    "focus_points": ["be + doing", "Look!/now 线索", "与一般现在时易混"]
+    "focus_points": ["everyone 单数", "all + 复数名词", "不能 everyone students"]
   }'
 ```
 
+四种风格分镜骨架（优先 4 页）：
+
+| 风格 | s1 | s2 | s3 | s4 |
+|------|----|----|----|----|
+| `logical` | 规则对照 | 判断流程 | 例外限制 | 错题归因 |
+| `fun` | 人设画面 | 场景用法 | 踩坑 ❌✅ | 口诀 |
+| `visual` | 对照表 | 分支判断 | 编码/坑 | 标签例句+口诀 |
+| `exam` | 口诀先背 | 踩分点 | 答题模板 | 秒杀+丢分 |
 出参：
 
 ```json
@@ -431,5 +425,5 @@ curl -sS 'http://101.201.237.149:8000/v1/grammar/video/vid_e237b79a2eca4a1198be'
 
 1. 单元 / PET Test 结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`（PET 时另有 `pet_score_report`）。
 2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`。
-3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。
+3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。调用 drill / video 时请带上该生 `student_profile.traits`，以便按特点讲。
 4. 若需要口播短视频：对同一知识点 POST `/v1/grammar/video`，轮询 `GET /v1/grammar/video/:jobId`，用 `video_url`（OSS）播放。

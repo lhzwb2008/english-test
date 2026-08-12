@@ -198,8 +198,14 @@ async function runPipeline(jobId, publicBaseUrl) {
   const scriptPrompt = loadPrompt('grammar-video-script.md');
   const script = await completeVideoJson(scriptPrompt, {
     knowledge_point: knowledgePoint,
+    explanation_style: input.explanation_style,
     student_profile: input.student_profile,
     focus_points: input.focus_points,
+    // 有学生特点时模型必须贴合；显式写出便于 prompt 侧自检
+    has_student_traits: Boolean(
+      input.student_profile &&
+        (input.student_profile.traits || input.student_profile.study_history),
+    ),
     max_slides: maxSlides(),
     duration_target: 'about 1 minute',
   });
@@ -210,7 +216,15 @@ async function runPipeline(jobId, publicBaseUrl) {
   }
   fs.writeFileSync(
     path.join(workDir, 'script.json'),
-    JSON.stringify(script, null, 2),
+    JSON.stringify(
+      {
+        ...script,
+        explanation_style:
+          script.explanation_style || input.explanation_style || 'fun',
+      },
+      null,
+      2,
+    ),
   );
 
   const title = String(script.title || knowledgePoint).trim();
