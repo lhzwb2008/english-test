@@ -399,6 +399,48 @@ reference_text: I like playing football and reading books at weekends.
 }
 ```
 
+### PET 口语示例（`text` 含「按照PET口语标准」时）
+
+```text
+这是一道口语题。
+题目要求：Part 1-Phase 2 …
+其他说明：按照PET口语标准批改反馈
+```
+
+出参评分只在 `exam_rubric`（**无**顶层 `dimensions`）：
+
+```json
+{
+  "reference_text": null,
+  "transcript": "I use my phone every day because ...",
+  "standard_response_en": "I use my mobile phone every day because ...",
+  "holistic_score_1_to_5": 3,
+  "holistic_summary_zh": "能回应多数问题并给出理由，但语法错误较多，展开有限。",
+  "pronunciation": { "mispronounced_or_weak_words": ["注意「because」弱读"] },
+  "language": {
+    "grammar_issues": [
+      { "issue_zh": "like 后接动词原形", "suggestion_zh": "改为 like listening to" }
+    ],
+    "lexical_suggestions_zh": ["用 every day / nowadays 丰富时间表达"]
+  },
+  "coaching_tips_zh": ["回答 Part 4 时先表态再给理由，避免仓促收尾"],
+  "limitations": [],
+  "exam_rubric": {
+    "exam_standard": "PET",
+    "dimensions": [
+      { "id": "grammar_vocabulary", "label_zh": "词汇语法", "score_0_to_5": 3, "comment_zh": "简单句基本可用，复杂句少，有 like listen 等错误" },
+      { "id": "discourse_management", "label_zh": "言语组织", "score_0_to_5": 3, "comment_zh": "有一定长度，衔接以 and/because 为主" },
+      { "id": "pronunciation", "label_zh": "发音", "score_0_to_5": 3, "comment_zh": "整体可懂，重音偶有不稳" },
+      { "id": "interactive_communication", "label_zh": "互动交流", "score_0_to_5": 3, "comment_zh": "能回应题目，展开偏被动" },
+      { "id": "global_achievement", "label_zh": "总体表现", "score_0_to_5": 3, "comment_zh": "基本完成任务，表现有起伏" }
+    ],
+    "raw_score": 18,
+    "scale_score": 140,
+    "overall_grade_hint_zh": "通过 Grade C · CEFR B1 · 原始分 18/30 · 量表分 140"
+  }
+}
+```
+
 ### 已部署服务实测案例（真实调用，非虚构示例）
 
 以下是对**已部署的生产代理**（`http://101.201.237.149:8000`）发起的一次**真实端到端调用**，用真实测试音频 `homework-12.wav`（约 22.7s）跑通全流程：上传 → 携带 `assignment` 的 `object_string` 对话 → 消费 SSE → `JSON.parse` 出参。
