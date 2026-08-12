@@ -30,18 +30,19 @@ export function examStandardForcePrompt(standard) {
     return [
       '',
       '# 最高优先级（服务端注入）：本次已判定为 PET 口语',
-      '用户 text 含 PET。你必须输出非空 exam_rubric，且 exam_standard="PET"。',
-      'dimensions 必须含 grammar_vocabulary / discourse_management / pronunciation / interactive_communication / global_achievement，每项 score_0_to_5 为 0–5 整数。',
+      '用户 text 含 PET。必须输出非空 exam_rubric，exam_standard="PET"。',
+      'exam_rubric.dimensions 必须含 grammar_vocabulary / discourse_management / pronunciation / interactive_communication / global_achievement，每项 score_0_to_5 为 0–5 整数。',
       'raw_score = 四项之和 + 总体表现×2（满分 30）；scale_score 按 PET 口语锚点插值取整。',
-      '禁止 exam_rubric: null。评语须引用 transcript 依据。',
+      '禁止 exam_rubric: null。',
+      '禁止输出顶层 dimensions（不得出现 fluency/accuracy/completeness/interaction）。',
     ].join('\n');
   }
   return [
     '',
     '# 最高优先级（服务端注入）：本次已判定为 KET 口语',
-    '用户 text 含 KET。你必须输出非空 exam_rubric，且 exam_standard="KET"。',
-    'dimensions 含 grammar_vocabulary / pronunciation / interactive_communication / global_achievement（无 discourse_management）。',
-    '禁止 exam_rubric: null。',
+    '用户 text 含 KET。必须输出非空 exam_rubric，exam_standard="KET"。',
+    'dimensions 仅在 exam_rubric 内：grammar_vocabulary / pronunciation / interactive_communication / global_achievement。',
+    '禁止 exam_rubric: null。禁止顶层 dimensions（fluency/accuracy 等）。',
   ].join('\n');
 }
 
@@ -81,19 +82,25 @@ export function parseOralJson(rawText) {
 }
 
 /**
- * 若已有 PET exam_rubric 分项，补齐 raw_score / scale_score / hint。
+ * 若已有 PET exam_rubric 分项，补齐 raw_score / scale_score / hint；并删除旧版顶层 dimensions。
  * @param {string} rawText
  * @param {'KET'|'PET'|null} examHint
- * @returns {string} 可能已改写的 JSON 文本；无法解析则原样返回
+ * @returns {string}
  */
 export function enrichOralExamRubricText(rawText, examHint) {
-  if (examHint !== 'PET') return rawText;
   const obj = parseOralJson(rawText);
   if (!obj || typeof obj !== 'object') return rawText;
 
+  // 一律去掉旧版顶层 dimensions，避免与 exam_rubric 双轨
+  if ('dimensions' in obj) delete obj.dimensions;
+
+  if (examHint !== 'PET') {
+    return JSON.stringify(obj);
+  }
+
   let rubric = obj.exam_rubric;
   if (!rubric || typeof rubric !== 'object' || Array.isArray(rubric)) {
-    return rawText;
+    return JSON.stringify(obj);
   }
 
   rubric = { ...rubric, exam_standard: rubric.exam_standard || 'PET' };

@@ -38,7 +38,7 @@ console.log('[upload] file_id=', up.id, 'bytes=', up.bytes);
 
 const userText = [
   'assignment: 口语作业：介绍自己的爱好或日常活动。请使用 like + gerund（如 like reading books），不要 like + 动词原形。',
-  '请仅输出 JSON 口语批改结果（含 dimensions 五维 + holistic 总评 + standard_response_en）。',
+  '请仅输出 JSON 口语批改结果（含 holistic 总评 + standard_response_en；PET/KET 时含 exam_rubric）。',
 ].join('\n');
 
 const abort = new AbortController();
@@ -104,16 +104,20 @@ const required = [
   'standard_response_en',
   'holistic_score_1_to_5',
   'holistic_summary_zh',
-  'dimensions',
   'pronunciation',
   'language',
   'coaching_tips_zh',
   'limitations',
+  'exam_rubric',
 ];
 const missing = required.filter((k) => !(k in oral));
 console.log('\n[schema] 缺失字段:', missing.length ? missing : '无');
+if ('dimensions' in oral) {
+  console.warn('[schema] 不应再出现顶层 dimensions');
+}
 console.log('[transcript]', oral.transcript?.slice(0, 120));
 console.log('[holistic]', oral.holistic_score_1_to_5, oral.holistic_summary_zh?.slice(0, 80));
+console.log('[exam_rubric]', oral.exam_rubric ? oral.exam_rubric.exam_standard : null);
 console.log('\n=== 完整 JSON 输出 ===');
 console.log(JSON.stringify(oral, null, 2));
 console.log('\n[OK] Qwen 代理端到端验证通过');

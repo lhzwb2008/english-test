@@ -339,29 +339,26 @@ assignment:
 | `standard_response_en`                      | string        | **参考标准回复**（英文）：结合 `assignment` 与学生 `transcript` 要点生成；朗读类与 `reference_text` 一致；自由口语类为语法正确、扣题的示范句；无有效转写时为 `""`                                                                 |
 | `holistic_score_1_to_5`                     | number \| null | 整体 1–5                                                                                                                                                                  |
 | `holistic_summary_zh`                       | string        | 总评（中文）                                                                                                                                                                  |
-| `dimensions[]`                              | array         | 五维评分                                                                                                                                                                    |
-| `dimensions[].id`                           | string        | `fluency` \| `accuracy` \| `pronunciation` \| `completeness` \| `interaction`                                                                                               |
-| `dimensions[].label_zh`                     | string        | 维度中文名                                                                                                                                                                   |
-| `dimensions[].score_1_to_5`                 | number \| null | 1–5                                                                                                                                                                     |
-| `dimensions[].comment_zh`                   | string        | 该维简评（中文）                                                                                                                                                                |
 | `pronunciation.mispronounced_or_weak_words` | string[]      | 发音/用词提醒（中文为主）                                                                                                                                                           |
 | `language.grammar_issues[]`                 | array         | 每条 `{issue_zh, suggestion_zh}` 或字符串（中文）                                                                                                                                 |
 | `language.lexical_suggestions_zh`           | string[]      | 词汇升级建议（中文）                                                                                                                                                              |
 | `coaching_tips_zh`                          | string[]      | 练习建议（中文）                                                                                                                                                                |
 | `limitations`                               | string[]      | 限制说明（中文）                                                                                                                                                                |
-| `exam_rubric`                                | object \| null | **新增**：`assignment`/`text` 明确标注 KET（A2 Key）/ PET（B1 Preliminary）口语时给出，按剑桥官方最新评分标准打分；未标注时为 `null`，只走上面的默认五维评分 |
+| `exam_rubric`                                | object \| null | **唯一评分块**：`text` 含 KET/PET 时必填；未标注时为 `null`。**已移除**旧版顶层 `dimensions`（fluency/accuracy 等） |
 | `exam_rubric.exam_standard`                  | `"KET"` \| `"PET"` | 识别到的考试类型 |
-| `exam_rubric.dimensions[]`                   | array | KET 4 项：`grammar_vocabulary`/`pronunciation`/`interactive_communication`/`global_achievement`；PET 5 项：额外含 `discourse_management`（言语组织）；每项 `{id, label_zh, score_0_to_5, comment_zh}` |
-| `exam_rubric.overall_grade_hint_zh`          | string | 中文档位描述（如"接近合格档"），非精确等级换算 |
+| `exam_rubric.dimensions[]`                   | array | KET 4 项：`grammar_vocabulary`/`pronunciation`/`interactive_communication`/`global_achievement`；PET 5 项：额外含 `discourse_management`；每项 `{id, label_zh, score_0_to_5, comment_zh}` |
+| `exam_rubric.raw_score`                      | number \| null | PET：0–30 原始分（服务端可回填）；KET 为卷面公式分 |
+| `exam_rubric.scale_score`                    | number \| null | PET 量表分（约 120–170） |
+| `exam_rubric.overall_grade_hint_zh`          | string | 如「通过 Grade C · 原始分 19/30 · 量表分 142」 |
 
-> **KET/PET 口语评分标准（新增）**：业务侧若已知本次口语任务来自 KET（A2 Key）或 PET（B1 Preliminary）考试，需在 `text` 里的 `assignment` 中显式注明（如 `"KET Part 1 考官问答"`），模型才会额外输出 `exam_rubric`（见上表）并按剑桥官方最新评分标准打分；不注明则只走默认五维评分，`exam_rubric` 为 `null`。
+> **KET/PET**：在 `assignment`/`text` 中写明（如 `按照PET口语标准批改反馈`），才会输出 `exam_rubric`。前端请读 `exam_rubric.dimensions`，**不要**再读顶层 `dimensions`（已删除）。
 
 ### 示例 `object_string` 中 `text`
 
 ```text
 assignment: 口语作业：介绍自己的爱好或日常活动。请使用 like + gerund（如 like reading books），不要 like + 动词原形。
 reference_text: I like playing football and reading books at weekends.
-请仅输出 JSON 口语批改结果（含 dimensions 五维 + holistic 总评 + standard_response_en）。
+请仅输出 JSON 口语批改结果（含 holistic 总评 + standard_response_en；若为 PET/KET 则含 exam_rubric）。
 ```
 
 ### 示例输出（节选）
@@ -373,13 +370,6 @@ reference_text: I like playing football and reading books at weekends.
   "standard_response_en": "I met my friend two years ago. We became friends because we both like reading books. I like playing football and reading books at weekends. I like playing with her.",
   "holistic_score_1_to_5": 3,
   "holistic_summary_zh": "整体表述连贯，内容贴合介绍日常活动的作业要求，但存在多处语法错误，未遵守 like 加动名词的作业规定。",
-  "dimensions": [
-    { "id": "fluency",       "label_zh": "流利度与连贯",            "score_1_to_5": 4, "comment_zh": "整体表述逻辑顺畅，没有明显卡顿或自我修正" },
-    { "id": "accuracy",      "label_zh": "语言准确性（语法、词汇）", "score_1_to_5": 2, "comment_zh": "多处语法错误，未遵守 like + 动名词结构" },
-    { "id": "pronunciation", "label_zh": "发音清晰度",              "score_1_to_5": 4, "comment_zh": "转写内容通顺，未出现因发音模糊导致无法识别的情况" },
-    { "id": "completeness",  "label_zh": "任务完整度",              "score_1_to_5": 4, "comment_zh": "覆盖爱好、日常和朋友相处等信息，要点齐全" },
-    { "id": "interaction",   "label_zh": "交际得体性",              "score_1_to_5": 4, "comment_zh": "符合日常分享个人生活的交际场景" }
-  ],
   "pronunciation": {
     "mispronounced_or_weak_words": [
       "注意动词 ing 形式的发音，比如 reading 不要读成 read",
@@ -404,7 +394,8 @@ reference_text: I like playing football and reading books at weekends.
   ],
   "limitations": [
     "本次批改主要基于转写内容，发音/语调等细节以音频为准"
-  ]
+  ],
+  "exam_rubric": null
 }
 ```
 
