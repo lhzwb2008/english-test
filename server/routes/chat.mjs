@@ -4,6 +4,11 @@ import { streamQwenText } from '../qwen/client.mjs';
 import { detectAudioFormat, getFile } from '../lib/fileStore.mjs';
 import { genId, nowUnix } from '../lib/ids.mjs';
 import { initSse, writeSseEvent } from '../lib/sse.mjs';
+import {
+  detectOralExamStandard,
+  enrichOralExamRubricText,
+  examStandardForcePrompt,
+} from '../lib/oralExamEnrich.mjs';
 
 const router = Router();
 
@@ -120,9 +125,14 @@ async function handleStreamChat(req, res, body) {
 
   try {
     const audioFormat = detectAudioFormat(fileMeta.filename);
+    const examHint = detectOralExamStandard(parsed.userText);
+    const systemPrompt = examHint
+      ? `${bot.systemPrompt || ''}${examStandardForcePrompt(examHint)}`
+      : bot.systemPrompt;
+
     const { fullText, usage } = await streamQwenText({
       model: bot.model,
-      systemPrompt: bot.systemPrompt,
+      systemPrompt,
       userText: parsed.userText,
       audioBuffer: fileMeta.buffer,
       audioFormat,
@@ -142,6 +152,8 @@ async function handleStreamChat(req, res, body) {
       },
     });
 
+    const content = enrichOralExamRubricText(fullText, examHint);
+
     writeSseEvent(res, 'conversation.message.completed', {
       id: messageId,
       conversation_id: conversationId,
@@ -150,7 +162,7 @@ async function handleStreamChat(req, res, body) {
       role: 'assistant',
       type: 'answer',
       content_type: 'text',
-      content: fullText,
+      content,
       created_at: createdAt,
       updated_at: nowUnix(),
     });
