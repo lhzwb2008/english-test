@@ -468,23 +468,17 @@ const oral = JSON.parse(oralRaw);
   "standard_response_en": "",
   "holistic_score_1_to_5": null,
   "holistic_summary_zh": "",
-  "dimensions": [
-    { "id": "fluency", "label_zh": "流利度与连贯", "score_1_to_5": null, "comment_zh": "" },
-    { "id": "accuracy", "label_zh": "语言准确性（语法、词汇）", "score_1_to_5": null, "comment_zh": "" },
-    { "id": "pronunciation", "label_zh": "发音清晰度", "score_1_to_5": null, "comment_zh": "" },
-    { "id": "completeness", "label_zh": "任务完整度", "score_1_to_5": null, "comment_zh": "" },
-    { "id": "interaction", "label_zh": "交际得体性", "score_1_to_5": null, "comment_zh": "" }
-  ],
   "pronunciation": { "mispronounced_or_weak_words": [] },
   "language": { "grammar_issues": [], "lexical_suggestions_zh": [] },
   "coaching_tips_zh": [],
   "limitations": [
     "未提供有效口语转写内容。当前输入为中文题目描述，不符合口语作业评分要求。请上传包含英文回答的音频文件或提供对应的英文转写文本。"
-  ]
+  ],
+  "exam_rubric": null
 }
 ```
 
-> **说明**：本次测试用的 `homework-12.wav` 实际内容是一段**中文题目播报**（"Part three 的第十三题……"），并非学生的英文口语作答，因此模型正确识别出"无有效英文转写"并走了 §3 出参表中「五维分数可为 `null`」的分支，`limitations` 也如实说明了原因——这恰好验证了 Prompt 中「不得臆造评分」的约束在 Qwen-Omni 上依然生效，行为与原 Coze Bot 一致。若上传真实学生英文答题音频，会走正常五维评分分支（示例见上文「示例输出（节选）」）。
+> **说明**：本次测试用的 `homework-12.wav` 实际内容是一段**中文题目播报**（"Part three 的第十三题……"），并非学生的英文口语作答，因此模型正确识别出"无有效英文转写"；`exam_rubric` 为 `null`，`limitations` 如实说明原因。若上传真实学生英文答题音频且 `text` 含 PET/KET，会输出非空 `exam_rubric`（见上文出参表）。
 
 ### 成本对比（实测，22.7s 音频）
 
