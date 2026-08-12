@@ -60,16 +60,21 @@ PET 科目识别（`type` / `typeLabel`）：
 
 `homework`（有则传）：
 
-- **成绩用（PET）**：`correctCount` + `totalQuestions`（或 `totalWords` / `totalSentences`；没有总数时可用 `correctCount + wrongCount`）
-- 其它照旧：`wrongQuestions`、`wrongWords`、`grammarIssues`、`averageScore`、`hasHomework` 等
-- 若偶发已有 `rawScore` / `score`，服务端仍兼容，但**不要求传**
+- **成绩用（PET）优先**：`correctCount` + `totalQuestions`（或 `totalWords` / `totalSentences`；没有总数时可用 `correctCount + wrongCount`）
+- **兼容写法**（无对题数时仍尽量出分）：
+  - `averageScore` / `holistic_score_1_to_5` / `score`（≤5 时按 1–5 刻度：`round(分/5×该科满分)`；口语满分 30、写作 40）
+  - `accuracy` / `correctRate`（0–1 或 0–100%）
+  - 口语/写作 `dimensions[]` 或 `exam_rubric.dimensions[]` 的分项分均值
+  - 明确原始分：`rawScore` / `petRaw` / `totalScore`
+- 其它照旧：`wrongQuestions`、`wrongWords`、`grammarIssues`、`hasHomework` 等
 
 **等分换算**（服务端）：
 
 `原始分 = round(correctCount / 总题数 × 该科满分)`  
 满分：阅读 32、写作 40、听力 25、口语 30。
 
-例：听力对 20 / 共 25 → 原始分 20；阅读对 28 / 共 32 → 28；若只有 10 题对了 8 → 阅读原始分 `round(8/10×32)=26`。
+例：听力对 20 / 共 25 → 原始分 20；阅读对 28 / 共 32 → 28；若只有 10 题对了 8 → 阅读原始分 `round(8/10×32)=26`。  
+口语仅有 `averageScore: 3` → `round(3/5×30)=18`。
 
 `instruction` 若存在会被忽略。
 
@@ -168,9 +173,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
         "typeLabel": "口语",
         "taskCount": 1,
         "homework": {
-          "totalQuestions": 30,
-          "correctCount": 24,
-          "wrongCount": 6,
+          "averageScore": 3,
           "grammarIssues": [
             { "issue": "主谓不一致", "suggestion": "He likes..." }
           ]
@@ -180,7 +183,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
   }'
 ```
 
-上例换算后四科原始分为 28 / 29 / 20 / 24，`data.pet_score_report.overall.scale` = **152**（通过 Grade C）。某科没有 `correctCount`（或总数）则该科进 `missing_skills`，有数据的科仍会出分。
+上例换算后阅读 / 听力 / 口语原始分为 28 / 20 / 18（`averageScore=3` → `round(3/5×30)=18`）；写作未传则进 `missing_skills`，有数据的科仍会出分。四科齐全时才有 `overall`。
 
 ### 错误码
 

@@ -117,7 +117,7 @@ function isPetMode(source) {
 }
 
 /**
- * 显式原始分（兼容旧字段；产品约定前端可不传，优先用对题数换算）。
+ * 明确的 PET 原始分字段（不含易与 1–5 分混淆的 `score`）。
  * @param {Record<string, unknown> | null | undefined} obj
  * @returns {number | undefined}
  */
@@ -126,9 +126,27 @@ function pickExplicitRawScore(obj) {
   return (
     asFiniteNumber(obj.rawScore) ??
     asFiniteNumber(obj.raw_score) ??
-    asFiniteNumber(obj.score) ??
+    asFiniteNumber(obj.petRaw) ??
+    asFiniteNumber(obj.pet_raw) ??
     asFiniteNumber(obj.totalScore) ??
     asFiniteNumber(obj.total_score)
+  );
+}
+
+/**
+ * 模糊分数字段：可能是 1–5，也可能已是原始分。
+ * @param {Record<string, unknown> | null | undefined} obj
+ * @returns {number | undefined}
+ */
+function pickLooseNumericScore(obj) {
+  if (!obj || typeof obj !== 'object') return undefined;
+  return (
+    asFiniteNumber(obj.score) ??
+    asFiniteNumber(obj.averageScore) ??
+    asFiniteNumber(obj.average_score) ??
+    asFiniteNumber(obj.holistic_score_1_to_5) ??
+    asFiniteNumber(obj.holisticScore) ??
+    asFiniteNumber(obj.holistic_score)
   );
 }
 
@@ -152,11 +170,17 @@ function rawFromCorrectRatio(obj, maxRaw) {
     asFiniteNumber(obj.totalWords) ??
     asFiniteNumber(obj.total_words) ??
     asFiniteNumber(obj.totalSentences) ??
-    asFiniteNumber(obj.total_sentences);
+    asFiniteNumber(obj.total_sentences) ??
+    asFiniteNumber(obj.totalCount) ??
+    asFiniteNumber(obj.total_count);
 
   if (total === undefined) {
     const wrong = asFiniteNumber(obj.wrongCount ?? obj.wrong_count);
     if (wrong !== undefined) total = correct + wrong;
+  }
+  // 仅有 correct + wrongQuestions 列表时，用列表长度估总数
+  if (total === undefined && Array.isArray(obj.wrongQuestions)) {
+    total = correct + obj.wrongQuestions.length;
   }
   if (total === undefined || total <= 0) return undefined;
 
@@ -165,16 +189,108 @@ function rawFromCorrectRatio(obj, maxRaw) {
 }
 
 /**
+ * 正确率 → 原始分。支持 0–1 或 0–100。
+ * @param {Record<string, unknown> | null | undefined} obj
+ * @param {number} maxRaw
+ * @returns {number | undefined}
+ */
+function rawFromAccuracy(obj, maxRaw) {
+  if (!obj || typeof obj !== 'object' || !Number.isFinite(maxRaw) || maxRaw <= 0) {
+    return undefined;
+  }
+  let rate = asFiniteNumber(
+    obj.accuracy ??
+      obj.accuracyRate ??
+      obj.accuracy_rate ??
+      obj.correctRate ??
+      obj.correct_rate ??
+      obj.percentCorrect,
+  );
+  if (rate === undefined) return undefined;
+  if (rate > 1) rate /= 100;
+  if (rate < 0 || rate > 1) return undefined;
+  return Math.round(rate * maxRaw);
+}
+
+/**
+ * 1–5 分（averageScore / holistic / 口语维度均值）→ 该科满分刻度。
+ * 例：口语 averageScore=3 → round(3/5*30)=18。
+ * @param {number} avg
+ * @param {number} maxRaw
+ * @returns {number | undefined}
+ */
+function scaleFivePointToRaw(avg, maxRaw) {
+  if (!Number.isFinite(avg) || !Number.isFinite(maxRaw) || maxRaw <= 0) return undefined;
+  const capped = Math.min(Math.max(avg, 0), 5);
+  return Math.round((capped / 5) * maxRaw);
+}
+
+/**
+ * 从 dimensions / exam_rubric.dimensions 取 0–5 分均值再映射。
+ * @param {Record<string, unknown> | null | undefined} obj
+ * @param {number} maxRaw
+ * @returns {number | undefined}
+ */
+function rawFromDimensionScores(obj, maxRaw) {
+  if (!obj || typeof obj !== 'object') return undefined;
+  /** @type {unknown[]} */
+  let list = [];
+  if (Array.isArray(obj.dimensions)) list = obj.dimensions;
+  const rubric = obj.exam_rubric ?? obj.examRubric;
+  if (!list.length && rubric && typeof rubric === 'object' && Array.isArray(rubric.dimensions)) {
+    list = rubric.dimensions;
+  }
+  if (!list.length) return undefined;
+
+  const scores = [];
+  for (const d of list) {
+    if (!d || typeof d !== 'object') continue;
+    const s = asFiniteNumber(
+      d.score_0_to_5 ?? d.score_1_to_5 ?? d.score ?? d.value,
+    );
+    if (s !== undefined) scores.push(s);
+  }
+  if (!scores.length) return undefined;
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+  return scaleFivePointToRaw(avg, maxRaw);
+}
+
+/**
+ * 模糊分：≤5 当 1–5 刻度；>5 且 ≤maxRaw 当已是原始分。
+ * @param {Record<string, unknown> | null | undefined} obj
+ * @param {number} maxRaw
+ * @returns {number | undefined}
+ */
+function rawFromLooseScore(obj, maxRaw) {
+  const n = pickLooseNumericScore(obj);
+  if (n === undefined) return undefined;
+  if (n <= 5) return scaleFivePointToRaw(n, maxRaw);
+  if (n <= maxRaw) return Math.round(n);
+  // 偶发把百分制写进 score
+  if (n <= 100) return Math.round((n / 100) * maxRaw);
+  return undefined;
+}
+
+/**
  * @param {Record<string, unknown> | null | undefined} hw
  * @param {Record<string, unknown>} task
  * @param {number} maxRaw
+ * @param {'reading'|'writing'|'listening'|'speaking'} [skill]
  */
-function resolveSkillRaw(hw, task, maxRaw) {
+function resolveSkillRaw(hw, task, maxRaw, skill) {
+  // 优先级：明确原始分 → 对题比例 → 正确率 → 分项均分 → 1–5/模糊 score
   return (
     pickExplicitRawScore(hw) ??
     pickExplicitRawScore(task) ??
     rawFromCorrectRatio(hw, maxRaw) ??
-    rawFromCorrectRatio(task, maxRaw)
+    rawFromCorrectRatio(task, maxRaw) ??
+    rawFromAccuracy(hw, maxRaw) ??
+    rawFromAccuracy(task, maxRaw) ??
+    (skill === 'speaking' || skill === 'writing'
+      ? rawFromDimensionScores(hw, maxRaw) ?? rawFromDimensionScores(task, maxRaw)
+      : undefined) ??
+    rawFromLooseScore(hw, maxRaw) ??
+    rawFromLooseScore(task, maxRaw)
   );
 }
 
@@ -227,19 +343,25 @@ function extractPetRawScores(source) {
     if (!skill) continue;
 
     const maxRaw = PET_SKILL_TABLES[skill].maxRaw;
-    const raw = resolveSkillRaw(hw, t, maxRaw);
+    const raw = resolveSkillRaw(hw, t, maxRaw, skill);
 
     if (out[skill] === undefined && raw !== undefined) out[skill] = raw;
 
     if (skill === 'speaking') {
-      const hwDims = hw?.speaking_dimensions || hw?.speakingDimensions || hw?.exam_rubric;
+      const hwDims =
+        hw?.speaking_dimensions ||
+        hw?.speakingDimensions ||
+        hw?.exam_rubric ||
+        hw?.examRubric;
       if (!out.speaking_dimensions && hwDims && typeof hwDims === 'object') {
         if (Array.isArray(hwDims.dimensions)) {
           const flat = {};
           for (const d of hwDims.dimensions) {
             if (!d || typeof d !== 'object') continue;
             const id = asNonEmptyString(d.id);
-            const score = asFiniteNumber(d.score_0_to_5 ?? d.score);
+            const score = asFiniteNumber(
+              d.score_0_to_5 ?? d.score_1_to_5 ?? d.score,
+            );
             if (id && score !== undefined) flat[id] = score;
           }
           if (Object.keys(flat).length) out.speaking_dimensions = flat;
@@ -609,3 +731,4 @@ router.get('/video/:jobId/file', (req, res) => {
 });
 
 export default router;
+export { extractPetRawScores, maybeBuildPetScoreReport };
