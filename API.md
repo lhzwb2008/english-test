@@ -421,7 +421,7 @@ const up = await client.files.upload({ file: fs.createReadStream('./homework-12.
 // 2. 携带题型说明发起对话（stream: true）
 const userText = [
   'assignment: 口语作业：介绍自己的爱好或日常活动。请使用 like + gerund（如 like reading books），不要 like + 动词原形。',
-  '请仅输出 JSON 口语批改结果（含 dimensions 五维 + holistic 总评 + standard_response_en）。',
+  '请仅输出 JSON 口语批改结果（含 holistic 总评 + standard_response_en；PET/KET 时含 exam_rubric）。',
 ].join('\n');
 
 const abort = new AbortController();
