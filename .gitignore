@@ -38,3 +38,7 @@ scripts/.real-*
 # 口播视频任务落盘与中间产物
 server/data/video-jobs/*.json
 !server/data/video-jobs/.gitkeep
+
+# 业务请求调试日志（按日 JSONL）
+server/data/request-logs/*.jsonl
+!server/data/request-logs/.gitkeep

@@ -5,6 +5,7 @@ import filesRouter from './routes/files.mjs';
 import chatRouter from './routes/chat.mjs';
 import grammarRouter from './routes/grammar.mjs';
 import { resumeInterruptedJobs } from './lib/grammarVideoPipeline.mjs';
+import { requestLogMiddleware } from './lib/requestLog.mjs';
 
 const app = express();
 const port = Number(process.env.QWEN_PROXY_PORT || 8787);
@@ -12,6 +13,8 @@ const port = Number(process.env.QWEN_PROXY_PORT || 8787);
 // 业务侧无需传 token：鉴权由服务器侧维护（内网/安全组限制访问来源），
 // DASHSCOPE_API_KEY 也只在服务端持有，不对外暴露。
 app.use(express.json({ limit: '2mb' }));
+app.set('trust proxy', true);
+app.use(requestLogMiddleware());
 
 app.get('/health', (_req, res) => {
   res.json({

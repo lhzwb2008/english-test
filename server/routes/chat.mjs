@@ -9,6 +9,7 @@ import {
   enrichOralExamRubricText,
   examStandardForcePrompt,
 } from '../lib/oralExamEnrich.mjs';
+import { setRequestLogExtra } from '../lib/requestLog.mjs';
 
 const router = Router();
 
@@ -153,6 +154,22 @@ async function handleStreamChat(req, res, body) {
     });
 
     const content = enrichOralExamRubricText(fullText, examHint);
+    let answerJson = content;
+    try {
+      answerJson = JSON.parse(content);
+    } catch {
+      /* 保留原文 */
+    }
+    setRequestLogExtra(req, {
+      kind: 'oral_chat',
+      bot_id: botId,
+      exam_hint: examHint,
+      audio_file_id: parsed.audioFileId,
+      audio_bytes: fileMeta.buffer?.length ?? 0,
+      user_text: parsed.userText,
+      usage: mapUsage(usage),
+      answer: answerJson,
+    });
 
     writeSseEvent(res, 'conversation.message.completed', {
       id: messageId,
@@ -177,6 +194,11 @@ async function handleStreamChat(req, res, body) {
     res.end();
   } catch (err) {
     console.error('[chat stream error]', err);
+    setRequestLogExtra(req, {
+      kind: 'oral_chat',
+      bot_id: botId,
+      error: err.message || 'Qwen 调用失败',
+    });
     writeSseEvent(res, 'conversation.chat.failed', {
       ...chatBase,
       status: 'failed',

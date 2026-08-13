@@ -75,7 +75,13 @@ pm2 status                     # 查看进程状态
 pm2 logs qwen-oral-proxy       # 查看日志（server/index.mjs 的 console 输出）
 pm2 restart qwen-oral-proxy    # 重启
 pm2 stop qwen-oral-proxy       # 停止
+
+# 业务请求 JSONL（口语 / 总结 / 文件上传等，按日切割，默认保留 14 天）
+ls /opt/qwen-oral-proxy/server/data/request-logs/
+tail -n 5 /opt/qwen-oral-proxy/server/data/request-logs/$(date +%F).jsonl
 ```
+
+请求日志默认开启（`REQUEST_LOG_ENABLED=1`）。每条含 method/path、入参（脱敏截断）、HTTP 状态、耗时；`/v3/chat` 另记 `extra.user_text` 与最终 `extra.answer`（含 `exam_rubric`）。**不写音频二进制**。可用 `REQUEST_LOG_RETENTION_DAYS` 调整保留天数。
 
 ## 环境变量（`.env`，参考 `.env.example`）
 
@@ -90,6 +96,9 @@ pm2 stop qwen-oral-proxy       # 停止
 | `OSS_ENDPOINT` / `OSS_REGION` | 上海：`oss-cn-shanghai.aliyuncs.com` |
 | `OSS_URL_MODE` | `signed`（私有桶默认）或 `public` |
 | `OSS_SIGNED_URL_SECONDS` | 签名有效期，默认 7 天；查询接口会刷新签名 |
+| `REQUEST_LOG_ENABLED` | 业务请求落盘，默认 `1`；`0` 关闭 |
+| `REQUEST_LOG_DIR` | JSONL 目录，默认 `server/data/request-logs` |
+| `REQUEST_LOG_RETENTION_DAYS` | 日志保留天数，默认 `14` |
 
 口播视频接口依赖本机 **ffmpeg**（及中文字体）；`deploy/deploy.sh` 会尝试自动安装。
 
