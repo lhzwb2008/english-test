@@ -31,11 +31,11 @@ export function examStandardForcePrompt(standard) {
       '',
       '# 最高优先级（服务端注入）：本次已判定为 PET 口语',
       '用户 text 含 PET。必须输出非空 exam_rubric，exam_standard="PET"。',
-      'exam_rubric.dimensions 必须含 grammar_vocabulary / discourse_management / pronunciation / interactive_communication / global_achievement，每项 score_0_to_5 为 0–5 整数。',
+      'exam_rubric.dimensions 必须含 grammar_vocabulary / discourse_management / pronunciation / interactive_communication / global_achievement，每项 score_0_to_5 为 0–5（允许 0.5）。',
       'raw_score = 四项之和 + 总体表现×2（满分 30）；scale_score 按 PET 口语锚点插值取整。',
       '禁止 exam_rubric: null。',
       '禁止输出顶层 dimensions（不得出现 fluency/accuracy/completeness/interaction）。',
-      '尺度：3 分=能完成基本任务、意思可懂（对应原始分约 18、量表 140 通过）。转写大体能懂且答了多数题时，各维至少 3、raw_score 不得低于 18。禁止因语法小错或 um 停顿打到 1–2。',
+      '对照剑桥官方样卷：Laura≈3/3.5（raw 19 通过）；Claudia≈3.5；Andrea≈4.5（I like listen 仍 4.5）。能完成且能懂不得严于 Laura（各维≥3、raw≥19）。禁止因 like listen 打到 3 或以下。',
     ].join('\n');
   }
   return [
@@ -49,9 +49,16 @@ export function examStandardForcePrompt(standard) {
 }
 
 /**
- * @param {unknown} examRubric
- * @returns {Record<string, number>}
+ * 对齐剑桥官方 0.5 分档。
+ * @param {number} n
+ * @returns {number}
  */
+function snapHalf(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return x;
+  return Math.min(5, Math.max(0, Math.round(x * 2) / 2));
+}
+
 function flatDimsFromRubric(examRubric) {
   const flat = {};
   if (!examRubric || typeof examRubric !== 'object') return flat;
@@ -106,6 +113,14 @@ export function enrichOralExamRubricText(rawText, examHint) {
   }
 
   rubric = { ...rubric, exam_standard: rubric.exam_standard || 'PET' };
+  if (Array.isArray(rubric.dimensions)) {
+    rubric.dimensions = rubric.dimensions.map((d) => {
+      if (!d || typeof d !== 'object') return d;
+      const score = Number(d.score_0_to_5 ?? d.score_1_to_5 ?? d.score);
+      if (!Number.isFinite(score)) return d;
+      return { ...d, score_0_to_5: snapHalf(score) };
+    });
+  }
   const flat = flatDimsFromRubric(rubric);
   const needed = [
     'grammar_vocabulary',
