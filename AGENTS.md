@@ -33,4 +33,4 @@ This is `english-coze-mvp` — a prompt-engineering & bot-management toolkit for
 
 - **交付面**：Prompt/脚本改完后推 Coze（及如有的线上服务）即可；不要为联调另存 `tmp/`、截图复现产物、额外说明文档等过程文件。
 - **少写文档**：除非用户明确要求，不要同步改 `API.md` / README 等；以 `coze/prompts/*` 与推送结果为准。
-- **改完即提交**：用户要求的功能改动完成后，自动 `git commit` 相关源码（不含 `.env`、密钥、过程产物）；未要求则不要 push remote。
+- **改完即提交并推送**：用户要求的功能改动完成后，自动 `git commit` 相关源码（不含 `.env`、密钥、过程产物），并 `git push` 到当前分支远程。
