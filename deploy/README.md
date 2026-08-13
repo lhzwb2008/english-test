@@ -76,12 +76,13 @@ pm2 logs qwen-oral-proxy       # 查看日志（server/index.mjs 的 console 输
 pm2 restart qwen-oral-proxy    # 重启
 pm2 stop qwen-oral-proxy       # 停止
 
-# 业务请求 JSONL（口语 / 总结 / 文件上传等，按日切割，默认保留 14 天）
+# 业务请求 JSONL + 抽样媒体（每天最多 10 份完整图片/音频，最多保留 7 天）
 ls /opt/qwen-oral-proxy/server/data/request-logs/
 tail -n 5 /opt/qwen-oral-proxy/server/data/request-logs/$(date +%F).jsonl
+ls /opt/qwen-oral-proxy/server/data/request-logs/media/$(date +%F)/ 2>/dev/null | head
 ```
 
-请求日志默认开启（`REQUEST_LOG_ENABLED=1`）。每条含 method/path、入参（脱敏截断）、HTTP 状态、耗时；`/v3/chat` 另记 `extra.user_text` 与最终 `extra.answer`（含 `exam_rubric`）。**不写音频二进制**。可用 `REQUEST_LOG_RETENTION_DAYS` 调整保留天数。
+请求日志默认开启。文本入参/出参都会记（脱敏、截断）。**图片和音频每天最多保存 10 份完整文件**到 `media/日期/`，超出名额的只记文件名和大小，方便复现又不撑爆磁盘。启动和写入时自动删除超过 **7 天** 的 JSONL 与媒体。
 
 ## 环境变量（`.env`，参考 `.env.example`）
 
@@ -98,7 +99,8 @@ tail -n 5 /opt/qwen-oral-proxy/server/data/request-logs/$(date +%F).jsonl
 | `OSS_SIGNED_URL_SECONDS` | 签名有效期，默认 7 天；查询接口会刷新签名 |
 | `REQUEST_LOG_ENABLED` | 业务请求落盘，默认 `1`；`0` 关闭 |
 | `REQUEST_LOG_DIR` | JSONL 目录，默认 `server/data/request-logs` |
-| `REQUEST_LOG_RETENTION_DAYS` | 日志保留天数，默认 `14` |
+| `REQUEST_LOG_RETENTION_DAYS` | 最多保留天数，默认 **7**（上限 7） |
+| `REQUEST_LOG_MAX_MEDIA_PER_DAY` | 每天完整保存的图片/音频请求数，默认 **10** |
 
 口播视频接口依赖本机 **ffmpeg**（及中文字体）；`deploy/deploy.sh` 会尝试自动安装。
 

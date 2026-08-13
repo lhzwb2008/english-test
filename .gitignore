@@ -39,6 +39,6 @@ scripts/.real-*
 server/data/video-jobs/*.json
 !server/data/video-jobs/.gitkeep
 
-# 业务请求调试日志（按日 JSONL）
-server/data/request-logs/*.jsonl
+# 业务请求调试日志（按日 JSONL + 抽样媒体）
+server/data/request-logs/**
 !server/data/request-logs/.gitkeep
