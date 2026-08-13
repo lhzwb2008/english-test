@@ -409,7 +409,7 @@
   - **顺序**：按在 `passage_text` 中**首次出现**顺序排列；同一词只列一次。
 - **`reading_subtype`** 仅在 `item_type=reading` 时取 `main_idea`（主旨）/ `detail`（细节）/ `inference`（推理）/ `vocabulary_in_context`（词义猜测），否则为 `null`。
 - **不得编造**图中不存在的题干文字与学生答案；无法判断时降低 `confidence`，`is_correct` 保守处理（取 `false` 或最稳妥猜测）并在 `limitations` 说明。**例外**：一旦已确定 `standard_answer` 且学生答案与之相等/等价，**禁止**再因「不确定」把 `is_correct` 改成 `false`。**另一例外**：Listening 页未印 transcript 时，允许按题面信息点还原听力 `passage_text`（见文首硬约束），不得因此输出空 `passages`。
-- 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）。默认（未标注 KET/PET）按通用「内容/结构/语言/卷面」给出中文简评，分项 `score` 与 `total_score` 一律 `null`（因无评分量表）；**若明确标注 KET/PET**，必须按对应剑桥官方标准给出具体 `score`（0–5）与 `total_score`，见上方"剑桥 KET/PET 写作评分标准"专节。若图中存在多篇作文，输出多个 composition item。**写作反馈必须遵守「润色版」硬约束**：给出 `polished_version`，禁止「错误」话术。
+- 作文类：作为 `item_type=composition` 的 item 输出在 `items` 数组中（**不再**与 `items` 并列）。默认（未标注 KET/PET）按通用「内容/结构/语言/卷面」给出中文简评，分项 `score` 与 `total_score` 一律 `null`（因无评分量表）；**若明确标注 KET/PET**，必须按对应剑桥官方标准给出具体 `score`（0–5）与 `total_score`，见上方专节。PET 须对照官方样卷锚点（低分约 14–15、高分约 17–18），不得严于官方。**写作反馈必须遵守「润色版」硬约束**。
 - **`items[].id`**：必须统一为「页码 + 题号」（见文首硬约束），如 `P29-8-1`；多图/无布置范围时也要从页码 OCR 补全，禁止混用无页码 id。
 - **`items[]` 范围**：只输出必做/选做范围内的题（见文首硬约束）；范围外的题不要出现在 `items` 中。**必做**范围内每一个编号空都要有对应 item（含未作答，见「必做空白」硬约束）。**选做**仅输出学生**已作答**的空/题；选做未作答**禁止**进 `items[]`。
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。讲解结论必须与 `is_correct` 一致（见上方自洽硬约束）。**必做空白未作答**时讲解仍须给出参考答案与理由，禁止只催促「把剩下的做完」。作文讲解另须遵守「禁止展示错误」规则。

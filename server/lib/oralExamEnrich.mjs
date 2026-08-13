@@ -35,6 +35,7 @@ export function examStandardForcePrompt(standard) {
       'raw_score = 四项之和 + 总体表现×2（满分 30）；scale_score 按 PET 口语锚点插值取整。',
       '禁止 exam_rubric: null。',
       '禁止输出顶层 dimensions（不得出现 fluency/accuracy/completeness/interaction）。',
+      '尺度：3 分=能完成基本任务、意思可懂（对应原始分约 18、量表 140 通过）。转写大体能懂且答了多数题时，各维至少 3、raw_score 不得低于 18。禁止因语法小错或 um 停顿打到 1–2。',
     ].join('\n');
   }
   return [
@@ -43,6 +44,7 @@ export function examStandardForcePrompt(standard) {
     '用户 text 含 KET。必须输出非空 exam_rubric，exam_standard="KET"。',
     'dimensions 仅在 exam_rubric 内：grammar_vocabulary / pronunciation / interactive_communication / global_achievement。',
     '禁止 exam_rubric: null。禁止顶层 dimensions（fluency/accuracy 等）。',
+    '尺度：3 分=基本达标（不是很差）。转写大体能懂且答了多数题时，各维至少 3。禁止因语法小错或停顿打到 1–2。',
   ].join('\n');
 }
 
