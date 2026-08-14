@@ -35,7 +35,8 @@ export function examStandardForcePrompt(standard) {
       'raw_score = 四项之和 + 总体表现×2（满分 30）；scale_score 按 PET 口语锚点插值取整。',
       '禁止 exam_rubric: null。',
       '禁止输出顶层 dimensions（不得出现 fluency/accuracy/completeness/interaction）。',
-      '对照剑桥官方样卷：Laura≈3/3.5（raw 19 通过）；Claudia≈3.5；Andrea≈4.5（I like listen 仍 4.5）。能完成且能懂不得严于 Laura（各维≥3、raw≥19）。禁止因 like listen 打到 3 或以下。',
+      '对照内部锚点：偏低通过≈3/3.5（raw 19）；中档≈3.5；高档≈4.5（I like listen 仍 4.5）。能完成且能懂不得严于偏低通过档（各维≥3、raw≥19）。禁止因 like listen 打到 3 或以下。',
+      '评语只写本学生表现。禁止出现样卷考生姓名，禁止写「参考某某表现 / 符合某某水平」等对照语。',
     ].join('\n');
   }
   return [
@@ -90,6 +91,45 @@ export function parseOralJson(rawText) {
   }
 }
 
+const SAMPLE_NAME_RE =
+  /\b(Laura|Claudia|Andrea|Cristina|Lucia|Yaheli|Fernanda|Pascual|Corinne|Kenza|Mohammed)\b/i;
+const KEEP_TEXT_KEYS = new Set([
+  'transcript',
+  'reference_text',
+  'standard_response_en',
+]);
+
+/**
+ * 评语里若泄漏样卷考生名，删掉该句；转写/示范句不动。
+ * @param {unknown} value
+ * @param {string} [key]
+ * @returns {unknown}
+ */
+function stripSampleNameLeaks(value, key) {
+  if (typeof value === 'string') {
+    if (KEEP_TEXT_KEYS.has(key)) return value;
+    return value
+      .split(/(?<=[。！？；!?;\n])/)
+      .filter((part) => part.trim() && !SAMPLE_NAME_RE.test(part))
+      .join('')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim();
+  }
+  if (Array.isArray(value)) return value.map((item) => stripSampleNameLeaks(item));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = stripSampleNameLeaks(v, k);
+    }
+    return out;
+  }
+  return value;
+}
+
+function finalizeOralJson(obj) {
+  return JSON.stringify(stripSampleNameLeaks(obj));
+}
+
 /**
  * 若已有 PET exam_rubric 分项，补齐 raw_score / scale_score / hint；并删除旧版顶层 dimensions。
  * @param {string} rawText
@@ -104,12 +144,12 @@ export function enrichOralExamRubricText(rawText, examHint) {
   if ('dimensions' in obj) delete obj.dimensions;
 
   if (examHint !== 'PET') {
-    return JSON.stringify(obj);
+    return finalizeOralJson(obj);
   }
 
   let rubric = obj.exam_rubric;
   if (!rubric || typeof rubric !== 'object' || Array.isArray(rubric)) {
-    return JSON.stringify(obj);
+    return finalizeOralJson(obj);
   }
 
   rubric = { ...rubric, exam_standard: rubric.exam_standard || 'PET' };
@@ -131,7 +171,7 @@ export function enrichOralExamRubricText(rawText, examHint) {
   ];
   if (!needed.every((k) => flat[k] !== undefined)) {
     obj.exam_rubric = rubric;
-    return JSON.stringify(obj);
+    return finalizeOralJson(obj);
   }
 
   const raw = speakingRawFromDimensions(flat);
@@ -152,5 +192,5 @@ export function enrichOralExamRubricText(rawText, examHint) {
     rubric.overall_grade_hint_zh = hintParts.join(' · ');
   }
   obj.exam_rubric = rubric;
-  return JSON.stringify(obj);
+  return finalizeOralJson(obj);
 }
