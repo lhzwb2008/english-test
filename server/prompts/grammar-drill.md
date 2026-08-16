@@ -15,7 +15,26 @@
 
 可选：`focus_points`、`question_count`、`question_types`。
 
-## 2）`explanation_style`（讲解风格，服务端会写入；缺省时按学生特点推断）
+## 2）`material`（课程材料 = 出题难度锚点）
+
+服务端可能写入 `textbook`（如 `THINK2`）、`unit_ref`（如 `Unit3`）、`cefr`、`label_zh`、`question_hint_zh`。
+
+**有 `material` 时，出题难度必须对标该教材/考试，不是对标年级或学习历史。**
+
+| 材料 | CEFR | 题目应像 |
+|------|------|----------|
+| Kids Box 低阶 | A1 | 极短句、高频词 |
+| Think 1 / KET | A2 | 日常话题、简单复合句 |
+| **Think 2 / PET** | **B1** | 能给理由（because/when/if）；用本单元话题词；不要「This is a cat」 |
+| Think 3 | B1+ | 稍长语境、对比观点 |
+| Think 4 / FCE | B2 | 抽象话题、较复杂从句 |
+
+硬约束：
+- `student_profile.grade`（如三年级）和 `study_history`（如「目前学 THINK1」）只影响口吻与生活场景，**不得**把 Think 2 / PET 的练习降到 Think 1 / 小学看图说话。
+- `focus_points` 里的目标词（如 documentary / soap opera）至少在 2 道题里真正用到。
+- 无 `material` 时，才按年级 / 学习历史估难度。
+
+## 3）`explanation_style`（讲解风格，服务端会写入；缺省时按学生特点推断）
 
 取值仅限：
 
@@ -28,7 +47,7 @@
 
 若输入里已有合法 `explanation_style`，**必须严格按该风格写讲解**。不要自行改成别的风格。
 
-## 3）`student_profile`（学生情况）
+## 4）`student_profile`（学生情况）
 
 常见字段：`grade` / `current_score` / `target_score` / `study_history` / `traits`（学生特点，自由文本）。
 
@@ -43,7 +62,7 @@
 | 理性 / 要框架 / 逻辑 | 先表后例；判断流程清晰；少卖萌比喻 |
 | 应试 / 刷题 / 奔着得分 / PET·KET | 突出踩分点、题干信号词、秒杀步骤；例句偏考题口吻 |
 | 看图才懂 / 图表 | 表与流程优先于散文；标签编码帮助扫读 |
-| 年级 / 教材进度 / 目标分 | 控制词汇与句式难度；场景贴其校园/考试生活 |
+| 年级 / 教材进度 / 目标分 | 无 `material` 时才用来估难度；有 Think 2 / PET 等材料时**不要降级** |
 
 `explanation_style` 管**骨架**；`traits` 管**口吻、例子、密度、难度**。两者同时生效：例如风格是 `exam` 且 traits 写「喜欢故事」→ 仍用考试骨架，但踩分点例句可更生活化一点，**不要**改成纯故事体。
 
@@ -116,9 +135,10 @@
 
 ---
 
-# 出题要求（`questions`，与风格骨架无关，但须贴合学生水平与特点）
+# 出题要求（`questions`，与风格骨架无关，但须贴合**课程材料难度**与学生特点）
 
-- 紧扣知识点与学生水平（年级、教材进度、目标分）
+- **难度锚点**：有 `material` 则对标 `material.cefr` / `question_hint_zh`；没有才用年级、教材进度、目标分
+- 紧扣知识点；有 `focus_points` 必须考这些词/点，不能只出无关简单句
 - 若有 `traits`：题目场景与解析口吻跟着特点走（故事型多生活场景；应试型解析点出题干信号词；急躁型解析更短）
 - 题型：
   - `choice`：单选，4 个选项 `A/B/C/D`，`answer` 为 `"A"`/`"B"`/`"C"`/`"D"`
@@ -174,4 +194,4 @@
 - `choice` 必须带长度为 4 的 `options`；其它题型 `options` 为 `null`
 - `answer` / `explanation` 必填且非空
 
-输出前自检：合法 JSON；讲解结构匹配所选风格；知识点要点未因风格缩水。
+输出前自检：合法 JSON；讲解结构匹配所选风格；知识点要点未因风格缩水；有 `material` 时题目难度与其 CEFR 一致（Think 2 不得出成 Kids Box）。

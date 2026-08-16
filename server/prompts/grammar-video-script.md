@@ -14,6 +14,7 @@
 
 - `knowledge_point`：知识点标题（必填）
 - `explanation_style`：服务端会写入，取值 `logical` | `fun` | `visual` | `exam`。**必须严格按该风格排布分镜**，不要改成别的风格
+- `material`：可选。有则例句词汇/句式对标该教材 CEFR（Think 2 / PET = B1），不要因年级写成 Kids Box
 - `student_profile`：可选（`grade` / `traits` / `study_history` / 分数目标）
 - `focus_points`：可选，优先覆盖的子点
 - `max_slides`：页数上限（3–5，优先 **4 页**）

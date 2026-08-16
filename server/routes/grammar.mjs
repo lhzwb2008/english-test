@@ -5,6 +5,10 @@ import { parseJsonFromModel } from '../lib/jsonParse.mjs';
 import { buildUserPayload, loadPrompt, textModel } from '../lib/prompts.mjs';
 import { PET_SKILL_TABLES, scorePetTest } from '../lib/petScoring.mjs';
 import {
+  normalizeMaterialFields,
+  resolveMaterialLevel,
+} from '../lib/materialLevel.mjs';
+import {
   cleanupExpiredJobs,
   createJob,
   getJob,
@@ -561,17 +565,23 @@ router.post('/drill', async (req, res) => {
   const hasStudentTraits = Boolean(
     studentProfile && (studentProfile.traits || studentProfile.study_history),
   );
+  const materialFields = normalizeMaterialFields(body);
+  const material = resolveMaterialLevel(materialFields);
 
   const model = textModel();
   const systemPrompt = loadPrompt('grammar-drill.md');
   const userText = buildUserPayload({
     knowledge_point: knowledgePoint,
     explanation_style: explanationStyle,
+    material: material || undefined,
     student_profile: studentProfile,
     has_student_traits: hasStudentTraits,
     focus_points: focusPoints.length ? focusPoints : undefined,
     question_count: questionCount,
     question_types: questionTypes,
+    difficulty_rule: material
+      ? `出题必须对标 ${material.label_zh}（CEFR ${material.cefr}）。禁止因年级或 study_history 降到更低教材。${material.question_hint_zh}`
+      : undefined,
   });
 
   try {
@@ -584,6 +594,14 @@ router.post('/drill', async (req, res) => {
     });
     const data = parseJsonFromModel(fullText);
     data.explanation_style = explanationStyle;
+    if (material) {
+      data.material = {
+        textbook: material.textbook,
+        unit_ref: material.unit_ref,
+        cefr: material.cefr,
+        label_zh: material.label_zh,
+      };
+    }
     return res.json({
       ok: true,
       model,
@@ -634,12 +652,15 @@ function parseDrillLikeInput(body) {
     : [];
 
   const explanationStyle = resolveExplanationStyle(body, studentProfile);
+  const materialFields = normalizeMaterialFields(body);
+  const material = resolveMaterialLevel(materialFields);
 
   return {
     knowledgePoint,
     input: {
       knowledge_point: knowledgePoint,
       explanation_style: explanationStyle,
+      material: material || undefined,
       student_profile: studentProfile,
       focus_points: focusPoints.length ? focusPoints : undefined,
       question_count: questionCount,

@@ -202,6 +202,8 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 
 **学生特点必跟**：若 `student_profile.traits`（或学习历史里的习惯描述）非空，讲解口吻、例子、分段密度与题目场景须贴合该生；`explanation_style` 只管结构骨架，不能盖过特点。无特点时按小学高年级默认。
 
+**出题难度对标课程材料**：请传 `textbook` + `unit_ref`（Allen 已加）。Think 2 的总结就出 Think 2 / B1 题，PET 就出 PET 题。学生档案里的年级、「目前学 THINK1」只影响口吻，**不会**把题目降到更低教材。
+
 同一知识点可切换四种信息组织方式（内容要点等价，结构不同），对齐 `tmp/everyone_vs_all_四种讲解风格对比.docx`：
 
 | `explanation_style` | 名称 | 讲解骨架 | 适合 |
@@ -225,6 +227,9 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 | `student_profile.target_score` | number\|string | 否 | 目标分数 |
 | `student_profile.study_history` | string | 否 | 学习历史 |
 | `student_profile.traits` | string | 否 | **学生特点（强烈建议）**，如「喜欢用例子讲故事」「比较急躁」「应试刷题」。有则文字讲解必贴合；也可用于推断风格 |
+| `textbook` | string | 建议 | 当前课程教材，如 `THINK2` / `PET`（兼容 `book`）。**出题难度对标此字段**，不按年级或 `study_history` 里更低的旧教材降级 |
+| `unit_ref` | string | 建议 | 当前单元，如 `Unit3`（兼容 `unitRef`） |
+| `curriculum` | string | 否 | `think` / `PET` / `KET`；无 `textbook` 时也可用来估级别 |
 | `focus_points` | string[] | 否 | 需要强调的子点 |
 | `question_count` | number | 否 | 题量，默认 `6`，最大 `20` |
 | `question_types` | string[] | 否 | `choice` / `blank` / `translation`；默认三类都出 |
@@ -240,6 +245,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 | `data.explanation_style` | string | 实际使用的风格（服务端裁定后回写） |
 | `data.explanation_markdown` | string | 讲解全文（Markdown，结构随风格变化） |
 | `data.questions` | array | 题目列表（题型与风格无关） |
+| `data.material` | object | 有 `textbook` 等时回写：`textbook` / `unit_ref` / `cefr` / `label_zh` |
 
 `data.questions[]`：`id` / `type` / `stem` / `options` / `answer` / `explanation`（选择题 `options` 为 4 项，其它为 `null`）。
 
@@ -427,6 +433,6 @@ curl -sS 'http://101.201.237.149:8000/v1/grammar/video/vid_e237b79a2eca4a1198be'
 ## 推荐调用顺序
 
 1. 单元 / PET Test 结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`（PET 时另有 `pet_score_report`）。
-2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`。
+2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`，以及总结时的 `textbook` / `unit_ref`（难度对标教材）。
 3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。调用 drill / video 时请带上该生 `student_profile.traits`，以便按特点讲。
 4. 若需要口播短视频：对同一知识点 POST `/v1/grammar/video`，轮询 `GET /v1/grammar/video/:jobId`，用 `video_url`（OSS）播放。
