@@ -8,6 +8,7 @@ import {
   normalizeMaterialFields,
   resolveMaterialLevel,
 } from '../lib/materialLevel.mjs';
+import { buildTraitVoice, inferStyleFromTraits } from '../lib/traitVoice.mjs';
 import {
   cleanupExpiredJobs,
   createJob,
@@ -67,12 +68,11 @@ function resolveExplanationStyle(body, studentProfile) {
     if (aliased) return /** @type {'logical'|'fun'|'visual'|'exam'} */ (aliased);
   }
 
-  const hint = `${asNonEmptyString(studentProfile?.traits)} ${asNonEmptyString(studentProfile?.study_history)}`;
-  if (/考试|应试|得分|刷题|口诀|速记|PET|KET|模考/.test(hint)) return 'exam';
-  if (/图表|流程图|看图|视觉|表格速记|思维导图/.test(hint)) return 'visual';
-  if (/逻辑|框架|规则清晰|理性|条理|流程判断/.test(hint)) return 'logical';
-  if (/故事|例子|有趣|吸引|画面|比喻|人设|急躁|注意力/.test(hint)) return 'fun';
-  return 'fun';
+  const fromTraits = inferStyleFromTraits(
+    asNonEmptyString(studentProfile?.traits),
+    asNonEmptyString(studentProfile?.study_history),
+  );
+  return fromTraits || 'fun';
 }
 
 function mapUsage(usage) {
@@ -562,9 +562,7 @@ router.post('/drill', async (req, res) => {
     : [];
 
   const explanationStyle = resolveExplanationStyle(body, studentProfile);
-  const hasStudentTraits = Boolean(
-    studentProfile && (studentProfile.traits || studentProfile.study_history),
-  );
+  const traitVoice = buildTraitVoice(studentProfile);
   const materialFields = normalizeMaterialFields(body);
   const material = resolveMaterialLevel(materialFields);
 
@@ -575,7 +573,8 @@ router.post('/drill', async (req, res) => {
     explanation_style: explanationStyle,
     material: material || undefined,
     student_profile: studentProfile,
-    has_student_traits: hasStudentTraits,
+    has_student_traits: Boolean(traitVoice),
+    trait_voice: traitVoice || undefined,
     focus_points: focusPoints.length ? focusPoints : undefined,
     question_count: questionCount,
     question_types: questionTypes,
@@ -594,6 +593,9 @@ router.post('/drill', async (req, res) => {
     });
     const data = parseJsonFromModel(fullText);
     data.explanation_style = explanationStyle;
+    if (traitVoice) {
+      data.voice_tags = traitVoice.tags;
+    }
     if (material) {
       data.material = {
         textbook: material.textbook,
@@ -654,6 +656,7 @@ function parseDrillLikeInput(body) {
   const explanationStyle = resolveExplanationStyle(body, studentProfile);
   const materialFields = normalizeMaterialFields(body);
   const material = resolveMaterialLevel(materialFields);
+  const traitVoice = buildTraitVoice(studentProfile);
 
   return {
     knowledgePoint,
@@ -662,6 +665,8 @@ function parseDrillLikeInput(body) {
       explanation_style: explanationStyle,
       material: material || undefined,
       student_profile: studentProfile,
+      trait_voice: traitVoice || undefined,
+      has_student_traits: Boolean(traitVoice),
       focus_points: focusPoints.length ? focusPoints : undefined,
       question_count: questionCount,
       question_types: questionTypes,

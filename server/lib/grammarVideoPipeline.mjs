@@ -201,11 +201,8 @@ async function runPipeline(jobId, publicBaseUrl) {
     explanation_style: input.explanation_style,
     student_profile: input.student_profile,
     focus_points: input.focus_points,
-    // 有学生特点时模型必须贴合；显式写出便于 prompt 侧自检
-    has_student_traits: Boolean(
-      input.student_profile &&
-        (input.student_profile.traits || input.student_profile.study_history),
-    ),
+    trait_voice: input.trait_voice,
+    has_student_traits: Boolean(input.trait_voice),
     max_slides: maxSlides(),
     duration_target: 'about 1 minute',
   });

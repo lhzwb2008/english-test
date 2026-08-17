@@ -51,22 +51,18 @@
 
 常见字段：`grade` / `current_score` / `target_score` / `study_history` / `traits`（学生特点，自由文本）。
 
-### 有学生特点时（硬性）
+## 5）`trait_voice`（服务端根据 traits 编译，有则必须执行）
 
-生成前先检查 `traits`（以及 `study_history` 里的性格/习惯描述）。**只要有非空特点，讲解与出题必须显式贴合**，不能当通用讲义套模板。
+`study_history` 里的 PET/KET **不是**性格。口吻只跟 `traits` / `trait_voice`。
 
-| 特点信号（示例） | 讲解怎么跟 |
-|------------------|------------|
-| 喜欢例子 / 讲故事 / 画面感 | 多生活场景与短故事；比喻贯穿；少抽象定义堆砌 |
-| 急躁 / 注意力短 / 拖延 | 分段更短；每段先给结论；口诀/清单提前；少长段 |
-| 理性 / 要框架 / 逻辑 | 先表后例；判断流程清晰；少卖萌比喻 |
-| 应试 / 刷题 / 奔着得分 / PET·KET | 突出踩分点、题干信号词、秒杀步骤；例句偏考题口吻 |
-| 看图才懂 / 图表 | 表与流程优先于散文；标签编码帮助扫读 |
-| 年级 / 教材进度 / 目标分 | 无 `material` 时才用来估难度；有 Think 2 / PET 等材料时**不要降级** |
+有 `trait_voice` 时：
 
-`explanation_style` 管**骨架**；`traits` 管**口吻、例子、密度、难度**。两者同时生效：例如风格是 `exam` 且 traits 写「喜欢故事」→ 仍用考试骨架，但踩分点例句可更生活化一点，**不要**改成纯故事体。
+1. **逐条执行** `must_do`，禁止 `forbidden` 里的教案腔。
+2. 风格骨架仍按 `explanation_style`，但口吻必须让家长一眼看出差异：趣味型像同学在讲；应试型像划重点备考；短注意力则短句+先结论。
+3. 输出加 `voice_adaptation_zh`：一句话说明「这版怎么贴合该生」（例如「用短视频/球赛场景 + 口语词，口诀放最前」）。
+4. 自检失败就重写：读完全文若仍像通用讲义，或 `must_do` 没落地，禁止输出。
 
-无 `traits` / 无可用学生信息时：按小学高年级默认，不要编造该生的性格。
+无 `traits` 时不要硬编性格。
 
 # 四种讲解风格（`explanation_markdown` 必须套用对应结构）
 
@@ -79,7 +75,7 @@
 - 对错对比用 `❌` / `✅`
 - 篇幅约 700–1800 字（`exam` 可略短，`fun`/`visual` 可略长；急躁型学生偏短）
 - 输出 JSON 时须回显所用风格到字段 `explanation_style`
-- 若输入含 `traits`，自检：读讲解能否看出「专为这类学生写的」，而不是万能讲义
+- 若输入含 `trait_voice`，自检：`must_do` 是否条条落地；全文能否被家长一眼看出不是通用讲义
 
 ---
 
@@ -139,7 +135,7 @@
 
 - **难度锚点**：有 `material` 则对标 `material.cefr` / `question_hint_zh`；没有才用年级、教材进度、目标分
 - 紧扣知识点；有 `focus_points` 必须考这些词/点，不能只出无关简单句
-- 若有 `traits`：题目场景与解析口吻跟着特点走（故事型多生活场景；应试型解析点出题干信号词；急躁型解析更短）
+- 若有 `trait_voice`：题目场景与解析口吻跟 `must_do`；趣味型解析禁止「该题考查」
 - 题型：
   - `choice`：单选，4 个选项 `A/B/C/D`，`answer` 为 `"A"`/`"B"`/`"C"`/`"D"`
   - `blank`：填空，题干用 `__________`，`answer` 为标准答案（可用 `/` 表示变体）
@@ -157,6 +153,7 @@
 {
   "knowledge_point": "回显知识点标题",
   "explanation_style": "logical|fun|visual|exam",
+  "voice_adaptation_zh": "有 traits 时必填：一句话说明本版如何贴合该生；无 traits 则空串",
   "explanation_markdown": "讲解 Markdown 全文，换行用 \\n",
   "questions": [
     {
@@ -194,4 +191,4 @@
 - `choice` 必须带长度为 4 的 `options`；其它题型 `options` 为 `null`
 - `answer` / `explanation` 必填且非空
 
-输出前自检：合法 JSON；讲解结构匹配所选风格；知识点要点未因风格缩水；有 `material` 时题目难度与其 CEFR 一致（Think 2 不得出成 Kids Box）。
+输出前自检：合法 JSON；讲解结构匹配所选风格；知识点要点未因风格缩水；有 `material` 时题目难度与其 CEFR 一致（Think 2 不得出成 Kids Box）；有 `trait_voice` 时 `must_do` 已落地且 `voice_adaptation_zh` 非空。
