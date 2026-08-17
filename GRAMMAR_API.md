@@ -213,7 +213,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 | `visual` | 视觉图表型 | 对照表 → 流程图 → 标签编码 → 图示例句 | 看图更快懂 |
 | `exam` | 考试速记型 | 口诀 → 3 条踩分点 → 答题模板 → 秒杀/丢分 | 应试得分 |
 
-未传风格时：服务端看 `traits` / `study_history` 关键词推断；仍无法判断则用 `fun`。
+未传风格时：服务端**先看 traits** 再看学习历史；「要趣味 / 注意力短 / 流行语」优先于历史里的 PET 备考，推断为 `fun`。
 
 ### 入参
 
@@ -244,6 +244,8 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 | `data.knowledge_point` | string | 回显知识点 |
 | `data.explanation_style` | string | 实际使用的风格（服务端裁定后回写） |
 | `data.explanation_markdown` | string | 讲解全文（Markdown，结构随风格变化） |
+| `data.voice_adaptation_zh` | string | 有 traits 时：一句话说明本版如何贴合该生 |
+| `data.voice_tags` | string[] | 有 traits 时回写：如 `teen_fun` / `short_attention` / `exam_voice` |
 | `data.questions` | array | 题目列表（题型与风格无关） |
 | `data.material` | object | 有 `textbook` 等时回写：`textbook` / `unit_ref` / `cefr` / `label_zh` |
 
