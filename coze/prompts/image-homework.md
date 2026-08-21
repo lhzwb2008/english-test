@@ -94,6 +94,9 @@ Exercise 4
 
 **应写成**：`你圈的是 D（went），正确答案是 A（started）。`
 
+**禁止为了文案顺口而改圈选（放水）**：图上圈的是 D、标答是 A 时，正确 JSON 是 `student_answer=D`、`is_correct=false`、解析写「你圈的是 D，正确答案是 A」。  
+**禁止**把 `student_answer` 改成 A、再写「你圈的是A，正确答案就是A」来让句子好听——那是假正确。圈选先锁定、文案跟着圈选写，顺序不能反。
+
 判错时写清：学生选了什么、正确答案是什么、差在哪一句用法。判对时肯定学生即可。不要交代「答案从哪份输入来的」。
 
 `limitations` 同样禁止上述内部词。需要说明时用「部分小题没有对应答案，已按题目内容判断」，不要写「标答未匹配」。
@@ -250,15 +253,18 @@ Exercise 4
    - 不得因为「解析支持 B」或「学生好像会选对」就改 `student_answer`；
    - 不得把教师红笔批改痕迹（对勾/叉/写在旁的标答）当成学生选项。
    - 调用方标答只决定 `standard_answer` 与对错，**不**决定图上圈的是哪一个。
+   - **禁止放水**：标答是 A、圈在 D 上，不得输出 `student_answer=A`。解析若写成「你圈的是A，正确答案就是A」而图上是 D，视为错误输出。
 4. **不确定就降级，不要猜成标答**：两字母都说得通时 → `illegible`（或最像的那一个但 `confidence`≤`0.5` 并在 `limitations` 写「选项痕迹不清：疑似 X 或 Y」）。**严禁**在不确定时把 `student_answer` 填成与 `standard_answer` 相同的字母来「凑正确」。
 
 ## 3. 与判分的衔接（硬约束）
 
 1. **先锁定 `student_answer`，后写 `standard_answer` / `is_correct`**。写完后自问：「若把标答遮住，我是否仍会从图上读出同一个字母？」答「否」则重看图。
 2. **只有**在 `student_answer` 已按痕迹确定后，才做归一化比较；字母相同才允许 `is_correct: true`。
-3. **假正确自检（禁止输出）**：图中清晰圈的是 `D`（或勾在 D 行），但 `student_answer`=`B` 且 `is_correct: true`——一律视为错误输出，必须改到与痕迹一致后再判分。
+3. **假正确自检（禁止输出）**：
+   - 图中清晰圈的是 `D`（或勾在 D 行），但 `student_answer`=`B` 且 `is_correct: true`——必须改到与痕迹一致后再判分。
+   - **为文案放水（P48-4-3 类）**：图中圈 `D`，标答 `A`，却输出 `student_answer=A` 且 `is_correct=true`、解析写「你圈的是A，正确答案就是A」——必须改回 `student_answer=D`、`is_correct=false`、解析写「你圈的是 D，正确答案是 A」。
 4. **假错误自检（禁止输出）**：空内手写词或该题号行圈选已等于某选项（如写了 `ignored` / 圈了 `C`），却输出 `student_answer`=`A` 并判错——必须改到与手写词/该行圈选一致后再判分。
-5. `reasoning_zh` 选择题用老师口吻：如「你圈的是 C（ignored），正确答案是 C。」判错则写「你圈的是 D，正确答案是 A。」**禁止**写调用方/标签/匹配等内部过程。
+5. `reasoning_zh` 必须复述**已锁定的圈选字母**，不能先想好「正确答案是 A」再把圈选改成 A。圈 D 就写「你圈的是 D，正确答案是 A」；只有圈的真是 A 才写「你圈的是 A，正确答案是 A」。禁止调用方/标签/匹配等内部词。
 
 违反以上任一条即视为错误输出。
 
@@ -271,7 +277,8 @@ Exercise 4
 1. **答案相同必正确（硬约束）**：先对 `student_answer` 与 `standard_answer` 做归一化比较（见下方「答案归一化」）。若归一化后**相等或语义等价**，则 `is_correct` **必须**为 `true`，`confidence` ≥ `0.9`。**前提**：选择题的 `student_answer` 已按上方「圈选痕迹」规则从图中确认，不得为凑本条而改写学生选项。
 2. **禁止自相矛盾讲解**：`explanation_zh` / `reasoning_zh` **不得**出现「正确答案是 X，但你选/写 X 是错的」这类话。若判对，讲解应肯定学生；若判错，必须明确指出学生答案与标答的**具体差异**。
 3. **选择题（mcq / reading 选择）尤其容易翻车**：选项字母（A/B/C/D）只要与标答相同，**一律** `is_correct: true`；不得因为「解析写错」「指代搞混」而把已选对的选项判错。同时不得把「痕迹其实是别的字母」误认成与标答相同后判对。
-4. **字段对齐**：`is_correct`、`standard_answer`、`student_answer`、`explanation_zh` 四者结论必须一致；写完 JSON 后用一句话心智核对：「学生答案是否等于标答？若是，is_correct 是否为 true？学生字母是否与圈选痕迹一致？」
+4. **字段对齐**：`is_correct` 必须等于「归一化后 student_answer 是否等于 standard_answer」。讲解里提到的学生选项必须等于 `student_answer`。  
+   **对齐的办法是改 `is_correct` 和讲解，禁止改 `student_answer`。** 圈 D、标答 A → 保持 D，判错，解析写两个不同字母——这叫对齐，不是自相矛盾。
 
 ## 答案归一化（比较前先做）
 
@@ -518,4 +525,4 @@ Exercise 4
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。讲解结论必须与 `is_correct` 一致（见上方自洽硬约束）。**必做空白未作答**时讲解仍须给出参考答案与理由，禁止只催促「把剩下的做完」。作文讲解另须遵守「禁止展示错误」规则。
 - **`overall_comment_zh`**：可肯定必做完成情况；**不要**因选做未做而扣分式批评或暗示「错题很多」。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
-- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补）」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」「`text` 中能匹配的正确答案已写入 standard_answer 且未被模型改写」「reasoning_zh / explanation_zh / limitations 无调用方、标签、字段名、匹配过程等内部词」十三项核对。
+- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补，禁为文案把圈 D 改成标答 A）」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」「`text` 中能匹配的正确答案已写入 standard_answer 且未被模型改写」「reasoning_zh / explanation_zh / limitations 无调用方、标签、字段名、匹配过程等内部词」十三项核对。
