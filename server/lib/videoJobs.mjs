@@ -8,16 +8,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '../data/video-jobs');
 const WORK_ROOT =
   process.env.GRAMMAR_VIDEO_WORK_DIR ||
-  path.join('/tmp', 'grammar-video');
+  path.join('/tmp', 'homework-video');
 
 /** @typedef {'queued'|'running'|'succeeded'|'failed'} JobStatus */
-/** @typedef {'queued'|'drill'|'script'|'images'|'tts'|'compose'|'upload'|'done'} JobProgress */
+/** @typedef {'queued'|'script'|'slides'|'tts'|'compose'|'upload'|'done'} JobProgress */
 
 /**
  * @typedef {object} VideoJob
  * @property {string} job_id
  * @property {JobStatus} status
  * @property {JobProgress} progress
+ * @property {string} title
  * @property {string} knowledge_point
  * @property {Record<string, unknown>} input
  * @property {string|null} video_url
@@ -71,22 +72,24 @@ export function getJob(jobId) {
 
 /**
  * @param {Record<string, unknown>} input
- * @param {string} knowledgePoint
+ * @param {string} title
  * @returns {VideoJob}
  */
-export function createJob(input, knowledgePoint) {
+export function createJob(input, title) {
   ensureDirs();
   const jobId = `vid_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
   const now = new Date().toISOString();
   const workDir = path.join(WORK_ROOT, jobId);
   fs.mkdirSync(workDir, { recursive: true });
+  const label = String(title || '错题讲解').trim() || '错题讲解';
 
   /** @type {VideoJob} */
   const job = {
     job_id: jobId,
     status: 'queued',
     progress: 'queued',
-    knowledge_point: knowledgePoint,
+    title: label,
+    knowledge_point: label,
     input,
     video_url: null,
     video_path: null,
@@ -137,7 +140,8 @@ export function publicJobView(job) {
     job_id: job.job_id,
     status: job.status,
     progress: job.progress,
-    knowledge_point: job.knowledge_point,
+    title: job.title || job.knowledge_point,
+    knowledge_point: job.title || job.knowledge_point,
     video_url: videoUrl,
     expires_at: expiresAt,
     error: job.error,

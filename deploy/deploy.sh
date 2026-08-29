@@ -91,12 +91,12 @@ else
   $SUDO npm install -g pm2
 fi
 
-# ---------- 3b. ffmpeg（口播视频合成）----------
+# ---------- 3b. ffmpeg（错题讲解视频合成）----------
 if command -v ffmpeg >/dev/null 2>&1; then
   log "检测到 ffmpeg：$(ffmpeg -version 2>&1 | head -n1)"
 else
   if [ -z "$PKG_MANAGER" ]; then
-    warn "未检测到 ffmpeg，且无法自动安装；/v1/grammar/video 合成会失败。"
+    warn "未检测到 ffmpeg，且无法自动安装；错题讲解视频合成会失败。"
   else
     log "安装 ffmpeg ..."
     case "$PKG_MANAGER" in

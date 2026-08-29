@@ -1,5 +1,5 @@
 /**
- * 百炼 CosyVoice HTTP TTS（参考 AIVideo tts_client）
+ * 百炼 CosyVoice HTTP TTS
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,32 +30,57 @@ function model() {
   return process.env.DASHSCOPE_TTS_MODEL || 'cosyvoice-v2';
 }
 
-function voice() {
-  // 默认温柔女声（龙小夏）；可用 DASHSCOPE_TTS_VOICE 覆盖
+export function zhVoice() {
   return process.env.DASHSCOPE_TTS_VOICE || 'longxiaoxia_v2';
+}
+
+export function enVoice() {
+  return process.env.DASHSCOPE_TTS_EN_VOICE || 'loongannie_v2';
 }
 
 function sampleRate() {
   return Number(process.env.DASHSCOPE_TTS_SAMPLE_RATE || 24000);
 }
 
+function clampRate(n, fallback) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.min(2, Math.max(0.5, x));
+}
+
+export function zhRate() {
+  return clampRate(process.env.DASHSCOPE_TTS_RATE, 1.2);
+}
+
+export function enRate() {
+  return clampRate(process.env.DASHSCOPE_TTS_EN_RATE, 1.15);
+}
+
 /**
  * @param {string} text
  * @param {string} outPath
+ * @param {{ voice?: string, rate?: number }} [opts]
  * @returns {Promise<string>}
  */
-export async function synthesizeToFile(text, outPath) {
+export async function synthesizeToFile(text, outPath, opts = {}) {
   const t = String(text || '').trim();
   if (!t) throw new Error('TTS 文本为空');
+  const voice = opts.voice || zhVoice();
+  const rate = clampRate(opts.rate, zhRate());
 
   const body = {
     model: model(),
     input: {
       text: t,
-      voice: voice(),
+      voice,
       format: 'mp3',
       sample_rate: sampleRate(),
-      rate: 1.0,
+      rate,
+    },
+    parameters: {
+      format: 'mp3',
+      sample_rate: sampleRate(),
+      rate,
     },
   };
 

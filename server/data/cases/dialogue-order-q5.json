@@ -1,0 +1,246 @@
+{
+  "question": {
+    "id": "P1-5",
+    "item_type": "dialogue_order",
+    "title": "第5题：把对话排排队",
+    "stem": "第5题：把对话排排队。把下面 A、B 的句子排成一段通顺对话。",
+    "original_question": "A: Can you help me with my laptop? Something's wrong with it, and I don't know much about laptops.\nB: I don't know much either.\nA: Oh! So you can't help me, then?\nB: Not really. I'm sorry.\nA: No problem. I'll call Jenny in a minute, she'll probably know.\nB: Good idea. She's really good with these things. Oh - hang on! How about if you press this button here?\nA: Oh, yes, that's fixed it! Well done. Thank you.",
+    "student_answer": "1 A求助电脑 → 2 B Not really. I'm sorry. → 3 A then → 4 B either → 5 A call Jenny → 6 B Good idea → 7 A fixed it",
+    "standard_answer": "1 A Can you help me with my laptop? → 2 B I don't know much either. → 3 A Oh! So you can't help me, then? → 4 B Not really. I'm sorry. → 5 A No problem. I'll call Jenny… → 6 B Good idea. / hang on / How about… → 7 A that's fixed it!",
+    "is_correct": false,
+    "explanation_zh": "either 表示「也」，必须接在前面的 I don't know much 之后；then 是得出结论。学生把 B 的道歉提前，因果就倒了。",
+    "lines": [
+      {
+        "n": 1,
+        "speaker": "A",
+        "en": "Can you help me with my laptop? Something's wrong with it, and I don't know much about laptops.",
+        "zh": "能帮我看看笔记本电脑吗？它出毛病了，我不太懂电脑。"
+      },
+      {
+        "n": 2,
+        "speaker": "B",
+        "en": "I don't know much either.",
+        "zh": "我也不太懂电脑。"
+      },
+      {
+        "n": 3,
+        "speaker": "A",
+        "en": "Oh! So you can't help me, then?",
+        "zh": "哦！那你就帮不了我啦？"
+      },
+      {
+        "n": 4,
+        "speaker": "B",
+        "en": "Not really. I'm sorry.",
+        "zh": "不太行，抱歉。"
+      },
+      {
+        "n": 5,
+        "speaker": "A",
+        "en": "No problem. I'll call Jenny in a minute, she'll probably know.",
+        "zh": "没关系，我一会儿打给 Jenny，她可能知道。"
+      },
+      {
+        "n": 6,
+        "speaker": "B",
+        "en": "Good idea. She's really good with these things. Oh - hang on! How about if you press this button here?",
+        "zh": "好主意！她很擅长这些。哦——等等！试试按这个按钮怎么样？"
+      },
+      {
+        "n": 7,
+        "speaker": "A",
+        "en": "Oh, yes, that's fixed it! Well done. Thank you.",
+        "zh": "哦，对了，修好啦！干得好，谢谢！"
+      }
+    ]
+  },
+  "storyboard": {
+    "title": "第5题：把对话排排队",
+    "mnemonic": "先找开头，再看答句，连接词是关键",
+    "scenes": [
+      {
+        "id": "intro",
+        "type": "intro",
+        "title": "第5题：把对话排排队",
+        "subtitle": "口诀：先找开头，再看答句，连接词是关键",
+        "narration": [
+          {
+            "voice": "zh",
+            "text": "第五题，把对话排排队。口诀先记：先找开头，再看答句，连接词是关键。"
+          }
+        ]
+      },
+      {
+        "id": "s1",
+        "type": "step",
+        "step": 1,
+        "step_title": "找开头",
+        "lines": [
+          {
+            "n": 1,
+            "speaker": "A",
+            "en": "Can you help me with my laptop? Something's wrong with it, and I don't know much about laptops.",
+            "zh": "能帮我看看笔记本电脑吗？它出毛病了，我不太懂电脑。"
+          }
+        ],
+        "tip": "对话一般从求助或提问开始",
+        "narration": [
+          { "voice": "zh", "text": "第一步，找开头。A 说：" },
+          { "voice": "en", "text": "Can you help me with my laptop?" },
+          { "voice": "zh", "text": "有人在求助，这句就是第一句。" }
+        ]
+      },
+      {
+        "id": "s2",
+        "type": "step",
+        "step": 2,
+        "step_title": "看答句",
+        "lines": [
+          {
+            "n": 2,
+            "speaker": "B",
+            "en": "I don't know much either.",
+            "zh": "我也不太懂电脑。"
+          },
+          {
+            "n": 3,
+            "speaker": "A",
+            "en": "Oh! So you can't help me, then?",
+            "zh": "哦！那你就帮不了我啦？"
+          },
+          {
+            "n": 4,
+            "speaker": "B",
+            "en": "Not really. I'm sorry.",
+            "zh": "不太行，抱歉。"
+          }
+        ],
+        "tip": "either 要跟着前面的 I don't know much；then 用来下结论",
+        "narration": [
+          { "voice": "zh", "text": "第二步看答句。either 是「也」，得接在 A 说不太懂之后。所以第二句是：" },
+          { "voice": "en", "text": "I don't know much either." },
+          { "voice": "zh", "text": "A 用 then 下结论，B 这才道歉。顺序不能倒。" }
+        ]
+      },
+      {
+        "id": "trap",
+        "type": "trap",
+        "title": "小心陷阱：顺序错了会怎样？",
+        "wrong": {
+          "lines": [
+            {
+              "n": 1,
+              "speaker": "A",
+              "en": "Can you help me with my laptop?"
+            },
+            { "n": 2, "speaker": "B", "en": "Not really. I'm sorry." },
+            { "n": 3, "speaker": "A", "en": "Oh! So you can't help me, then?" },
+            { "n": 4, "speaker": "B", "en": "I don't know much either." }
+          ],
+          "why": "先道歉再说 either，就像积木搭错，整段对话会倒。"
+        },
+        "right": {
+          "lines": [
+            {
+              "n": 1,
+              "speaker": "A",
+              "en": "Can you help me with my laptop?"
+            },
+            { "n": 2, "speaker": "B", "en": "I don't know much either." },
+            { "n": 3, "speaker": "A", "en": "Oh! So you can't help me, then?" },
+            { "n": 4, "speaker": "B", "en": "Not really. I'm sorry." }
+          ],
+          "why": "either 接「也不懂」；then 下结论后，B 才说抱歉。"
+        },
+        "narration": [
+          {
+            "voice": "zh",
+            "text": "常见错法：B 先道歉，再补 either。因果反了。要么先说也不懂，再用 then 收口，最后才抱歉。"
+          }
+        ]
+      },
+      {
+        "id": "s3",
+        "type": "step",
+        "step": 3,
+        "step_title": "后半段怎么收",
+        "lines": [
+          {
+            "n": 5,
+            "speaker": "A",
+            "en": "No problem. I'll call Jenny in a minute, she'll probably know.",
+            "zh": "没关系，我一会儿打给 Jenny，她可能知道。"
+          },
+          {
+            "n": 6,
+            "speaker": "B",
+            "en": "Good idea. Oh - hang on! How about if you press this button here?",
+            "zh": "好主意！哦——等等！试试按这个按钮怎么样？"
+          },
+          {
+            "n": 7,
+            "speaker": "A",
+            "en": "Oh, yes, that's fixed it! Well done. Thank you.",
+            "zh": "哦，对了，修好啦！干得好，谢谢！"
+          }
+        ],
+        "tip": "fixed it 表示已经修好，所以这句放最后",
+        "narration": [
+          { "voice": "zh", "text": "后半段：A 说没关系，去找 Jenny。" },
+          { "voice": "en", "text": "No problem. I'll call Jenny in a minute." },
+          {
+            "voice": "zh",
+            "text": "B 先说好主意，再突然想到按这个键。A 说修好了，所以放最后。"
+          }
+        ]
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "完整答案",
+        "lines": [
+          {
+            "n": 1,
+            "speaker": "A",
+            "en": "Can you help me with my laptop? Something's wrong with it, and I don't know much about laptops."
+          },
+          { "n": 2, "speaker": "B", "en": "I don't know much either." },
+          { "n": 3, "speaker": "A", "en": "Oh! So you can't help me, then?" },
+          { "n": 4, "speaker": "B", "en": "Not really. I'm sorry." },
+          {
+            "n": 5,
+            "speaker": "A",
+            "en": "No problem. I'll call Jenny in a minute, she'll probably know."
+          },
+          {
+            "n": 6,
+            "speaker": "B",
+            "en": "Good idea. She's really good with these things. Oh - hang on! How about if you press this button here?"
+          },
+          {
+            "n": 7,
+            "speaker": "A",
+            "en": "Oh, yes, that's fixed it! Well done. Thank you."
+          }
+        ],
+        "badge": "对照暂停一下，口诀再过一遍",
+        "narration": [
+          { "voice": "zh", "text": "完整顺序就是这七句。需要的话暂停对照。" }
+        ]
+      },
+      {
+        "id": "ending",
+        "type": "ending",
+        "title": "你学会了吗？",
+        "mnemonic": "口诀：先找开头，再看答句，连接词是关键",
+        "bye": "下一题见",
+        "narration": [
+          {
+            "voice": "zh",
+            "text": "再记一次：先找开头，再看答句，连接词是关键。下一题见。"
+          }
+        ]
+      }
+    ]
+  }
+}

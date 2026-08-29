@@ -102,7 +102,7 @@ ls /opt/qwen-oral-proxy/server/data/request-logs/media/$(date +%F)/ 2>/dev/null 
 | `REQUEST_LOG_RETENTION_DAYS` | 最多保留天数，默认 **7**（上限 7） |
 | `REQUEST_LOG_MAX_MEDIA_PER_DAY` | 每天完整保存的图片/音频请求数，默认 **10** |
 
-口播视频接口依赖本机 **ffmpeg**（及中文字体）；`deploy/deploy.sh` 会尝试自动安装。
+错题讲解视频接口依赖本机 **ffmpeg**（及中文字体）；`deploy/deploy.sh` 会尝试自动安装。
 
 ## 建议：Nginx 反向代理 + HTTPS
 

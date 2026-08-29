@@ -115,6 +115,6 @@ export async function uploadFileToOss(localPath, objectKey) {
  */
 export async function uploadGrammarVideo(jobId, localMp4) {
   const prefix = objectPrefix();
-  const key = `${prefix}/grammar-video/${jobId}.mp4`;
+  const key = `${prefix}/homework-video/${jobId}.mp4`;
   return uploadFileToOss(localMp4, key);
 }

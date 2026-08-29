@@ -1,13 +1,12 @@
 /**
- * 简化竖屏口播合成：上图 + 底部字幕，按页 concat。
+ * 横屏静图 + 口播拼接（画面文字已在 PNG 上，不再叠字幕）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const CANVAS_W = 1080;
-const CANVAS_H = 1920;
-const IMAGE_H = 1500;
+const CANVAS_W = 1920;
+const CANVAS_H = 1080;
 
 function ffmpegBin() {
   return process.env.FFMPEG_PATH || 'ffmpeg';
@@ -43,71 +42,84 @@ export function probeDuration(mediaPath) {
     { encoding: 'utf8' },
   );
   const d = Number(String(r.stdout || '').trim());
-  if (!Number.isFinite(d) || d <= 0) return 3;
+  if (!Number.isFinite(d) || d <= 0) return 1;
   return d;
 }
 
-function findFont() {
-  const candidates = [
-    process.env.GRAMMAR_VIDEO_FONT,
-    '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
-    '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-    '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-    '/System/Library/Fonts/PingFang.ttc',
-    '/Library/Fonts/Arial Unicode.ttf',
-  ].filter(Boolean);
-  for (const f of candidates) {
-    if (f && fs.existsSync(f)) return f;
+/**
+ * @param {number} seconds
+ * @param {string} outPath
+ */
+export function writeSilence(seconds, outPath) {
+  const t = Math.max(0.05, Number(seconds) || 0.18);
+  const r = spawnSync(
+    ffmpegBin(),
+    [
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'anullsrc=r=24000:cl=mono',
+      '-t',
+      String(t),
+      '-c:a',
+      'libmp3lame',
+      '-b:a',
+      '64k',
+      outPath,
+    ],
+    { encoding: 'utf8' },
+  );
+  if (r.status !== 0) {
+    throw new Error(`ffmpeg 静音失败: ${(r.stderr || '').slice(-400)}`);
   }
-  return null;
-}
-
-function escapeDrawtext(s) {
-  return String(s || '')
-    .replace(/\\/g, '\\\\')
-    .replace(/:/g, '\\:')
-    .replace(/'/g, "\\'")
-    .replace(/%/g, '\\%')
-    .replace(/\n/g, ' ')
-    .slice(0, 80);
-}
-
-function wrapSubtitle(text, maxChars = 18) {
-  const t = String(text || '').replace(/\s+/g, ' ').trim();
-  if (!t) return '';
-  const lines = [];
-  let buf = '';
-  for (const ch of t) {
-    buf += ch;
-    if (buf.length >= maxChars && /[，。！？；、,.!?;\s]/.test(ch)) {
-      lines.push(buf.trim());
-      buf = '';
-    }
-    if (lines.length >= 2) break;
-  }
-  if (buf.trim() && lines.length < 2) lines.push(buf.trim());
-  return lines.join('\n');
+  return outPath;
 }
 
 /**
- * @param {{ imagePath: string, audioPath: string, subtitle: string, outPath: string }} slide
+ * @param {string[]} files
+ * @param {string} outPath
  */
-function renderSlide(slide) {
-  const dur = probeDuration(slide.audioPath) + 0.25;
-  const font = findFont();
-  const sub = wrapSubtitle(slide.subtitle);
-  const filters = [
-    `scale=${CANVAS_W}:${IMAGE_H}:force_original_aspect_ratio=decrease`,
-    `pad=${CANVAS_W}:${CANVAS_H}:(ow-iw)/2:60:color=0xFBF6E4`,
-  ];
-  if (sub && font) {
-    const escapedFont = font.replace(/\\/g, '/').replace(/:/g, '\\:');
-    const text = escapeDrawtext(sub.replace(/\n/g, ' '));
-    filters.push(
-      `drawtext=fontfile='${escapedFont}':text='${text}':fontsize=48:fontcolor=0x282828:borderw=2:bordercolor=white:x=(w-text_w)/2:y=h-360:line_spacing=12`,
-    );
+export function concatAudioFiles(files, outPath) {
+  if (!files?.length) throw new Error('无音频可拼接');
+  const listFile = `${outPath}.concat.txt`;
+  fs.writeFileSync(
+    listFile,
+    files.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'),
+  );
+  const r = spawnSync(
+    ffmpegBin(),
+    [
+      '-y',
+      '-f',
+      'concat',
+      '-safe',
+      '0',
+      '-i',
+      listFile,
+      '-c:a',
+      'libmp3lame',
+      '-ar',
+      '24000',
+      '-ac',
+      '1',
+      '-b:a',
+      '128k',
+      outPath,
+    ],
+    { encoding: 'utf8' },
+  );
+  if (r.status !== 0) {
+    throw new Error(`ffmpeg 音频拼接失败: ${(r.stderr || '').slice(-800)}`);
   }
+  return outPath;
+}
 
+function renderSlide(slide) {
+  const dur = Math.max(
+    probeDuration(slide.audioPath),
+    Number(slide.minDuration) || 0,
+  );
   const args = [
     '-y',
     '-loop',
@@ -117,20 +129,21 @@ function renderSlide(slide) {
     '-i',
     slide.audioPath,
     '-vf',
-    filters.join(','),
+    `scale=${CANVAS_W}:${CANVAS_H}:force_original_aspect_ratio=decrease,pad=${CANVAS_W}:${CANVAS_H}:(ow-iw)/2:(oh-ih)/2:color=0xF7FAFF`,
     '-c:v',
     'libx264',
     '-tune',
     'stillimage',
     '-pix_fmt',
     'yuv420p',
+    '-af',
+    `apad=whole_dur=${dur.toFixed(3)}`,
     '-c:a',
     'aac',
     '-b:a',
     '128k',
-    '-shortest',
     '-t',
-    String(dur),
+    String(Math.max(0.4, dur)),
     slide.outPath,
   ];
   const r = spawnSync(ffmpegBin(), args, { encoding: 'utf8' });
@@ -140,11 +153,11 @@ function renderSlide(slide) {
 }
 
 /**
- * @param {Array<{ imagePath: string, audioPath: string, subtitle: string }>} slides
+ * @param {Array<{ imagePath: string, audioPath: string }>} slides
  * @param {string} outMp4
  * @returns {string}
  */
-export function composeVerticalVideo(slides, outMp4) {
+export function composeSlideshow(slides, outMp4) {
   assertFfmpeg();
   if (!slides?.length) throw new Error('无分镜可合成');
 
@@ -165,18 +178,7 @@ export function composeVerticalVideo(slides, outMp4) {
 
   const r = spawnSync(
     ffmpegBin(),
-    [
-      '-y',
-      '-f',
-      'concat',
-      '-safe',
-      '0',
-      '-i',
-      listFile,
-      '-c',
-      'copy',
-      outMp4,
-    ],
+    ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', outMp4],
     { encoding: 'utf8' },
   );
   if (r.status !== 0) {

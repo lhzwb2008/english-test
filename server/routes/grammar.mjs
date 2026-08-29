@@ -684,17 +684,91 @@ function requestPublicBase(req) {
 }
 
 /**
+ * 错题讲解视频入参：题干 / 对错 / 标答（可带对话 lines）
+ * @param {Record<string, unknown>} body
+ */
+function parseHomeworkVideoInput(body) {
+  const src = body && typeof body === 'object' ? body : {};
+  const q =
+    src.question && typeof src.question === 'object'
+      ? src.question
+      : src.item && typeof src.item === 'object'
+        ? src.item
+        : src;
+
+  const stem = asNonEmptyString(
+    q.stem || q.original_question || q.originalQuestion || q.title || src.stem,
+  );
+  const standardAnswer = asNonEmptyString(
+    q.standard_answer ||
+      q.standardAnswer ||
+      q.correct_answer ||
+      q.correctAnswer,
+  );
+  if (!stem && !standardAnswer) {
+    return {
+      error:
+        'question 必填：至少提供题干 stem / original_question 或 standard_answer',
+    };
+  }
+
+  const lines = Array.isArray(q.lines)
+    ? q.lines.filter((x) => x && typeof x === 'object')
+    : [];
+
+  const studentProfile = normalizeStudentProfile(
+    src.student_profile ?? src.studentProfile ?? src.student,
+  );
+  const title =
+    asNonEmptyString(q.title || src.title) ||
+    stem.slice(0, 40) ||
+    '错题讲解';
+
+  const isCorrect = q.is_correct ?? q.isCorrect;
+
+  return {
+    title,
+    input: {
+      question: {
+        id: asNonEmptyString(q.id || q.item_id || q.itemId) || undefined,
+        item_type:
+          asNonEmptyString(q.item_type || q.itemType || q.type) || undefined,
+        stem: stem || undefined,
+        original_question:
+          asNonEmptyString(q.original_question || q.originalQuestion) ||
+          stem ||
+          undefined,
+        student_answer:
+          asNonEmptyString(q.student_answer || q.studentAnswer) || undefined,
+        standard_answer: standardAnswer || undefined,
+        is_correct: typeof isCorrect === 'boolean' ? isCorrect : undefined,
+        explanation_zh:
+          asNonEmptyString(
+            q.explanation_zh || q.explanationZh || q.explanation,
+          ) || undefined,
+        lines: lines.length ? lines : undefined,
+      },
+      student_profile: studentProfile,
+      storyboard:
+        src.storyboard && typeof src.storyboard === 'object'
+          ? src.storyboard
+          : undefined,
+    },
+  };
+}
+
+/**
  * POST /v1/grammar/video
- * 入参同 drill；异步生成知识点口播短视频，立即返回 job_id
+ * 异步生成错题讲解视频，立即返回 job_id
  */
 router.post('/video', (req, res) => {
   cleanupExpiredJobs();
-  const parsed = parseDrillLikeInput(req.body || {});
+  const parsed = parseHomeworkVideoInput(req.body || {});
   if (parsed.error) {
     return res.status(400).json({ code: 4000, msg: parsed.error });
   }
 
-  const job = createJob(parsed.input, parsed.knowledgePoint);
+  const job = createJob(parsed.input, parsed.title);
   const base = requestPublicBase(req);
   enqueueVideoJob(job.job_id, base);
 
