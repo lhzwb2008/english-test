@@ -708,7 +708,7 @@ function parseHomeworkVideoInput(body) {
   if (!stem && !standardAnswer) {
     return {
       error:
-        'question 必填：至少提供题干 stem / original_question 或 standard_answer',
+        '请传 knowledge_point（知识点视频）或 question（错题讲解：至少提供 stem / original_question 或 standard_answer）',
     };
   }
 
@@ -758,12 +758,54 @@ function parseHomeworkVideoInput(body) {
 }
 
 /**
+ * 知识点视频（旧入参）或错题讲解（question）
+ * @param {Record<string, unknown>} body
+ */
+function parseVideoInput(body) {
+  const src = body && typeof body === 'object' ? body : {};
+  const knowledgePoint = asNonEmptyString(
+    src.knowledge_point ?? src.knowledgePoint,
+  );
+  const questionObj =
+    src.question && typeof src.question === 'object' ? src.question : null;
+  const questionHasContent = Boolean(
+    questionObj &&
+      (asNonEmptyString(
+        questionObj.stem ||
+          questionObj.original_question ||
+          questionObj.originalQuestion,
+      ) ||
+        asNonEmptyString(
+          questionObj.standard_answer ||
+            questionObj.standardAnswer ||
+            questionObj.correct_answer,
+        )),
+  );
+
+  if (questionHasContent) {
+    return parseHomeworkVideoInput(src);
+  }
+  if (knowledgePoint) {
+    const drill = parseDrillLikeInput(src);
+    if (drill.error) return { error: drill.error };
+    return {
+      title: drill.knowledgePoint,
+      input: {
+        ...drill.input,
+        video_kind: 'knowledge',
+      },
+    };
+  }
+  return parseHomeworkVideoInput(src);
+}
+
+/**
  * POST /v1/grammar/video
- * 异步生成错题讲解视频，立即返回 job_id
+ * 知识点短视频（knowledge_point）或错题讲解（question），立即返回 job_id
  */
 router.post('/video', (req, res) => {
   cleanupExpiredJobs();
-  const parsed = parseHomeworkVideoInput(req.body || {});
+  const parsed = parseVideoInput(req.body || {});
   if (parsed.error) {
     return res.status(400).json({ code: 4000, msg: parsed.error });
   }

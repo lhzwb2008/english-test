@@ -155,19 +155,40 @@ function normalizeStoryboard(raw, fallbackTitle) {
   };
 }
 
+function isKnowledgeVideo(input) {
+  return (
+    input?.video_kind === 'knowledge' ||
+    (Boolean(input?.knowledge_point) && !input?.question)
+  );
+}
+
 async function buildStoryboard(input, title) {
   if (input.storyboard && typeof input.storyboard === 'object') {
     return normalizeStoryboard(input.storyboard, title);
   }
-  const prompt = loadPrompt('homework-video-script.md');
+  const knowledge = isKnowledgeVideo(input);
+  const prompt = loadPrompt(
+    knowledge ? 'knowledge-video-script.md' : 'homework-video-script.md',
+  );
+  const fields = knowledge
+    ? {
+        knowledge_point: input.knowledge_point,
+        focus_points: input.focus_points,
+        explanation_style: input.explanation_style,
+        material: input.material,
+        student_profile: input.student_profile,
+        trait_voice: input.trait_voice,
+        duration_target: '60-90 seconds, brisk pacing',
+      }
+    : {
+        question: input.question,
+        student_profile: input.student_profile,
+        duration_target: '60-90 seconds, brisk pacing',
+      };
   const { fullText } = await completeQwenText({
     model: textModel(),
     systemPrompt: prompt,
-    userText: buildUserPayload({
-      question: input.question,
-      student_profile: input.student_profile,
-      duration_target: '60-90 seconds, brisk pacing',
-    }),
+    userText: buildUserPayload(fields),
     json: true,
     temperature: 0.3,
   });

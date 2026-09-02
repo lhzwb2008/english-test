@@ -304,92 +304,56 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/drill' \
 
 ---
 
-## 3. 错题讲解视频（异步）
+## 3. 讲解短视频（异步）
 
-把**一道错题**做成横屏讲解（目标 **60–90 秒**）：开场点题 → 分步解题 → **易错对比** → 完整答案 → 口诀收束。画面是模板排版（卡片/中英对照），英文原句用英文音色朗读。节奏按老师反馈加快（中文语速约 1.2，无寒暄、无长留白）。
+同一 URL，两种入参（二选一）：
 
-成片上传**阿里云 OSS**（Bucket `nba-dev-sh`，前缀 `wenbo`）。Bucket 为**私有**时，`video_url` 为**签名 HTTPS**（默认约 7 天；查询接口会刷新签名）。未配置 OSS 时回退本服务 `/file`。
+| 模式 | 怎么调 | 成片 |
+|------|--------|------|
+| **知识点**（兼容 Allen 旧调用） | 传 `knowledge_point`（可加 `focus_points` / `student_profile` / `textbook` / `unit_ref`） | 60–90 秒横屏要点讲解 |
+| **错题讲解** | 传 `question`（题干或标答） | 分步解题 + 易错对比 + 完整答案 |
+
+画面都是模板排版 + 中英分轨 TTS，节奏偏快。成片上传 OSS（`wenbo/homework-video/{job_id}.mp4`）；私有 Bucket 时 `video_url` 为签名 HTTPS。
 
 ### 3.1 创建任务
 
 `POST /v1/grammar/video` → HTTP **202**
 
+**知识点（旧入参，保持兼容）：**
+
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `question` | 是 | 错题对象，见下 |
-| `question.stem` / `original_question` | 题干、标答至少有一 | 题干 |
-| `question.standard_answer` | 同上 | 正确答案 |
-| `question.student_answer` | 否 | 学生作答（错题强烈建议带） |
-| `question.lines` | 否 | 对话题预解析的 `[{n,speaker,en,zh}]` |
-| `question.explanation_zh` | 否 | 文字解析，供分镜引用 |
-| `student_profile` | 否 | 可选，影响口吻 |
-| `storyboard` | 否 | 若已有分镜 JSON 则跳过模型 |
+| `knowledge_point` | 是 | 知识点标题 |
+| `focus_points` | 否 | 优先覆盖的子点 |
+| `student_profile` | 否 | 年级 / 学习历史等 |
+| `textbook` / `unit_ref` | 否 | 例句难度对标教材 |
+| `explanation_style` | 否 | 口气：logical / fun / visual / exam |
 
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
   -H 'Content-Type: application/json' \
   -d '{
-    "question": {
-      "id": "P1-5",
-      "item_type": "dialogue_order",
-      "stem": "第5题：把对话排排队",
-      "student_answer": "先道歉再 either",
-      "standard_answer": "either 接 I don'"'"'t know much 之后",
-      "is_correct": false,
-      "lines": [
-        { "n": 1, "speaker": "A", "en": "Can you help me with my laptop?", "zh": "能帮我看看电脑吗？" }
-      ]
-    }
+    "knowledge_point": "口语基础语法：名词复数、主谓一致与过去时",
+    "focus_points": ["可数名词泛指时加复数", "代词与人物性别一致"],
+    "textbook": "THINK2",
+    "unit_ref": "Unit4",
+    "student_profile": { "grade": "五年级" }
   }'
 ```
 
-出参：
+**错题讲解：**
 
-```json
-{
-  "ok": true,
-  "job_id": "vid_e237b79a2eca4a1198be",
-  "status": "running",
-  "poll_url": "/v1/grammar/video/vid_e237b79a2eca4a1198be"
-}
-```
-
-### 3.2 查询任务
-
-`GET /v1/grammar/video/:jobId`
-
-| 字段 | 说明 |
-|------|------|
-| `status` | `queued` / `running` / `succeeded` / `failed` |
-| `progress` | `queued` → `script` → `slides` → `tts` → `compose` → `upload` → `done` |
-| `video_url` | 成功时的可播放地址（OSS 签名 URL；查询时刷新） |
-| `expires_at` | 当前签名过期时间 |
-| `error` | 失败原因 |
-| `title` | 回显标题 |
-
-建议每 **5–10 秒**轮询，直至 `succeeded` / `failed`。整单约 **1–3 分钟**。
-
-对象路径：`wenbo/homework-video/{job_id}.mp4`。
-
-本地案例：`npm run video:case`（`server/data/cases/dialogue-order-q5.json`）。
-
-### 3.3 流水线与依赖
-
-| 步骤 | 实现 |
-|------|------|
-| 分镜 | Qwen 文本（可传入 `storyboard` 跳过） |
-| 画面 | SVG 模板 → PNG（`@resvg/resvg-js`），横屏 1920×1080 |
-| TTS | 百炼 CosyVoice：中文 `longxiaoxia_v2` 语速 1.2；英文 `loongannie_v2` 语速 1.15 |
-| 合成 / 上传 | 本机 ffmpeg → OSS 签名 URL |
-
-### 错误码
-
-| code | HTTP | 说明 |
+| 字段 | 必填 | 说明 |
 |------|------|------|
-| `4000` | 400 | 缺少 question / 题干或标答 |
-| `4040` | 404 | 任务不存在或已清理 |
-| `4090` | 409 | 视频尚未就绪（访问 `/file` 时） |
-| `4100` | 410 | 视频已过期 |
+| `question.stem` / `original_question` | 与标答至少有一 | 题干 |
+| `question.standard_answer` | 同上 | 正确答案 |
+| `question.student_answer` | 否 | 学生作答 |
+| `question.lines` | 否 | 对话 `[{n,speaker,en,zh}]` |
+| `storyboard` | 否 | 已有分镜则跳过模型 |
+
+出参：`job_id`、`poll_url`。查询 `GET /v1/grammar/video/:jobId`，进度 `queued → script → slides → tts → compose → upload → done`。
+
+错误码 `4000`：两种入参都没给。
 
 ---
 
@@ -398,4 +362,4 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 1. 单元 / PET Test 结束后把 `unit_review` POST 到 `/v1/grammar/assess`，拿到 `knowledge_points`（PET 时另有 `pet_score_report`）。
 2. 按 `priority` 依次（或并行）调用 `/v1/grammar/drill`，`knowledge_point` 用列表里的 `title`，并带上该生的 `student_profile`，以及总结时的 `textbook` / `unit_ref`（难度对标教材）。
 3. 前端渲染 `explanation_markdown`；练习区解析 `questions`（已含答案，注意展示时机）。PET 分数展示优先用 `pet_score_report`，不要解析总评正文里的数字。调用 drill / video 时请带上该生 `student_profile.traits`，以便按特点讲。
-4. 若需要错题讲解视频：把该题 `question` POST `/v1/grammar/video`，轮询 `GET /v1/grammar/video/:jobId`，用 `video_url`（OSS）播放。
+4. 知识点视频：把 `knowledge_point`（及 `focus_points`）POST `/v1/grammar/video`；错题视频：传 `question`。轮询 `GET /v1/grammar/video/:jobId`，用 `video_url` 播放。

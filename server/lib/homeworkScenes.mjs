@@ -234,15 +234,20 @@ function renderAnswer(scene) {
     .map((line, i) => {
       const y = startY + i * rowH;
       const color = speakerColor(line.speaker);
-      const en = wrapText(
-        `${line.speaker ? `${line.speaker}: ` : ''}${line.en || ''}`,
-        1480,
-        26,
-      ).slice(0, 2);
+      const head = line.speaker ? `${line.speaker}: ` : '';
+      const main = wrapText(`${head}${line.en || line.zh || ''}`, 1480, 24).slice(
+        0,
+        2,
+      );
+      const sub =
+        line.en && line.zh
+          ? wrapText(String(line.zh), 1480, 20).slice(0, 1)
+          : [];
       return `
         <circle cx="200" cy="${y + 10}" r="22" fill="${color}"/>
         <text x="200" y="${y + 18}" text-anchor="middle" fill="${C.white}" font-size="18" font-weight="700" font-family="${FONT}">${esc(String(line.n || i + 1))}</text>
-        ${texts(en, 240, y + 18, { size: 26, fill: C.text, weight: 650, lh: 34 })}
+        ${texts(main, 240, y + 16, { size: 24, fill: C.text, weight: 650, lh: 32 })}
+        ${sub.length ? texts(sub, 240, y + 16 + main.length * 32, { size: 20, fill: C.muted, weight: 500 }) : ''}
       `;
     })
     .join('');

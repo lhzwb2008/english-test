@@ -26,7 +26,7 @@ app.get('/health', (_req, res) => {
       'POST /v3/chat',
       'POST /v1/grammar/assess',
       'POST /v1/grammar/drill',
-      'POST /v1/grammar/video  (homework explainer)',
+      'POST /v1/grammar/video  (knowledge | homework)',
       'GET /v1/grammar/video/:jobId',
       'GET /v1/grammar/video/:jobId/file',
     ],
