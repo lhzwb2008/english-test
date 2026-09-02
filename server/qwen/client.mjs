@@ -13,6 +13,8 @@ function getClient() {
     baseURL:
       process.env.DASHSCOPE_BASE_URL ||
       'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    timeout: Number(process.env.QWEN_TIMEOUT_MS || 240_000),
+    maxRetries: 0,
   });
   return client;
 }
@@ -104,8 +106,23 @@ export async function completeQwenText(params) {
   if (params.json) {
     body.response_format = { type: 'json_object' };
   }
+  if (params.maxTokens) {
+    body.max_tokens = params.maxTokens;
+  } else {
+    body.max_tokens = 4096;
+  }
+  // qwen3 默认可能开思考链，非流式会空等数分钟。两处都关，兼容不同网关字段。
+  body.enable_thinking = false;
+  body.extra_body = { enable_thinking: false };
 
-  const completion = await openai.chat.completions.create(body);
+  const timeoutMs = Number(
+    params.timeoutMs || process.env.QWEN_TIMEOUT_MS || 180_000,
+  );
+  const completion = await openai.chat.completions.create(body, {
+    timeout: timeoutMs,
+    maxRetries: 0,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
   const fullText = completion.choices?.[0]?.message?.content ?? '';
   return { fullText, usage: completion.usage ?? null };
 }

@@ -91,6 +91,7 @@ export async function synthesizeToFile(text, outPath, opts = {}) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(Number(process.env.TTS_TIMEOUT_MS || 60_000)),
   });
   const raw = await resp.text();
   if (!resp.ok) {
@@ -107,7 +108,9 @@ export async function synthesizeToFile(text, outPath, opts = {}) {
     throw new Error(`TTS 缺少 audio.url: ${raw.slice(0, 400)}`);
   }
 
-  const audioResp = await fetch(url);
+  const audioResp = await fetch(url, {
+    signal: AbortSignal.timeout(Number(process.env.TTS_DOWNLOAD_TIMEOUT_MS || 30_000)),
+  });
   if (!audioResp.ok) {
     throw new Error(`下载 TTS 音频失败 HTTP ${audioResp.status}`);
   }

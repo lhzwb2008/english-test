@@ -19,7 +19,8 @@
     "coze:debug-oral": "node scripts/debug-oral-audio.mjs",
     "qwen:serve": "node server/index.mjs",
     "qwen:debug-oral": "node scripts/debug-qwen-oral-proxy.mjs",
-    "video:case": "node scripts/run-homework-video-case.mjs"
+    "video:case": "node scripts/run-homework-video-case.mjs",
+    "video:stability": "node scripts/test-video-stability.mjs"
   },
   "dependencies": {
     "@coze/api": "^1.3.9",

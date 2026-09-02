@@ -10,6 +10,8 @@
 - 禁止拖延互动：猜猜看留白、鼓掌、击掌、颁称号
 - 禁止中文旁白念整句英文（英文必须单独 `voice: "en"`）
 - 禁止出整套练习题、禁止念很长讲义
+- **禁止 `narration: []` 或省略口播**。每一页都必须有可朗读的 `narration`（至少一段中文）。不要只写 `visual` / 画面元素
+- 不要输出 `visual` 字段（服务端不用）
 - 有 `material` 时例句难度对标该教材（Think 2 / PET = B1），不要降成 Kids Box
 - 有 `trait_voice` 时执行 `must_do`，禁止 `forbidden` 教案腔
 
@@ -33,4 +35,20 @@
 
 `step.lines[]` / `trap.*.lines[]` / `answer.lines[]` 用 `{ "n", "en", "zh" }`（知识点不必填 speaker）。
 
-输出前自检：覆盖全部 `focus_points`（若有）；有 intro / trap / answer / ending；无寒暄；英文不在中文段里。
+每一页都必须像这样带口播（禁止空数组）：
+
+```json
+{
+  "id": "s2",
+  "type": "step",
+  "title": "可数名词泛指要加复数",
+  "lines": [{ "n": 1, "en": "Students often use phones.", "zh": "学生经常用手机。" }],
+  "narration": [
+    { "voice": "zh", "text": "可数名词泛指时要加复数。" },
+    { "voice": "en", "text": "Students often use phones." },
+    { "voice": "zh", "text": "phones 这里是复数。" }
+  ]
+}
+```
+
+输出前自检：覆盖全部 `focus_points`（若有）；有 intro / trap / answer / ending；**每一页 narration 非空且含中文**；无寒暄；英文不在中文段里。

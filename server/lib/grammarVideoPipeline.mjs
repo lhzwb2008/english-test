@@ -23,6 +23,11 @@ import {
 } from './videoCompose.mjs';
 import { updateJob, getJob } from './videoJobs.mjs';
 import { ossConfigured, uploadGrammarVideo } from './ossUpload.mjs';
+import {
+  countEmptyRawNarration,
+  fallbackNarration,
+  normalizeStoryboard,
+} from './storyboardNormalize.mjs';
 
 /** @type {string[]} */
 const queue = [];
@@ -115,46 +120,6 @@ function pauseAfter(voice) {
   return voice === 'en' ? 0.16 : 0.2;
 }
 
-function normalizeNarration(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((seg) => {
-      if (!seg || typeof seg !== 'object') return null;
-      const text = String(seg.text || '').trim();
-      if (!text) return null;
-      const voice = String(seg.voice || 'zh').toLowerCase() === 'en' ? 'en' : 'zh';
-      return { voice, text };
-    })
-    .filter(Boolean);
-}
-
-function normalizeStoryboard(raw, fallbackTitle) {
-  const title = String(raw?.title || fallbackTitle || '错题讲解').trim();
-  const mnemonic = String(raw?.mnemonic || '').trim();
-  let scenes = Array.isArray(raw?.scenes) ? raw.scenes.filter((s) => s && typeof s === 'object') : [];
-  scenes = scenes.slice(0, 7);
-  if (scenes.length < 4) {
-    throw new Error(`分镜页数不足（需要≥4）: ${scenes.length}`);
-  }
-  const types = new Set(scenes.map((s) => String(s.type || '')));
-  if (!types.has('trap')) {
-    throw new Error('分镜缺少 trap（易错对比）场景');
-  }
-  if (!types.has('answer') && !types.has('ending')) {
-    throw new Error('分镜缺少 answer 或 ending');
-  }
-  return {
-    title,
-    mnemonic,
-    scenes: scenes.map((s, i) => ({
-      ...s,
-      id: String(s.id || `s${i + 1}`),
-      type: String(s.type || 'step'),
-      narration: normalizeNarration(s.narration),
-    })),
-  };
-}
-
 function isKnowledgeVideo(input) {
   return (
     input?.video_kind === 'knowledge' ||
@@ -185,18 +150,65 @@ async function buildStoryboard(input, title) {
         student_profile: input.student_profile,
         duration_target: '60-90 seconds, brisk pacing',
       };
-  const { fullText } = await completeQwenText({
-    model: textModel(),
-    systemPrompt: prompt,
-    userText: buildUserPayload(fields),
-    json: true,
-    temperature: 0.3,
-  });
-  return normalizeStoryboard(parseJsonFromModel(fullText), title);
+
+  let lastErr;
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      const { fullText } = await completeQwenText({
+        model: textModel(),
+        systemPrompt: prompt,
+        userText: buildUserPayload(fields),
+        json: true,
+        temperature: attempt === 1 ? 0.2 : 0.32,
+      });
+      const parsed = parseJsonFromModel(fullText);
+      const emptyN = countEmptyRawNarration(parsed);
+      if (emptyN) {
+        console.warn(
+          `[homework-video] 模型漏写口播 ${emptyN} 页，已用画面文案补齐`,
+        );
+      }
+      return normalizeStoryboard(parsed, title);
+    } catch (err) {
+      lastErr = err;
+      console.warn(
+        `[homework-video] 分镜第 ${attempt}/4 次失败:`,
+        err?.message || err,
+      );
+    }
+  }
+  throw lastErr || new Error('分镜生成失败');
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function synthesizeWithRetry(text, outPath, opts, attempts = 3) {
+  let lastErr;
+  for (let i = 1; i <= attempts; i += 1) {
+    try {
+      return await synthesizeToFile(text, outPath, opts);
+    } catch (err) {
+      lastErr = err;
+      console.warn(
+        `[homework-video] TTS 第 ${i}/${attempts} 次失败:`,
+        err?.message || err,
+      );
+      if (i < attempts) await sleep(400 * i);
+    }
+  }
+  throw lastErr;
 }
 
 async function synthSceneAudio(scene, workDir, index) {
-  const segs = scene.narration;
+  let segs = Array.isArray(scene.narration) ? scene.narration.filter((s) => s?.text) : [];
+  if (!segs.length) {
+    segs = fallbackNarration(scene);
+    console.warn(
+      `[homework-video] 场景 ${scene.id || index} 口播为空，已用画面文案补齐`,
+    );
+  }
   if (!segs.length) {
     throw new Error(`场景 ${scene.id || index} 无口播`);
   }
@@ -208,21 +220,21 @@ async function synthSceneAudio(scene, workDir, index) {
     const seg = segs[i];
     const stem = `tts_${String(index).padStart(2, '0')}_${String(i).padStart(2, '0')}`;
     const mp3 = path.join(workDir, `${stem}.mp3`);
+    const zhOpts = { voice: zhVoice(), rate: zhRate() };
+    const enOpts = { voice: enVoice(), rate: enRate() };
     try {
-      await synthesizeToFile(seg.text, mp3, {
-        voice: seg.voice === 'en' ? enVoice() : zhVoice(),
-        rate: seg.voice === 'en' ? enRate() : zhRate(),
-      });
+      await synthesizeWithRetry(
+        seg.text,
+        mp3,
+        seg.voice === 'en' ? enOpts : zhOpts,
+      );
     } catch (err) {
       if (seg.voice !== 'en') throw err;
       console.warn(
         '[homework-video] 英文音色失败，回退中文音色:',
         err?.message || err,
       );
-      await synthesizeToFile(seg.text, mp3, {
-        voice: zhVoice(),
-        rate: enRate(),
-      });
+      await synthesizeWithRetry(seg.text, mp3, { voice: zhVoice(), rate: enRate() });
     }
     parts.push(mp3);
     if (i < segs.length - 1) {

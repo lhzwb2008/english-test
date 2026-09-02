@@ -1,0 +1,80 @@
+{
+  "title": "口语基础语法：名词复数、主谓一致与过去时",
+  "mnemonic": "可数泛指加s，代词看人别乱搭；过去经历动词变，on phones固定记牢它。",
+  "scenes": [
+    {
+      "id": "s1",
+      "type": "intro",
+      "title": "口语三件套：复数、代词、过去时",
+      "narration": [],
+      "visual": { "layout": "title-card" }
+    },
+    {
+      "id": "s2",
+      "type": "step",
+      "title": "可数名词泛指要加复数",
+      "lines": [
+        {
+          "n": 1,
+          "en": "Students often use phones after class.",
+          "zh": "学生经常下课后用手机。"
+        }
+      ],
+      "narration": []
+    },
+    {
+      "id": "s3",
+      "type": "step",
+      "title": "代词要跟人物性别一致",
+      "lines": [
+        {
+          "n": 1,
+          "en": "My brother likes games. He plays them every day.",
+          "zh": "我哥哥喜欢游戏。他每天都玩。"
+        }
+      ],
+      "narration": []
+    },
+    {
+      "id": "s4",
+      "type": "step",
+      "title": "过去经历用一般过去时",
+      "lines": [
+        {
+          "n": 1,
+          "en": "I watched a video about space yesterday.",
+          "zh": "我昨天看了一个关于太空的视频。"
+        }
+      ],
+      "narration": []
+    },
+    {
+      "id": "s5",
+      "type": "trap",
+      "title": "高频错法",
+      "wrong": {
+        "lines": [{ "n": 1, "en": "Student often use phone." }]
+      },
+      "right": {
+        "lines": [{ "n": 1, "en": "Students often use phones." }]
+      },
+      "narration": []
+    },
+    {
+      "id": "s6",
+      "type": "answer",
+      "title": "要点清单",
+      "lines": [
+        { "n": 1, "en": "Students use phones.", "zh": "可数名词泛指用复数。" },
+        { "n": 2, "en": "She likes music.", "zh": "代词要和人物一致。" }
+      ],
+      "narration": []
+    },
+    {
+      "id": "s7",
+      "type": "ending",
+      "title": "口诀收尾",
+      "narration": []
+    }
+  ]
+}
