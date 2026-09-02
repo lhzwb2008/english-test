@@ -13,7 +13,7 @@ function getClient() {
     baseURL:
       process.env.DASHSCOPE_BASE_URL ||
       'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    timeout: Number(process.env.QWEN_TIMEOUT_MS || 240_000),
+    timeout: Number(process.env.QWEN_TIMEOUT_MS || 180_000),
     maxRetries: 0,
   });
   return client;
