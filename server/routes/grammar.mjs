@@ -90,6 +90,30 @@ function asNonEmptyString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
+function questionFromBody(src) {
+  const raw = src?.question ?? src?.item ?? src?.wrong_question ?? src?.wrongQuestion;
+  if (typeof raw === 'string' && raw.trim()) {
+    const stem = raw.trim();
+    return { stem, original_question: stem };
+  }
+  if (raw && typeof raw === 'object') return raw;
+  return null;
+}
+
+function questionStemOf(q, src) {
+  return asNonEmptyString(
+    q?.stem ||
+      q?.original_question ||
+      q?.originalQuestion ||
+      q?.title ||
+      (typeof q?.question === 'string' ? q.question : '') ||
+      q?.content ||
+      q?.text ||
+      src?.stem ||
+      (typeof src?.question === 'string' ? src.question : ''),
+  );
+}
+
 function asScore(value) {
   if (value === null || value === undefined || value === '') return undefined;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -531,6 +555,13 @@ router.post('/drill', async (req, res) => {
     body.knowledge_point ?? body.knowledgePoint,
   );
   if (!knowledgePoint) {
+    const q = questionFromBody(body);
+    if (q) {
+      return res.status(400).json({
+        code: 4000,
+        msg: '这是知识点出题接口 /v1/grammar/drill，需要 knowledge_point。错题讲解视频请 POST /v1/grammar/video，question 可直接传题干字符串',
+      });
+    }
     return res.status(400).json({
       code: 4000,
       msg: 'knowledge_point 必填',
@@ -689,16 +720,9 @@ function requestPublicBase(req) {
  */
 function parseHomeworkVideoInput(body) {
   const src = body && typeof body === 'object' ? body : {};
-  const q =
-    src.question && typeof src.question === 'object'
-      ? src.question
-      : src.item && typeof src.item === 'object'
-        ? src.item
-        : src;
+  const q = questionFromBody(src) || (src.item && typeof src.item === 'object' ? src.item : src);
 
-  const stem = asNonEmptyString(
-    q.stem || q.original_question || q.originalQuestion || q.title || src.stem,
-  );
+  const stem = questionStemOf(q, src);
   const standardAnswer = asNonEmptyString(
     q.standard_answer ||
       q.standardAnswer ||
@@ -708,7 +732,7 @@ function parseHomeworkVideoInput(body) {
   if (!stem && !standardAnswer) {
     return {
       error:
-        '请传 knowledge_point（知识点视频）或 question（错题讲解：至少提供 stem / original_question 或 standard_answer）',
+        '请传 knowledge_point（知识点视频）或 question（错题讲解：题干字符串，或 { stem / original_question / standard_answer }）',
     };
   }
 
@@ -761,26 +785,20 @@ function parseHomeworkVideoInput(body) {
  * 知识点视频（旧入参）或错题讲解（question）
  * @param {Record<string, unknown>} body
  */
-function parseVideoInput(body) {
+export function parseVideoInput(body) {
   const src = body && typeof body === 'object' ? body : {};
   const knowledgePoint = asNonEmptyString(
     src.knowledge_point ?? src.knowledgePoint,
   );
-  const questionObj =
-    src.question && typeof src.question === 'object' ? src.question : null;
-  const questionHasContent = Boolean(
-    questionObj &&
-      (asNonEmptyString(
-        questionObj.stem ||
-          questionObj.original_question ||
-          questionObj.originalQuestion,
-      ) ||
-        asNonEmptyString(
-          questionObj.standard_answer ||
-            questionObj.standardAnswer ||
-            questionObj.correct_answer,
-        )),
+  const q = questionFromBody(src);
+  const homeworkStem = q ? questionStemOf(q, src) : questionStemOf(src, src);
+  const homeworkAnswer = asNonEmptyString(
+    q?.standard_answer ||
+      q?.standardAnswer ||
+      q?.correct_answer ||
+      src.standard_answer,
   );
+  const questionHasContent = Boolean(homeworkStem || homeworkAnswer);
 
   if (questionHasContent) {
     return parseHomeworkVideoInput(src);

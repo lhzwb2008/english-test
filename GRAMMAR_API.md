@@ -345,13 +345,19 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `question.stem` / `original_question` | 与标答至少有一 | 题干 |
+| `question` | 与标答至少有一 | **字符串题干**，或对象 `{ stem / original_question / standard_answer }` |
 | `question.standard_answer` | 同上 | 正确答案 |
 | `question.student_answer` | 否 | 学生作答 |
 | `question.lines` | 否 | 对话 `[{n,speaker,en,zh}]` |
 | `storyboard` | 否 | 已有分镜则跳过模型 |
 
-出参：`job_id`、`poll_url`。查询 `GET /v1/grammar/video/:jobId`，进度 `queued → script → slides → tts → compose → upload → done`。
+```bash
+curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"3 We need to build more wells ___ everyone can drink fresh, clean water."}'
+```
+
+`question` 也可以是对象（`stem` / `student_answer` / `standard_answer` / `lines`）。出参：`job_id`、`poll_url`。查询 `GET /v1/grammar/video/:jobId`，进度 `queued → script → slides → tts → compose → upload → done`。
 
 错误码 `4000`：两种入参都没给。
 
