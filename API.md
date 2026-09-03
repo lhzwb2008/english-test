@@ -188,7 +188,8 @@ ID: 200; 标题: 2单元词汇预习; 描述: 预习 Unit2 单词表并完成自
 | `items[].id`                              | string         | **页码 + 题号**，统一格式 `P{页码}-{大题号}` 或 `P{页码}-{大题号}-{小题/空号}`（如 `P29-8-1`、`P30-3`）；页码来自布置范围或图中页码 OCR。**禁止**无页码 id（如 `8-1`、`film-1`）                                                                 |
 | `items[].item_type`                       | string         | `mcq` \| `fill_blank` \| `short_answer` \| `matching` \| `cloze` \| `translation` \| `reading` \| `composition` \| `unknown`；**作文统一作为一个 `item_type=composition` 的 item 出现在 `items` 中**，前端按 `item_type` 区分解析 |
 | `items[].reading_subtype`                 | string \| null  | `main_idea` \| `detail` \| `inference` \| `vocabulary_in_context`；非阅读题为 `null`                                                                                                                         |
-| `items[].original_question`               | string         | 从图中 OCR 出的完整题干（含选项），便于前端展示原题；不可读时为 `""`                                                                                                                                                             |
+| `items[].original_question`               | string         | 从图中 OCR 出的题干正文；选择题的选项另见 `options`。不可读时为 `""`                                                                                                                                                             |
+| `items[].options`                         | array          | **选择题必填**。`[{ "key": "A", "text": "选项原文" }, …]`。`mcq` / 阅读选择 / 完形选项空 / 有字母选项的匹配题必须非空；填空、翻译、作文给 `[]`                                                                                          |
 | `items[].standard_answer`                 | string         | 标准答案；**无题库且无法独立确认时为 `""`**（接入知识库后由 RAG 回填）                                                                                                                                                          |
 | `items[].passage_ref`                     | string         | 本题对应的 `passages[].passage_id`；非阅读题为 `""`                                                                                                                                                            |
 | `items[].evidence_quote`                  | string         | 判分依据的原文连续摘录；有 `passage_ref` 时必须是对应 `passages[].passage_text` 的**连续子串**（禁止 `...` 省略、改写、拼接不相邻句）；听力脚本与阅读同等。非阅读/听力材料题可为空                                                                                                       |
@@ -252,7 +253,13 @@ Exercise 4
       "id": "1",
       "item_type": "reading",
       "reading_subtype": "detail",
-      "original_question": "1. What does Anna like doing?\nA. playing computer games\nB. reading books and playing the guitar\nC. painting\nD. playing football",
+      "original_question": "1. What does Anna like doing?",
+      "options": [
+        { "key": "A", "text": "playing computer games" },
+        { "key": "B", "text": "reading books and playing the guitar" },
+        { "key": "C", "text": "painting" },
+        { "key": "D", "text": "playing football" }
+      ],
       "standard_answer": "B",
       "passage_ref": "P1",
       "evidence_quote": "I like reading books and playing the guitar.",

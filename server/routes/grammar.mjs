@@ -114,6 +114,62 @@ function questionStemOf(q, src) {
   );
 }
 
+function optionLetter(raw, index) {
+  const s = asNonEmptyString(raw).replace(/[.)、:\s].*$/, '');
+  if (/^[A-Ha-h]$/.test(s)) return s.toUpperCase();
+  return String.fromCharCode(65 + index);
+}
+
+function parseOptionsFromStem(stem) {
+  const t = String(stem || '');
+  const lineHits = [...t.matchAll(/(?:^|\n)\s*([A-H])[.)、:]\s+([^\n]+)/g)];
+  if (lineHits.length >= 2) {
+    return lineHits.map((m) => ({
+      key: m[1],
+      text: m[2].trim(),
+    }));
+  }
+  return [];
+}
+
+/**
+ * 选择题选项：[{ key, text }]，兼容字符串数组、{A: '...'}、以及题干里的 A. / B. 行。
+ */
+export function normalizeOptions(raw, stem = '') {
+  const out = [];
+  const push = (key, text, index) => {
+    const t = asNonEmptyString(text);
+    if (!t) return;
+    out.push({ key: optionLetter(key, index), text: t });
+  };
+
+  if (Array.isArray(raw)) {
+    raw.forEach((item, i) => {
+      if (typeof item === 'string') {
+        const m = item.trim().match(/^([A-Ha-h])[.)、:\s]+(.+)$/);
+        if (m) push(m[1], m[2], i);
+        else push(String.fromCharCode(65 + i), item.trim(), i);
+        return;
+      }
+      if (!item || typeof item !== 'object') return;
+      push(
+        item.key || item.label || item.option || item.id,
+        item.text || item.content || item.en || item.value || item.label,
+        i,
+      );
+    });
+  } else if (raw && typeof raw === 'object') {
+    Object.entries(raw).forEach(([k, v], i) => {
+      if (typeof v === 'string') push(k, v, i);
+      else if (v && typeof v === 'object') {
+        push(k, v.text || v.content || v.en, i);
+      }
+    });
+  }
+  if (out.length) return out;
+  return parseOptionsFromStem(stem);
+}
+
 function asScore(value) {
   if (value === null || value === undefined || value === '') return undefined;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -740,6 +796,10 @@ function parseHomeworkVideoInput(body) {
       q.student_answer ||
       q.studentAnswer,
   );
+  const options = normalizeOptions(
+    src.options ?? src.choices ?? q.options ?? q.choices,
+    stem || asNonEmptyString(q.original_question || q.originalQuestion),
+  );
   if (!stem && !standardAnswer) {
     return {
       error:
@@ -775,6 +835,7 @@ function parseHomeworkVideoInput(body) {
           undefined,
         student_answer: studentAnswer || undefined,
         standard_answer: standardAnswer || undefined,
+        options: options.length ? options : undefined,
         is_correct: typeof isCorrect === 'boolean' ? isCorrect : undefined,
         explanation_zh:
           asNonEmptyString(

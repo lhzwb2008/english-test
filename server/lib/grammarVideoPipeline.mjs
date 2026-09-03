@@ -142,6 +142,7 @@ async function buildStoryboard(input, title) {
     : {
         question: input.question,
         answer: input.question?.student_answer,
+        options: input.question?.options,
         student_profile: input.student_profile,
         duration_target: '60-90 seconds, brisk pacing',
       };

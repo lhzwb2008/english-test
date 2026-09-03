@@ -19,6 +19,12 @@
 - **禁止 `narration: []` 或省略口播**。每一页都必须有可朗读的 `narration`（至少一段中文）。不要只写 `visual`
 - 不要输出 `visual` 字段（服务端不用）
 
+# 选项原文（有则必须按选项内容讲，禁止只念字母）
+
+输入可能带 `question.options`：`[{ "key": "A", "text": "took" }, { "key": "B", "text": "followed" }]`（顶层 `options` 也可以）。
+- **有 options**：口播和 trap 必须写成「你选的是 B（followed），正确答案是 C（ignored）」；只说 A/B/C 不算讲清。选不同选项必须生成不同视频。
+- **无 options**：有学生答案仍点明字母/所填的词；不要编造卷面上没有的选项文字。
+
 # 分镜骨架（必须按此顺序，可合并步骤但不可缺「陷阱」和「完整答案」）
 
 1. `intro`：报题号/题型 + 一句口诀预告（5–8 秒口播）
@@ -40,7 +46,7 @@
 
 - `on-screen` 文字必须短：标题 ≤ 18 字；`tip` ≤ 28 字；trap 的 `why` ≤ 36 字
 - 对话 `lines[]`：`n` 序号、`speaker`（A/B）、`en`、`zh`
-- trap.wrong.lines / trap.right.lines 用题里的原句，不要改写英文；有学生答案时 wrong 侧必须是该生作答（选项字母或所填的词），right 侧是标答
+- trap.wrong.lines / trap.right.lines 用题里的原句或对应选项原文，不要改写英文；有学生答案时 wrong 侧必须是该生作答（选项字母+选项原文），right 侧是标答
 
 # 输出（必须严格）
 
@@ -107,4 +113,4 @@
 
 `narration.voice` 只允许 `zh` 或 `en`。每一页 `narration` 至少一段中文，禁止空数组。
 
-输出前自检：有 intro / trap / answer / ending；每页有口播；trap 的 `wrong.lines` 与 `right.lines` 都非空；有学生答案时 trap/口播对得上该生作答；无寒暄；英文不在中文段里；中文总字数不超过 260。
+输出前自检：有 intro / trap / answer / ending；每页有口播；trap 的 `wrong.lines` 与 `right.lines` 都非空；有学生答案时 trap/口播对得上该生作答；有 options 时口播带上选项原文而不只是字母；无寒暄；英文不在中文段里；中文总字数不超过 260。

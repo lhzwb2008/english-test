@@ -326,6 +326,25 @@ Exercise 4
 - **`text` 里给了正确答案**：题号匹配成功的空，以该标答为唯一判分依据，不再走「无题库留空」。
 - 后续接入知识库 RAG 后，未在 `text` 提供标答的题再改为检索回填；输出 schema **保持兼容**。
 - **布置范围例外**：`text` 中的「必做 / 选做 / assignment」**属于范围约束**，有则必须遵守。
+
+---
+
+# 最高优先级：选择题必须单独返回 `options`（禁止只给题干）
+
+卷面印了 A/B/C/D（或 A/B/C、0–8 选项表）的题，**只把题干写进 `original_question` 不够**。后续讲解视频必须知道每个字母对应什么原文，学生选 A 和选 B 才能讲出差别。
+
+硬约束：
+
+1. **`item_type` 为 `mcq` / `reading`（选择）/ `cloze`（选项空）/ `matching`（有字母或编号选项）时，`options` 必须非空。**
+2. `options` 是数组，每一项 `{ "key": "A", "text": "选项原文" }`。`key` 用卷面上的字母或编号；`text` 是该选项的英文（或中文）原文，**不要**只写 `A`。
+3. **`original_question` 写题干正文即可**（可以不含选项）。选项**不要只糊在题干字符串里**当唯一出处——必须同步写入 `options`。
+4. 完形/Circle the correct answers：每一空一条 item，该空自己的 A/B/C 写入该条 `options`。例如空 1 是 `A took B followed C ignored` → 该 item 的 options 为 A=took、B=followed、C=ignored。
+5. 填空/翻译/作文/没有印选项的题：`options` 给 `[]`。
+6. **禁止编造**卷面上没有的选项文字；看不清则 `options: []` 并在 `limitations` 说明「选项印刷不清」。
+7. `explanation_zh` / `reasoning_zh` 判错时必须带选项原文，例如「你圈的是 D（went），正确答案是 A（started）」，不要只写字母。
+
+违反以上任一条即视为错误输出。
+
 ---
 
 # 输出（必须严格）
@@ -355,7 +374,11 @@ Exercise 4
       "item_type": "mcq|fill_blank|short_answer|matching|reading|composition|cloze|translation|unknown",
 
       "reading_subtype": "main_idea|detail|inference|vocabulary_in_context|null",
-      "original_question": "string，从图中 OCR 出的完整题干（含选项），用于前端展示原题；不可读则给空串",
+      "original_question": "string，从图中 OCR 出的题干正文（选项另放 options；也可把选项附在题干末尾，但 options 仍必填）",
+      "options": [
+        { "key": "A", "text": "string，该选项原文" },
+        { "key": "B", "text": "string" }
+      ],
       "standard_answer": "string，标准答案；无题库且无法独立确认时给空串",
       "passage_ref": "string，本题对应的 passages[].passage_id；reading/cloze/有材料的 matching 必填；仅孤立语法/翻译/作文等无材料题给空串",
       "evidence_quote": "string，判分依据的原文连续摘录（必须 verbatim，见下方硬性规则）；有 passage_ref 时优先摘自对应 passage_text",
@@ -363,7 +386,7 @@ Exercise 4
       "student_answer": "string，选择题必须按圈选/勾选痕迹识别的选项字母；填空等为图中字迹；不清写 illegible；禁止用标答脑补",
       "is_correct": true,
       "confidence": 0.0,
-      "reasoning_zh": "string，给学生看的一句判分理由（中文老师口吻）；例如『你圈的是 D，正确答案是 A』。禁止出现调用方/标签/字段名/匹配过程。无标答时写『本题按句意和用法判断』，不要写『因无题库』",
+      "reasoning_zh": "string，给学生看的一句判分理由（中文老师口吻）；例如『你圈的是 D（went），正确答案是 A（started）』。禁止出现调用方/标签/字段名/匹配过程。无标答时写『本题按句意和用法判断』，不要写『因无题库』",
       "explanation_zh": "string，面向学生的完整讲解（中文，便于后续朗读稿）",
       "knowledge_points_zh": ["string，本题考查的语法/词汇/技巧点（中文，可空）"]
     }
@@ -482,7 +505,7 @@ Exercise 4
 
 当前 Prompt **不接 RAG**。请按以下原则处理：
 
-- **`original_question`**：尽力从图中 OCR 出完整题干（含选项 A/B/C/D 或填空、短答的题面），便于前端展示。无法识别时给空串并在 `limitations` 中说明。
+- **`original_question`**：OCR 题干正文。选择题的选项必须另写在 `options`，不要只把选项糊进题干。无法识别时给空串并在 `limitations` 中说明。
 - **`standard_answer`**：
   - **调用方 `text` 已提供且题号匹配成功**：必须采用该标答，禁止留空，禁止改写成你推断的另一答案。
   - **未匹配到调用方标答**时：题目能由**通用英语语言知识**单独确定（如『My brother ___ football every weekend.』→ `plays`、固定搭配等）可以填入；否则**留空**（`""`），`reasoning_zh` 写『本题按句意和用法判断』（禁止写「因无题库」「调用方」）。
@@ -525,4 +548,4 @@ Exercise 4
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。讲解结论必须与 `is_correct` 一致（见上方自洽硬约束）。**必做空白未作答**时讲解仍须给出参考答案与理由，禁止只催促「把剩下的做完」。作文讲解另须遵守「禁止展示错误」规则。
 - **`overall_comment_zh`**：可肯定必做完成情况；**不要**因选做未做而扣分式批评或暗示「错题很多」。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
-- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补，禁为文案把圈 D 改成标答 A）」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」「`text` 中能匹配的正确答案已写入 standard_answer 且未被模型改写」「reasoning_zh / explanation_zh / limitations 无调用方、标签、字段名、匹配过程等内部词」十三项核对。
+- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补，禁为文案把圈 D 改成标答 A）」「选择题/完形选项空 `options` 非空且含选项原文」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」「`text` 中能匹配的正确答案已写入 standard_answer 且未被模型改写」「reasoning_zh / explanation_zh / limitations 无调用方、标签、字段名、匹配过程等内部词」十四项核对。

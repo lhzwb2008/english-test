@@ -347,6 +347,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 |------|------|------|
 | `question` | 与标答至少有一 | **字符串题干**，或对象 `{ stem / original_question / standard_answer }` |
 | `answer` | 否 | **该生本题作答**（选项字母 / 填的词）。有则按这个错因讲，选 A 和选 B 成片不同 |
+| `options` | 选择题建议 | `[{ "key": "A", "text": "took" }, …]`。有则口播会讲选项原文，而不只是字母 |
 | `question.standard_answer` | 同上 | 正确答案 |
 | `question.student_answer` | 否 | 同 `answer`（写在 question 对象里也可以） |
 | `question.lines` | 否 | 对话 `[{n,speaker,en,zh}]` |
@@ -355,7 +356,17 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
 ```bash
 curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/video' \
   -H 'Content-Type: application/json' \
-  -d '{"question":"3 We need to build more wells ___ everyone can drink fresh, clean water.","answer":"so"}'
+  -d '{
+    "question": "1. What does Anna like doing?",
+    "answer": "A",
+    "standard_answer": "B",
+    "options": [
+      { "key": "A", "text": "playing computer games" },
+      { "key": "B", "text": "reading books and playing the guitar" },
+      { "key": "C", "text": "painting" },
+      { "key": "D", "text": "playing football" }
+    ]
+  }'
 ```
 
 `question` 也可以是对象（`stem` / `student_answer` / `standard_answer` / `lines`）。出参：`job_id`、`poll_url`。查询 `GET /v1/grammar/video/:jobId`，进度 `queued → script → slides → tts → compose → upload → done`。
