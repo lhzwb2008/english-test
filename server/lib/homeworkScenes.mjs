@@ -1,5 +1,6 @@
 /**
  * 错题讲解横屏模板（1920×1080）。画面文字来自分镜 JSON，不走生图。
+ * 字号按条数放大，让例句尽量占满卡片，避免「窗很大、字很小」。
  */
 export const CANVAS_W = 1920;
 export const CANVAS_H = 1080;
@@ -32,13 +33,17 @@ function esc(s) {
 function charW(ch, size) {
   const code = ch.codePointAt(0) || 0;
   if (code > 0x2e80) return size;
-  if (ch === ' ') return size * 0.32;
-  return size * 0.56;
+  if (ch === ' ') return size * 0.34;
+  return size * 0.58;
 }
 
-export function wrapText(text, maxWidth, fontSize) {
-  const t = String(text || '').replace(/\s+/g, ' ').trim();
-  if (!t) return [];
+function measure(text, fontSize) {
+  let w = 0;
+  for (const ch of String(text || '')) w += charW(ch, fontSize);
+  return w;
+}
+
+function wrapByChar(t, maxWidth, fontSize, maxLines) {
   const lines = [];
   let buf = '';
   let w = 0;
@@ -52,14 +57,62 @@ export function wrapText(text, maxWidth, fontSize) {
       buf += ch;
       w += cw;
     }
-    if (lines.length >= 5) break;
+    if (lines.length >= maxLines) return lines;
   }
-  if (buf && lines.length < 6) lines.push(buf);
+  if (buf && lines.length < maxLines) lines.push(buf);
+  return lines;
+}
+
+function wrapByPunct(t, maxWidth, fontSize, maxLines) {
+  const chunks = t.split(/(?<=[，。；、!！?？])/).filter(Boolean);
+  if (chunks.length < 2) return null;
+  const lines = [];
+  let buf = '';
+  for (const chunk of chunks) {
+    const next = buf + chunk;
+    if (buf && measure(next, fontSize) > maxWidth) {
+      lines.push(buf);
+      buf = measure(chunk, fontSize) > maxWidth
+        ? wrapByChar(chunk, maxWidth, fontSize, 1)[0] || chunk
+        : chunk;
+      if (lines.length >= maxLines) return lines;
+    } else {
+      buf = next;
+    }
+  }
+  if (buf && lines.length < maxLines) lines.push(buf);
+  return lines;
+}
+
+export function wrapText(text, maxWidth, fontSize, maxLines = 6) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return [];
+  const letters = (t.match(/[A-Za-z]/g) || []).length;
+  const compact = t.replace(/\s/g, '').length || 1;
+  if (letters / compact < 0.45) {
+    return wrapByPunct(t, maxWidth, fontSize, maxLines)
+      || wrapByChar(t, maxWidth, fontSize, maxLines);
+  }
+  const lines = [];
+  let buf = '';
+  for (const word of t.split(' ')) {
+    const next = buf ? `${buf} ${word}` : word;
+    if (buf && measure(next, fontSize) > maxWidth) {
+      lines.push(buf);
+      buf = measure(word, fontSize) > maxWidth
+        ? wrapByChar(word, maxWidth, fontSize, 1)[0] || word
+        : word;
+      if (lines.length >= maxLines) return lines;
+    } else {
+      buf = next;
+    }
+  }
+  if (buf && lines.length < maxLines) lines.push(buf);
   return lines;
 }
 
 function texts(lines, x, y, { size = 32, fill = C.text, weight = 700, anchor = 'start', lh } = {}) {
-  const step = lh || Math.round(size * 1.38);
+  const step = lh || Math.round(size * 1.32);
   return lines
     .map(
       (line, i) =>
@@ -70,17 +123,15 @@ function texts(lines, x, y, { size = 32, fill = C.text, weight = 700, anchor = '
 
 function sparkles(color = '#FFD93D') {
   const pts = [
-    [150, 110, 9],
-    [1780, 130, 7],
-    [220, 980, 8],
-    [1740, 940, 10],
-    [320, 200, 6],
-    [1620, 220, 6],
+    [120, 90, 10],
+    [1800, 100, 8],
+    [160, 990, 9],
+    [1760, 970, 11],
   ];
   return pts
     .map(
       ([x, y, r]) =>
-        `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.92"/>`,
+        `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.9"/>`,
     )
     .join('');
 }
@@ -98,8 +149,8 @@ function shell(bg, inner) {
 </svg>`;
 }
 
-function pill(cx, y, label, fill, { fontSize = 36, padX = 48, h = 72 } = {}) {
-  const width = Math.min(1600, Math.max(280, label.length * fontSize * 0.7 + padX * 2));
+function pill(cx, y, label, fill, { fontSize = 42, padX = 52, h = 84 } = {}) {
+  const width = Math.min(1760, Math.max(320, label.length * fontSize * 0.72 + padX * 2));
   const x = cx - width / 2;
   return `
     <rect x="${x}" y="${y}" width="${width}" height="${h}" rx="${h / 2}" fill="${fill}"/>
@@ -114,95 +165,146 @@ function speakerColor(speaker) {
   return C.teal;
 }
 
+function scaleForCount(n, few, mid, many, dense) {
+  if (n <= 1) return few;
+  if (n <= 2) return mid;
+  if (n <= 4) return many;
+  return dense ?? many;
+}
+
 function lineCard(line, x, y, w, h) {
   const color = speakerColor(line.speaker);
+  const tagged = Boolean(line.speaker);
   const tag = line.n
     ? `第 ${line.n} 句  ${line.speaker || ''}`.trim()
-    : String(line.speaker || '');
-  const enLines = wrapText(line.en || '', w - 56, 28);
-  const zhLines = wrapText(line.zh || '', w - 56, 22);
+    : String(line.speaker || '例句');
+  const enSize = h >= 500 ? 66 : h >= 340 ? 50 : h >= 210 ? 40 : 32;
+  const zhSize = Math.round(enSize * 0.76);
+  const pad = 48;
+  const innerW = w - pad * 2;
+  const center = !line.speaker;
+  const wrapW =
+    center && String(line.en || '').length > 22
+      ? Math.round(innerW * 0.72)
+      : innerW;
+  const enLines = wrapText(line.en || '', wrapW, enSize, 4);
+  const zhLines = wrapText(line.zh || '', wrapW, zhSize, 3);
+  const enH = enLines.length * Math.round(enSize * 1.26);
+  const zhH = zhLines.length ? zhLines.length * Math.round(zhSize * 1.3) + 14 : 0;
+  const blockH = (tagged ? 36 : 0) + enH + zhH;
+  const textY = y + Math.max(tagged ? 100 : 72, Math.round((h - blockH) / 2) + (tagged ? 28 : 16));
+  const tx = center ? x + w / 2 : x + pad;
+  const anchor = center ? 'middle' : 'start';
+  const tagW = Math.min(w - 80, Math.max(200, 48 + tag.length * 22));
   return `
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="22" fill="${C.card}" filter="url(#sh)"/>
-    <rect x="${x}" y="${y}" width="10" height="${h}" rx="6" fill="${color}"/>
-    <rect x="${x + 28}" y="${y + 18}" width="${Math.min(220, 28 + tag.length * 16)}" height="36" rx="10" fill="${color}"/>
-    <text x="${x + 40}" y="${y + 44}" fill="${C.white}" font-size="18" font-weight="700" font-family="${FONT}">${esc(tag)}</text>
-    ${texts(enLines, x + 28, y + 88, { size: 28, fill: C.text, weight: 700 })}
-    ${texts(zhLines, x + 28, y + 88 + enLines.length * 38 + 8, { size: 22, fill: C.muted, weight: 500 })}
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="28" fill="${C.card}" filter="url(#sh)"/>
+    <rect x="${x}" y="${y}" width="14" height="${h}" rx="7" fill="${color}"/>
+    ${
+      tagged
+        ? `<rect x="${x + 32}" y="${y + 22}" width="${tagW}" height="48" rx="14" fill="${color}"/>
+    <text x="${x + 48}" y="${y + 56}" fill="${C.white}" font-size="24" font-weight="700" font-family="${FONT}">${esc(tag)}</text>`
+        : ''
+    }
+    ${texts(enLines, tx, textY, { size: enSize, fill: C.text, weight: 700, lh: Math.round(enSize * 1.26), anchor })}
+    ${texts(zhLines, tx, textY + enH + 18, { size: zhSize, fill: C.muted, weight: 650, lh: Math.round(zhSize * 1.3), anchor })}
   `;
 }
 
 function renderIntro(scene) {
   const title = String(scene.title || '错题讲解');
   const sub = String(scene.subtitle || scene.mnemonic || '');
-  const titleLines = wrapText(title, 1500, 64);
-  const subLines = wrapText(sub, 1200, 30);
+  const titleSize = title.length > 18 ? 84 : 108;
+  const titleLines = wrapText(title, 1720, titleSize, 3);
+  const subSize = 54;
+  const subLines = wrapText(sub, 1320, subSize, 4);
+  const titleH = titleLines.length * Math.round(titleSize * 1.18);
+  const boxH = Math.max(180, 80 + subLines.length * Math.round(subSize * 1.38));
+  const titleY = 280;
+  const boxY = titleY + titleH + 56;
+  const boxW = 1680;
+  const subBlockH = (subLines.length - 1) * Math.round(subSize * 1.38);
   return shell(
     C.primary,
     `
     ${sparkles('#FFD93D')}
-    ${texts(titleLines, 960, 430, { size: 64, fill: C.white, weight: 700, anchor: 'middle', lh: 84 })}
-    <rect x="360" y="620" width="1200" height="${64 + subLines.length * 40}" rx="36" fill="rgba(255,255,255,0.18)"/>
-    ${texts(subLines, 960, 668, { size: 30, fill: C.white, weight: 600, anchor: 'middle', lh: 42 })}
+    ${texts(titleLines, 960, titleY, { size: titleSize, fill: C.white, weight: 700, anchor: 'middle', lh: Math.round(titleSize * 1.18) })}
+    <rect x="${(CANVAS_W - boxW) / 2}" y="${boxY}" width="${boxW}" height="${boxH}" rx="44" fill="rgba(255,255,255,0.2)"/>
+    ${texts(subLines, 960, boxY + Math.round(boxH / 2) - subBlockH / 2 + 10, { size: subSize, fill: C.white, weight: 700, anchor: 'middle', lh: Math.round(subSize * 1.38) })}
     `,
   );
 }
 
 function renderStep(scene) {
-  const step = scene.step ? `第 ${scene.step} 步：${scene.step_title || scene.title || ''}` : String(scene.title || '解题');
+  const step = scene.step
+    ? `第 ${scene.step} 步：${scene.step_title || scene.title || ''}`
+    : String(scene.title || '解题');
   const lines = Array.isArray(scene.lines) ? scene.lines.slice(0, 3) : [];
   const tip = String(scene.tip || '');
   const n = Math.max(1, lines.length);
-  const cardH = n === 1 ? 420 : n === 2 ? 280 : 210;
-  const gap = 22;
-  const top = 170;
+  const top = 140;
+  const bottom = tip ? 150 : 48;
+  const gap = n === 1 ? 0 : 28;
+  const usable = CANVAS_H - top - bottom;
+  const cardH = Math.floor((usable - gap * (n - 1)) / n);
   const cards = lines.map((line, i) => {
     const y = top + i * (cardH + gap);
-    const stagger = i % 2 === 1 ? 80 : 0;
-    return lineCard(line, 140 + stagger, y, 1640 - stagger, cardH);
+    return lineCard(line, 80, y, 1760, cardH);
   });
   const tipBar = tip
-    ? `<rect x="140" y="960" width="1640" height="80" rx="18" fill="#EEF4FF"/>
-       ${texts(wrapText(`提示：${tip}`, 1560, 26), 170, 1010, { size: 26, fill: C.primary, weight: 600 })}`
+    ? `<rect x="80" y="940" width="1760" height="100" rx="22" fill="#EEF4FF"/>
+       ${texts(wrapText(`提示：${tip}`, 1660, 32, 2), 110, 1004, { size: 32, fill: C.primary, weight: 700, lh: 42 })}`
     : '';
   return shell(
     C.bg,
     `
     ${sparkles('#F5C542')}
-    ${pill(960, 48, step, C.primary)}
+    ${pill(960, 28, step, C.primary, { fontSize: 40, h: 82 })}
     ${cards.join('\n')}
     ${tipBar}
     `,
   );
 }
 
-function miniLines(lines, x, y, w, { enSize = 26, badge = C.teal } = {}) {
+function miniLines(lines, x, y, w, h, { badge = C.teal } = {}) {
   const items = (lines || []).slice(0, 4);
-  const rowH = items.some((l) => l?.zh) ? 130 : 100;
+  const n = Math.max(1, items.length);
+  const rowH = Math.floor(h / n);
+  const enSize = scaleForCount(n, 62, 40, 32, 28);
+  const zhSize = Math.round(enSize * 0.7);
+  const center = n === 1 && !items[0]?.speaker;
   return items
     .map((line, i) => {
       const yy = y + i * rowH;
       const color = line.speaker ? speakerColor(line.speaker) : badge;
       const label = `${line.n || i + 1}`;
       const prefix = line.speaker ? `${line.speaker}: ` : '';
-      const en = wrapText(`${prefix}${line.en || line.zh || ''}`, w - 70, enSize).slice(
-        0,
-        2,
-      );
+      const textW = w - (center ? 48 : 96);
+      const wrapW =
+        center && String(line.en || '').length > 18
+          ? Math.round(textW * 0.88)
+          : textW;
+      const en = wrapText(`${prefix}${line.en || line.zh || ''}`, wrapW, enSize, 3);
       const zh =
-        line.en && line.zh
-          ? wrapText(String(line.zh), w - 70, 22).slice(0, 2)
-          : [];
+        line.en && line.zh ? wrapText(String(line.zh), textW, zhSize, 2) : [];
+      const blockH =
+        en.length * Math.round(enSize * 1.26) +
+        (zh.length ? zh.length * Math.round(zhSize * 1.3) + 10 : 0);
+      const textY = yy + Math.max(32, Math.round((rowH - blockH) / 2));
+      const tx = center ? x + w / 2 : x + 72;
+      const anchor = center ? 'middle' : 'start';
+      const badgeX = center ? x + 36 : x + 28;
       return `
-        <circle cx="${x + 22}" cy="${yy + 12}" r="18" fill="${color}"/>
-        <text x="${x + 22}" y="${yy + 19}" text-anchor="middle" fill="${C.white}" font-size="16" font-weight="700" font-family="${FONT}">${esc(label)}</text>
-        ${texts(en, x + 52, yy + 20, { size: enSize, fill: C.text, weight: 700, lh: Math.round(enSize * 1.32) })}
+        <circle cx="${badgeX}" cy="${textY - 10}" r="24" fill="${color}"/>
+        <text x="${badgeX}" y="${textY - 1}" text-anchor="middle" fill="${C.white}" font-size="22" font-weight="700" font-family="${FONT}">${esc(label)}</text>
+        ${texts(en, tx, textY, { size: enSize, fill: C.text, weight: 700, lh: Math.round(enSize * 1.26), anchor })}
         ${
           zh.length
-            ? texts(zh, x + 52, yy + 20 + en.length * Math.round(enSize * 1.32) + 10, {
-                size: 22,
+            ? texts(zh, tx, textY + en.length * Math.round(enSize * 1.26) + 12, {
+                size: zhSize,
                 fill: C.muted,
-                weight: 500,
-                lh: 32,
+                weight: 650,
+                lh: Math.round(zhSize * 1.3),
+                anchor,
               })
             : ''
         }
@@ -223,11 +325,11 @@ function trapLabels(scene) {
 }
 
 function whyBox(x, y, w, h, fill, textFill, why) {
-  const lines = wrapText(why || '', w - 40, 22);
+  const lines = wrapText(why || '', w - 48, 28, 3);
   if (!lines.length) return '';
   return `
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="${fill}"/>
-    ${texts(lines, x + 20, y + 42, { size: 22, fill: textFill, weight: 600, lh: 32 })}
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="${fill}"/>
+    ${texts(lines, x + 24, y + 48, { size: 28, fill: textFill, weight: 700, lh: 38 })}
   `;
 }
 
@@ -236,23 +338,27 @@ function renderTrap(scene) {
   const wrong = scene.wrong || {};
   const right = scene.right || {};
   const labels = trapLabels(scene);
-  const colW = 820;
-  const colY = 160;
-  const colH = 780;
-  const whyY = colY + colH - 150;
+  const colW = 860;
+  const colY = 140;
+  const colH = 900;
+  const hasWhy = Boolean(String(wrong.why || '').trim() || String(right.why || '').trim());
+  const whyH = hasWhy ? 150 : 0;
+  const bodyY = colY + 88;
+  const bodyH = colH - 88 - whyH - 24;
+  const whyY = colY + colH - whyH - 16;
   return shell(
     C.bg,
     `
-    ${pill(960, 40, title, C.danger, { fontSize: 34 })}
-    <rect x="80" y="${colY}" width="${colW}" height="${colH}" rx="24" fill="#FFF5F5" filter="url(#sh)"/>
-    <text x="${80 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.danger}" font-size="32" font-weight="700" font-family="${FONT}">${esc(labels.bad)}</text>
-    ${miniLines(wrong.lines, 110, colY + 110, 760, { enSize: 28, badge: C.danger })}
-    ${whyBox(110, whyY, 760, 120, '#FADBD8', C.danger, wrong.why)}
+    ${pill(960, 24, title, C.danger, { fontSize: 40, h: 82 })}
+    <rect x="60" y="${colY}" width="${colW}" height="${colH}" rx="28" fill="#FFF5F5" filter="url(#sh)"/>
+    <text x="${60 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.danger}" font-size="38" font-weight="700" font-family="${FONT}">${esc(labels.bad)}</text>
+    ${miniLines(wrong.lines, 88, bodyY, colW - 56, bodyH, { badge: C.danger })}
+    ${whyBox(88, whyY, colW - 56, whyH - 16, '#FADBD8', C.danger, wrong.why)}
 
-    <rect x="1020" y="${colY}" width="${colW}" height="${colH}" rx="24" fill="#F0FFF4" filter="url(#sh)"/>
-    <text x="${1020 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.success}" font-size="32" font-weight="700" font-family="${FONT}">${esc(labels.good)}</text>
-    ${miniLines(right.lines, 1050, colY + 110, 760, { enSize: 28, badge: C.success })}
-    ${whyBox(1050, whyY, 760, 120, '#D5F5E3', '#1E8449', right.why)}
+    <rect x="1000" y="${colY}" width="${colW}" height="${colH}" rx="28" fill="#F0FFF4" filter="url(#sh)"/>
+    <text x="${1000 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.success}" font-size="38" font-weight="700" font-family="${FONT}">${esc(labels.good)}</text>
+    ${miniLines(right.lines, 1028, bodyY, colW - 56, bodyH, { badge: C.success })}
+    ${whyBox(1028, whyY, colW - 56, whyH - 16, '#D5F5E3', '#1E8449', right.why)}
     `,
   );
 }
@@ -261,39 +367,96 @@ function renderAnswer(scene) {
   const title = String(scene.title || '完整答案');
   const lines = Array.isArray(scene.lines) ? scene.lines.slice(0, 8) : [];
   const badge = String(scene.badge || '');
-  const rowH = lines.length > 6 ? 72 : 82;
-  const startY = 150;
-  const rows = lines
-    .map((line, i) => {
-      const y = startY + i * rowH;
-      const color = speakerColor(line.speaker);
-      const head = line.speaker ? `${line.speaker}: ` : '';
-      const main = wrapText(`${head}${line.en || line.zh || ''}`, 1480, 24).slice(
-        0,
-        2,
-      );
-      const sub =
-        line.en && line.zh
-          ? wrapText(String(line.zh), 1480, 20).slice(0, 1)
-          : [];
-      return `
-        <circle cx="200" cy="${y + 10}" r="22" fill="${color}"/>
-        <text x="200" y="${y + 18}" text-anchor="middle" fill="${C.white}" font-size="18" font-weight="700" font-family="${FONT}">${esc(String(line.n || i + 1))}</text>
-        ${texts(main, 240, y + 16, { size: 24, fill: C.text, weight: 650, lh: 32 })}
-        ${sub.length ? texts(sub, 240, y + 16 + main.length * 32, { size: 20, fill: C.muted, weight: 500 }) : ''}
-      `;
-    })
-    .join('');
+  const n = Math.max(1, lines.length);
+  const dialogue = lines.some((l) => l.speaker);
+  const grid = !dialogue && n >= 3 && n <= 4;
+  const top = 150;
+  const bottom = badge ? 130 : 56;
+  const boxH = CANVAS_H - top - bottom + 20;
+
+  let rows;
+  if (grid) {
+    const cellW = 820;
+    const cellH = Math.floor((boxH - 64) / 2);
+    const gapX = 36;
+    const originX = 120;
+    const originY = top + 20;
+    rows = lines
+      .map((line, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = originX + col * (cellW + gapX);
+        const y = originY + row * (cellH + 20);
+        const color = speakerColor(line.speaker);
+        const enSize = 38;
+        const zhSize = 28;
+        const en = wrapText(line.en || line.zh || '', cellW - 72, enSize, 3);
+        const zh = line.en && line.zh ? wrapText(String(line.zh), cellW - 72, zhSize, 2) : [];
+        const blockH =
+          24 + en.length * Math.round(enSize * 1.28) + (zh.length ? zh.length * 38 + 10 : 0);
+        const textY = y + Math.max(56, Math.round((cellH - blockH) / 2) + 20);
+        return `
+          <rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="24" fill="#F8FBFF"/>
+          <circle cx="${x + 48}" cy="${textY - 10}" r="28" fill="${color}"/>
+          <text x="${x + 48}" y="${textY}" text-anchor="middle" fill="${C.white}" font-size="24" font-weight="700" font-family="${FONT}">${esc(String(line.n || i + 1))}</text>
+          ${texts(en, x + 92, textY, { size: enSize, fill: C.text, weight: 700, lh: Math.round(enSize * 1.28) })}
+          ${
+            zh.length
+              ? texts(zh, x + 92, textY + en.length * Math.round(enSize * 1.28) + 14, {
+                  size: zhSize,
+                  fill: C.muted,
+                  weight: 650,
+                  lh: 38,
+                })
+              : ''
+          }
+        `;
+      })
+      .join('');
+  } else {
+    const rowH = Math.floor((boxH - 36) / n);
+    const enSize = scaleForCount(n, 42, 36, 30, 26);
+    const zhSize = Math.round(enSize * 0.72);
+    rows = lines
+      .map((line, i) => {
+        const y = top + 18 + i * rowH;
+        const color = speakerColor(line.speaker);
+        const head = line.speaker ? `${line.speaker}: ` : '';
+        const main = wrapText(`${head}${line.en || line.zh || ''}`, 1580, enSize, 2);
+        const sub =
+          line.en && line.zh ? wrapText(String(line.zh), 1580, zhSize, 2) : [];
+        const blockH =
+          main.length * Math.round(enSize * 1.24) +
+          (sub.length ? sub.length * Math.round(zhSize * 1.26) + 6 : 0);
+        const textY = y + Math.max(26, Math.round((rowH - blockH) / 2));
+        return `
+          <circle cx="168" cy="${textY - 10}" r="26" fill="${color}"/>
+          <text x="168" y="${textY - 1}" text-anchor="middle" fill="${C.white}" font-size="22" font-weight="700" font-family="${FONT}">${esc(String(line.n || i + 1))}</text>
+          ${texts(main, 214, textY, { size: enSize, fill: C.text, weight: 700, lh: Math.round(enSize * 1.24) })}
+          ${
+            sub.length
+              ? texts(sub, 214, textY + main.length * Math.round(enSize * 1.24) + 8, {
+                  size: zhSize,
+                  fill: C.muted,
+                  weight: 650,
+                  lh: Math.round(zhSize * 1.26),
+                })
+              : ''
+          }
+        `;
+      })
+      .join('');
+  }
   const footer = badge
-    ? `<rect x="140" y="980" width="1640" height="64" rx="16" fill="#FFF6E0"/>
-       ${texts(wrapText(badge, 1560, 24), 960, 1022, { size: 24, fill: C.accent, weight: 700, anchor: 'middle' })}`
+    ? `<rect x="80" y="960" width="1760" height="88" rx="20" fill="#FFF6E0"/>
+       ${texts(wrapText(badge, 1660, 30, 2), 960, 1016, { size: 30, fill: C.accent, weight: 700, anchor: 'middle' })}`
     : '';
   return shell(
     C.bg,
     `
     ${sparkles('#F5C542')}
-    ${pill(960, 40, title, C.accent, { fontSize: 34 })}
-    <rect x="140" y="130" width="1640" height="820" rx="28" fill="${C.card}" stroke="${C.primary}" stroke-width="3" filter="url(#sh)"/>
+    ${pill(960, 24, title, C.accent, { fontSize: 40, h: 82 })}
+    <rect x="80" y="128" width="1760" height="${boxH}" rx="32" fill="${C.card}" stroke="${C.primary}" stroke-width="4" filter="url(#sh)"/>
     ${rows}
     ${footer}
     `,
@@ -304,15 +467,19 @@ function renderEnding(scene) {
   const title = String(scene.title || '你学会了吗？');
   const mnemonic = String(scene.mnemonic || scene.subtitle || '');
   const bye = String(scene.bye || '下一题见');
-  const mLines = wrapText(mnemonic, 1300, 34);
+  const titleSize = 84;
+  const mSize = 50;
+  const mLines = wrapText(mnemonic, 1480, mSize, 4);
+  const boxH = Math.max(220, 88 + mLines.length * Math.round(mSize * 1.4));
+  const subBlockH = (mLines.length - 1) * Math.round(mSize * 1.4);
   return shell(
     C.success,
     `
     ${sparkles('#FFF3A0')}
-    ${texts(wrapText(title, 1400, 68), 960, 380, { size: 68, fill: C.white, weight: 700, anchor: 'middle', lh: 88 })}
-    <rect x="320" y="500" width="1280" height="${80 + mLines.length * 46}" rx="40" fill="rgba(255,255,255,0.2)"/>
-    ${texts(mLines, 960, 558, { size: 34, fill: C.white, weight: 650, anchor: 'middle', lh: 48 })}
-    ${texts([bye], 960, 820, { size: 28, fill: 'rgba(255,255,255,0.9)', weight: 500, anchor: 'middle' })}
+    ${texts(wrapText(title, 1680, titleSize, 2), 960, 260, { size: titleSize, fill: C.white, weight: 700, anchor: 'middle', lh: 100 })}
+    <rect x="120" y="390" width="1680" height="${boxH}" rx="48" fill="rgba(255,255,255,0.22)"/>
+    ${texts(mLines, 960, 390 + Math.round(boxH / 2) - subBlockH / 2 + 12, { size: mSize, fill: C.white, weight: 700, anchor: 'middle', lh: Math.round(mSize * 1.4) })}
+    ${texts([bye], 960, 900, { size: 40, fill: 'rgba(255,255,255,0.95)', weight: 650, anchor: 'middle' })}
     `,
   );
 }
@@ -320,13 +487,13 @@ function renderEnding(scene) {
 function renderCards(scene) {
   const title = String(scene.title || scene.step_title || '讲解');
   const body = String(scene.body || scene.tip || '');
-  const bodyLines = wrapText(body, 1500, 36);
+  const bodyLines = wrapText(body, 1600, 44, 8);
   return shell(
     C.bg,
     `
-    ${pill(960, 48, title, C.primary)}
-    <rect x="160" y="200" width="1600" height="720" rx="28" fill="${C.card}" filter="url(#sh)"/>
-    ${texts(bodyLines, 220, 320, { size: 36, fill: C.text, weight: 600, lh: 54 })}
+    ${pill(960, 28, title, C.primary, { fontSize: 40, h: 82 })}
+    <rect x="80" y="140" width="1760" height="880" rx="32" fill="${C.card}" filter="url(#sh)"/>
+    ${texts(bodyLines, 140, 280, { size: 44, fill: C.text, weight: 650, lh: 64 })}
     `,
   );
 }
