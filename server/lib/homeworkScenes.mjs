@@ -269,7 +269,7 @@ function miniLines(lines, x, y, w, h, { badge = C.teal } = {}) {
   const items = (lines || []).slice(0, 4);
   const n = Math.max(1, items.length);
   const rowH = Math.floor(h / n);
-  const enSize = scaleForCount(n, 62, 40, 32, 28);
+  const enSize = scaleForCount(n, 62, 40, 32, 30);
   const zhSize = Math.round(enSize * 0.7);
   const center = n === 1 && !items[0]?.speaker;
   return items
@@ -415,7 +415,7 @@ function renderAnswer(scene) {
       .join('');
   } else {
     const rowH = Math.floor((boxH - 36) / n);
-    const enSize = scaleForCount(n, 42, 36, 30, 26);
+    const enSize = scaleForCount(n, 42, 36, 30, 28);
     const zhSize = Math.round(enSize * 0.72);
     rows = lines
       .map((line, i) => {
