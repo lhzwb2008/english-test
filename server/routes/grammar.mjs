@@ -844,6 +844,7 @@ function parseHomeworkVideoInput(body) {
         lines: lines.length ? lines : undefined,
       },
       student_profile: studentProfile,
+      trait_voice: buildTraitVoice(studentProfile) || undefined,
       storyboard:
         src.storyboard && typeof src.storyboard === 'object'
           ? src.storyboard

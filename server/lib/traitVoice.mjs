@@ -21,7 +21,7 @@ export function inferStyleFromTraits(traits, studyHistory = '') {
     if (/图表|流程图|看图|视觉|表格速记|思维导图/.test(text)) return 'visual';
     if (/逻辑|框架|规则清晰|理性|条理|流程判断/.test(text)) return 'logical';
     if (
-      /故事|例子|有趣|趣味|吸引|画面|比喻|人设|急躁|注意力|流行语|共鸣|青少年/.test(
+      /故事|例子|有趣|趣味|吸引|画面|比喻|人设|急躁|注意力短|注意力不集中|流行语|共鸣|青少年/.test(
         text,
       )
     ) {
@@ -68,10 +68,18 @@ export function buildTraitVoice(studentProfile) {
     );
     must.push('例句场景用手机、短视频、作业、球赛、同学，禁止小明去公园');
   }
-  if (/注意力|急躁|不能长时间|拖拉|拖延/.test(traits)) {
+  if (/注意力不集中|注意力差|注意力短|不能长时间|难以集中|急躁|拖拉|拖延/.test(traits)) {
     tags.push('short_attention');
     must.push('讲解全文不超过 900 字；每个 ## 先给结论再举例；每段最多 2 句');
     must.push('口诀或清单必须出现在讲解前 1/3');
+  }
+  if (/逻辑|条理|有条理|框架|理性/.test(traits)) {
+    tags.push('logical');
+    must.push('口播按「第一步…第二步…所以填/选…」；先给结论再补一句理由');
+  }
+  if (/亲和力|鼓励|多鼓励/.test(traits)) {
+    tags.push('encourage');
+    must.push('至少两处鼓励（「这很常见」「改过来就对了」），禁止训斥');
   }
   if (/例子|故事|画面/.test(traits) && !tags.includes('teen_fun')) {
     tags.push('story');
