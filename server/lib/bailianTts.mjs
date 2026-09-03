@@ -30,12 +30,21 @@ function model() {
   return process.env.DASHSCOPE_TTS_MODEL || 'cosyvoice-v2';
 }
 
+/** 全程同一把英式女声，保证英文发音；中文会带口音。 */
+export function ttsVoice() {
+  return (
+    process.env.DASHSCOPE_TTS_VOICE ||
+    process.env.DASHSCOPE_TTS_EN_VOICE ||
+    'loongeva_v2'
+  );
+}
+
 export function zhVoice() {
-  return process.env.DASHSCOPE_TTS_VOICE || 'longxiaoxia_v2';
+  return ttsVoice();
 }
 
 export function enVoice() {
-  return process.env.DASHSCOPE_TTS_EN_VOICE || 'loongannie_v2';
+  return ttsVoice();
 }
 
 function sampleRate() {
@@ -48,12 +57,19 @@ function clampRate(n, fallback) {
   return Math.min(2, Math.max(0.5, x));
 }
 
+export function ttsRate() {
+  return clampRate(
+    process.env.DASHSCOPE_TTS_RATE || process.env.DASHSCOPE_TTS_EN_RATE,
+    1,
+  );
+}
+
 export function zhRate() {
-  return clampRate(process.env.DASHSCOPE_TTS_RATE, 1.2);
+  return ttsRate();
 }
 
 export function enRate() {
-  return clampRate(process.env.DASHSCOPE_TTS_EN_RATE, 1.15);
+  return ttsRate();
 }
 
 /**
@@ -65,8 +81,8 @@ export function enRate() {
 export async function synthesizeToFile(text, outPath, opts = {}) {
   const t = String(text || '').trim();
   if (!t) throw new Error('TTS 文本为空');
-  const voice = opts.voice || zhVoice();
-  const rate = clampRate(opts.rate, zhRate());
+  const voice = opts.voice || ttsVoice();
+  const rate = clampRate(opts.rate, ttsRate());
 
   const body = {
     model: model(),

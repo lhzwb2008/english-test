@@ -7,13 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { completeQwenText } from '../qwen/client.mjs';
 import { parseJsonFromModel } from './jsonParse.mjs';
 import { buildUserPayload, loadPrompt, textModel } from './prompts.mjs';
-import {
-  enRate,
-  enVoice,
-  synthesizeToFile,
-  zhRate,
-  zhVoice,
-} from './bailianTts.mjs';
+import { synthesizeToFile, ttsRate, ttsVoice } from './bailianTts.mjs';
 import { sceneToSvg } from './homeworkScenes.mjs';
 import { renderSvgToPng } from './svgRender.mjs';
 import {
@@ -116,8 +110,8 @@ function minDurationFor(type) {
   return 0;
 }
 
-function pauseAfter(voice) {
-  return voice === 'en' ? 0.16 : 0.2;
+function pauseAfter() {
+  return 0.22;
 }
 
 function isKnowledgeVideo(input) {
@@ -147,6 +141,7 @@ async function buildStoryboard(input, title) {
       }
     : {
         question: input.question,
+        answer: input.question?.student_answer,
         student_profile: input.student_profile,
         duration_target: '60-90 seconds, brisk pacing',
       };
@@ -220,26 +215,14 @@ async function synthSceneAudio(scene, workDir, index) {
     const seg = segs[i];
     const stem = `tts_${String(index).padStart(2, '0')}_${String(i).padStart(2, '0')}`;
     const mp3 = path.join(workDir, `${stem}.mp3`);
-    const zhOpts = { voice: zhVoice(), rate: zhRate() };
-    const enOpts = { voice: enVoice(), rate: enRate() };
-    try {
-      await synthesizeWithRetry(
-        seg.text,
-        mp3,
-        seg.voice === 'en' ? enOpts : zhOpts,
-      );
-    } catch (err) {
-      if (seg.voice !== 'en') throw err;
-      console.warn(
-        '[homework-video] 英文音色失败，回退中文音色:',
-        err?.message || err,
-      );
-      await synthesizeWithRetry(seg.text, mp3, { voice: zhVoice(), rate: enRate() });
-    }
+    await synthesizeWithRetry(seg.text, mp3, {
+      voice: ttsVoice(),
+      rate: ttsRate(),
+    });
     parts.push(mp3);
     if (i < segs.length - 1) {
-      const sil = path.join(silDir, `sil_${pauseAfter(seg.voice)}.mp3`);
-      if (!fs.existsSync(sil)) writeSilence(pauseAfter(seg.voice), sil);
+      const sil = path.join(silDir, `sil_${pauseAfter()}.mp3`);
+      if (!fs.existsSync(sil)) writeSilence(pauseAfter(), sil);
       parts.push(sil);
     }
   }

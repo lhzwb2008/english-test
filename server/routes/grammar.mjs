@@ -724,10 +724,21 @@ function parseHomeworkVideoInput(body) {
 
   const stem = questionStemOf(q, src);
   const standardAnswer = asNonEmptyString(
-    q.standard_answer ||
+    src.standard_answer ||
+      src.standardAnswer ||
+      src.correct_answer ||
+      q.standard_answer ||
       q.standardAnswer ||
       q.correct_answer ||
       q.correctAnswer,
+  );
+  const studentAnswer = asNonEmptyString(
+    src.answer ||
+      src.student_answer ||
+      src.studentAnswer ||
+      q.answer ||
+      q.student_answer ||
+      q.studentAnswer,
   );
   if (!stem && !standardAnswer) {
     return {
@@ -762,8 +773,7 @@ function parseHomeworkVideoInput(body) {
           asNonEmptyString(q.original_question || q.originalQuestion) ||
           stem ||
           undefined,
-        student_answer:
-          asNonEmptyString(q.student_answer || q.studentAnswer) || undefined,
+        student_answer: studentAnswer || undefined,
         standard_answer: standardAnswer || undefined,
         is_correct: typeof isCorrect === 'boolean' ? isCorrect : undefined,
         explanation_zh:
