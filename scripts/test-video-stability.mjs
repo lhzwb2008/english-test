@@ -153,6 +153,90 @@ try {
   fail('alias + SVG render', err);
 }
 
+console.log('\n== 3b. 离线：trap 对错例句字段别名（老师空画面） ==');
+function minimalBoard(trap) {
+  return {
+    title: '口语三件套',
+    mnemonic: '泛指加s',
+    scenes: [
+      { id: 's1', type: 'intro', title: '开场', narration: [{ voice: 'zh', text: '划重点。' }] },
+      {
+        id: 's2',
+        type: 'step',
+        title: '复数',
+        lines: [{ n: 1, en: 'Students use phones.', zh: '泛指用复数' }],
+        narration: [{ voice: 'zh', text: '泛指要加复数。' }],
+      },
+      trap,
+      {
+        id: 's4',
+        type: 'answer',
+        title: '要点清单',
+        lines: [{ n: 1, en: 'Students use phones.', zh: '泛指用复数' }],
+        narration: [{ voice: 'zh', text: '对照记住。' }],
+      },
+    ],
+  };
+}
+
+const trapCases = [
+  [
+    'wrong_lines',
+    {
+      id: 's3',
+      type: 'trap',
+      title: '高频易错点避雷',
+      wrong_lines: [{ n: 1, en: 'Student often look at phone.', zh: '漏了复数' }],
+      right_lines: [{ n: 1, en: 'Students often look at their phones.', zh: '群体用复数' }],
+      narration: [{ voice: 'zh', text: '最典型的扣分点来了。' }],
+    },
+  ],
+  [
+    'lines+emoji',
+    {
+      id: 's3',
+      type: 'trap',
+      title: '高频易错点辨析',
+      lines: [
+        { n: 1, en: 'Student uses phone. ❌', zh: '错误' },
+        { n: 2, en: 'Students use phones. ✅', zh: '正确' },
+      ],
+      narration: [{ voice: 'zh', text: '千万别犯这个错。' }],
+    },
+  ],
+  [
+    'narration-en',
+    {
+      id: 's3',
+      type: 'trap',
+      title: '高频易错点避雷',
+      narration: [
+        { voice: 'zh', text: '最典型的扣分点来了。' },
+        { voice: 'en', text: 'Student often look at phone.' },
+        { voice: 'zh', text: '改成复数才地道。' },
+        { voice: 'en', text: 'Students often look at their phones.' },
+      ],
+    },
+  ],
+];
+for (const [name, trap] of trapCases) {
+  try {
+    const script = normalizeStoryboard(minimalBoard(trap), '口语三件套');
+    const scene = script.scenes.find((s) => s.type === 'trap');
+    expect(scene.wrong.lines[0]?.en, `${name} 缺错句`);
+    expect(scene.right.lines[0]?.en, `${name} 缺对句`);
+    const svg = sceneToSvg(scene);
+    expect(/Student/.test(svg) && /Students/.test(svg), `${name} SVG 未写入例句`);
+    expect(/错误用法/.test(svg), `${name} 知识点应用「错误用法」`);
+    const png = path.join(os.tmpdir(), `trap-${name}.png`);
+    renderSvgToPng(svg, png);
+    expect(fs.statSync(png).size > 2000, `${name} 出图过小`);
+    ok(`trap ${name} → ${scene.wrong.lines[0].en.slice(0, 24)}…`);
+  } catch (err) {
+    fail(`trap ${name}`, err);
+  }
+}
+
 if (!offlineOnly) {
   try {
     execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });

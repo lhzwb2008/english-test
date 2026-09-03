@@ -51,4 +51,27 @@
 }
 ```
 
-输出前自检：覆盖全部 `focus_points`（若有）；有 intro / trap / answer / ending；**每一页 narration 非空且含中文**；无寒暄；英文不在中文段里。
+trap 必须用嵌套字段 `wrong.lines` / `right.lines`（不要写成 `wrong_lines`，也不要把对错句混在 `lines` 里）：
+
+```json
+{
+  "id": "s4",
+  "type": "trap",
+  "title": "高频易错点避雷",
+  "wrong": {
+    "lines": [{ "n": 1, "en": "Student often look at phone.", "zh": "泛指漏了复数" }],
+    "why": "student 和 phone 都要加 s"
+  },
+  "right": {
+    "lines": [{ "n": 1, "en": "Students often look at their phones.", "zh": "群体用复数" }],
+    "why": "Students 和 phones 都是复数"
+  },
+  "narration": [
+    { "voice": "zh", "text": "最典型的扣分点来了。" },
+    { "voice": "en", "text": "Student often look at phone." },
+    { "voice": "zh", "text": "改成复数才地道。" }
+  ]
+}
+```
+
+输出前自检：覆盖全部 `focus_points`（若有）；有 intro / trap / answer / ending；**每一页 narration 非空且含中文**；**trap 左右都有英文例句**；无寒暄；英文不在中文段里。

@@ -175,51 +175,84 @@ function renderStep(scene) {
   );
 }
 
-function miniLines(lines, x, y, w, enSize = 20) {
-  const items = (lines || []).slice(0, 5);
+function miniLines(lines, x, y, w, { enSize = 26, badge = C.teal } = {}) {
+  const items = (lines || []).slice(0, 4);
+  const rowH = items.some((l) => l?.zh) ? 130 : 100;
   return items
     .map((line, i) => {
-      const yy = y + i * 78;
-      const color = speakerColor(line.speaker);
+      const yy = y + i * rowH;
+      const color = line.speaker ? speakerColor(line.speaker) : badge;
       const label = `${line.n || i + 1}`;
-      const en = wrapText(
-        `${line.speaker ? `${line.speaker}: ` : ''}${line.en || ''}`,
-        w - 70,
-        enSize,
-      ).slice(0, 2);
+      const prefix = line.speaker ? `${line.speaker}: ` : '';
+      const en = wrapText(`${prefix}${line.en || line.zh || ''}`, w - 70, enSize).slice(
+        0,
+        2,
+      );
+      const zh =
+        line.en && line.zh
+          ? wrapText(String(line.zh), w - 70, 22).slice(0, 2)
+          : [];
       return `
-        <circle cx="${x + 18}" cy="${yy + 8}" r="16" fill="${color}"/>
-        <text x="${x + 18}" y="${yy + 14}" text-anchor="middle" fill="${C.white}" font-size="14" font-weight="700" font-family="${FONT}">${esc(label)}</text>
-        ${texts(en, x + 44, yy + 14, { size: enSize, fill: C.text, weight: 650 })}
+        <circle cx="${x + 22}" cy="${yy + 12}" r="18" fill="${color}"/>
+        <text x="${x + 22}" y="${yy + 19}" text-anchor="middle" fill="${C.white}" font-size="16" font-weight="700" font-family="${FONT}">${esc(label)}</text>
+        ${texts(en, x + 52, yy + 20, { size: enSize, fill: C.text, weight: 700, lh: Math.round(enSize * 1.32) })}
+        ${
+          zh.length
+            ? texts(zh, x + 52, yy + 20 + en.length * Math.round(enSize * 1.32) + 10, {
+                size: 22,
+                fill: C.muted,
+                weight: 500,
+                lh: 32,
+              })
+            : ''
+        }
       `;
     })
     .join('');
+}
+
+function trapLabels(scene) {
+  const lines = [
+    ...(scene?.wrong?.lines || []),
+    ...(scene?.right?.lines || []),
+  ];
+  const dialogue = lines.some((l) => l?.speaker);
+  return dialogue
+    ? { bad: '错误排法', good: '正确排法' }
+    : { bad: '错误用法', good: '正确用法' };
+}
+
+function whyBox(x, y, w, h, fill, textFill, why) {
+  const lines = wrapText(why || '', w - 40, 22);
+  if (!lines.length) return '';
+  return `
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="${fill}"/>
+    ${texts(lines, x + 20, y + 42, { size: 22, fill: textFill, weight: 600, lh: 32 })}
+  `;
 }
 
 function renderTrap(scene) {
   const title = String(scene.title || '小心陷阱');
   const wrong = scene.wrong || {};
   const right = scene.right || {};
+  const labels = trapLabels(scene);
   const colW = 820;
   const colY = 160;
   const colH = 780;
-  const whyWrong = wrapText(wrong.why || '', 740, 22);
-  const whyRight = wrapText(right.why || '', 740, 22);
+  const whyY = colY + colH - 150;
   return shell(
     C.bg,
     `
     ${pill(960, 40, title, C.danger, { fontSize: 34 })}
     <rect x="80" y="${colY}" width="${colW}" height="${colH}" rx="24" fill="#FFF5F5" filter="url(#sh)"/>
-    <text x="${80 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.danger}" font-size="32" font-weight="700" font-family="${FONT}">错误排法</text>
-    ${miniLines(wrong.lines, 110, colY + 110, 760, 20)}
-    <rect x="110" y="${colY + colH - 150}" width="760" height="120" rx="16" fill="#FADBD8"/>
-    ${texts(whyWrong, 130, colY + colH - 108, { size: 22, fill: C.danger, weight: 600, lh: 32 })}
+    <text x="${80 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.danger}" font-size="32" font-weight="700" font-family="${FONT}">${esc(labels.bad)}</text>
+    ${miniLines(wrong.lines, 110, colY + 110, 760, { enSize: 28, badge: C.danger })}
+    ${whyBox(110, whyY, 760, 120, '#FADBD8', C.danger, wrong.why)}
 
     <rect x="1020" y="${colY}" width="${colW}" height="${colH}" rx="24" fill="#F0FFF4" filter="url(#sh)"/>
-    <text x="${1020 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.success}" font-size="32" font-weight="700" font-family="${FONT}">正确排法</text>
-    ${miniLines(right.lines, 1050, colY + 110, 760, 20)}
-    <rect x="1050" y="${colY + colH - 150}" width="760" height="120" rx="16" fill="#D5F5E3"/>
-    ${texts(whyRight, 1070, colY + colH - 108, { size: 22, fill: '#1E8449', weight: 600, lh: 32 })}
+    <text x="${1020 + colW / 2}" y="${colY + 58}" text-anchor="middle" fill="${C.success}" font-size="32" font-weight="700" font-family="${FONT}">${esc(labels.good)}</text>
+    ${miniLines(right.lines, 1050, colY + 110, 760, { enSize: 28, badge: C.success })}
+    ${whyBox(1050, whyY, 760, 120, '#D5F5E3', '#1E8449', right.why)}
     `,
   );
 }

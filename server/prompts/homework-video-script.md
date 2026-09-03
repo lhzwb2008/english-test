@@ -69,8 +69,14 @@
       "id": "trap",
       "type": "trap",
       "title": "小心陷阱：顺序错了会怎样？",
-      "wrong": { "lines": [], "why": "……" },
-      "right": { "lines": [], "why": "……" },
+      "wrong": {
+        "lines": [{ "n": 1, "speaker": "B", "en": "Not really. I'm sorry." }],
+        "why": "先道歉再说 either，因果倒了"
+      },
+      "right": {
+        "lines": [{ "n": 1, "speaker": "B", "en": "I don't know much either." }],
+        "why": "either 必须接在「也不懂」后面"
+      },
       "narration": [{ "voice": "zh", "text": "……" }]
     },
     {
@@ -95,4 +101,4 @@
 
 `narration.voice` 只允许 `zh` 或 `en`。每一页 `narration` 至少一段中文，禁止空数组。
 
-输出前自检：有 intro / trap / answer / ending；每页有口播；无寒暄；英文不在中文段里；中文总字数不超过 260。
+输出前自检：有 intro / trap / answer / ending；每页有口播；trap 的 `wrong.lines` 与 `right.lines` 都非空；无寒暄；英文不在中文段里；中文总字数不超过 260。

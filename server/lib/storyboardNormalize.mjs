@@ -138,6 +138,141 @@ export function assertScenesHaveNarration(script) {
   }
 }
 
+function looksEnglish(text) {
+  const t = String(text || '');
+  const letters = (t.match(/[A-Za-z]/g) || []).length;
+  return letters >= 3 && letters >= t.replace(/\s/g, '').length * 0.35;
+}
+
+function stripContrastMarks(text) {
+  return String(text || '')
+    .replace(/[❌✅]/g, '')
+    .replace(/[（(]\s*(错误|正确|wrong|right|incorrect|correct)\s*[)）]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function asLineList(raw) {
+  if (!raw) return [];
+  if (typeof raw === 'string') {
+    const t = stripContrastMarks(raw);
+    if (!t) return [];
+    return looksEnglish(t) ? [{ n: 1, en: t, zh: '' }] : [{ n: 1, en: '', zh: t }];
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item, i) => {
+        if (typeof item === 'string') {
+          const t = stripContrastMarks(item);
+          if (!t) return null;
+          return looksEnglish(t)
+            ? { n: i + 1, en: t, zh: '' }
+            : { n: i + 1, en: '', zh: t };
+        }
+        if (!item || typeof item !== 'object') return null;
+        const en = stripContrastMarks(
+          item.en || item.text || item.sentence || item.example || '',
+        );
+        const zh = stripContrastMarks(item.zh || item.note || '');
+        if (!en && !zh) return null;
+        return {
+          n: item.n || i + 1,
+          speaker: item.speaker,
+          en,
+          zh,
+        };
+      })
+      .filter(Boolean);
+  }
+  if (typeof raw === 'object') {
+    if (Array.isArray(raw.lines)) return asLineList(raw.lines);
+    const en = stripContrastMarks(raw.en || raw.text || raw.sentence || '');
+    const zh = stripContrastMarks(raw.zh || '');
+    if (en || zh) return [{ n: raw.n || 1, speaker: raw.speaker, en, zh }];
+  }
+  return [];
+}
+
+function isWrongMarked(line) {
+  const blob = `${line?.en || ''} ${line?.zh || ''} ${line?.mark || ''}`;
+  if (/❌/.test(blob)) return true;
+  if (/✅/.test(blob)) return false;
+  return /错误|incorrect|\bwrong\b/i.test(blob);
+}
+
+function isRightMarked(line) {
+  const blob = `${line?.en || ''} ${line?.zh || ''} ${line?.mark || ''}`;
+  if (/✅/.test(blob)) return true;
+  if (/❌/.test(blob)) return false;
+  return /正确|correct|\bright\b/i.test(blob);
+}
+
+function splitContrastLines(lines) {
+  const wrong = [];
+  const right = [];
+  for (const line of lines || []) {
+    if (isWrongMarked(line) && !isRightMarked(line)) wrong.push({ ...line, en: stripContrastMarks(line.en), zh: stripContrastMarks(line.zh) });
+    else if (isRightMarked(line)) right.push({ ...line, en: stripContrastMarks(line.en), zh: stripContrastMarks(line.zh) });
+  }
+  return { wrong, right };
+}
+
+function sideWhy(existing) {
+  return String(existing || '').trim();
+}
+
+/**
+ * 模型常把对错例句写成 wrong_lines、scene.lines+❌✅，画面只认 wrong.lines。
+ */
+export function normalizeTrapScene(scene, narration = []) {
+  const src = scene && typeof scene === 'object' ? scene : {};
+  let wrongLines = asLineList(
+    src.wrong?.lines ?? src.wrong_lines ?? src.incorrect_lines ?? src.incorrect,
+  );
+  let rightLines = asLineList(
+    src.right?.lines ?? src.right_lines ?? src.correct_lines ?? src.correct,
+  );
+  if (!wrongLines.length) wrongLines = asLineList(src.wrong);
+  if (!rightLines.length) rightLines = asLineList(src.right);
+
+  if (!wrongLines.length || !rightLines.length) {
+    const split = splitContrastLines(asLineList(src.lines));
+    if (!wrongLines.length) wrongLines = split.wrong;
+    if (!rightLines.length) rightLines = split.right;
+  }
+
+  if (!wrongLines.length || !rightLines.length) {
+    const ens = (Array.isArray(narration) ? narration : [])
+      .filter((s) => s?.voice === 'en' && s?.text)
+      .map((s) => String(s.text).trim());
+    if (ens.length >= 2) {
+      if (!wrongLines.length) wrongLines = [{ n: 1, en: ens[0], zh: '' }];
+      if (!rightLines.length) rightLines = [{ n: 1, en: ens[ens.length - 1], zh: '' }];
+    }
+  }
+
+  const whyWrong = sideWhy(src.wrong?.why ?? src.wrong_why);
+  const whyRight = sideWhy(src.right?.why ?? src.right_why);
+
+  return {
+    wrong: { lines: wrongLines, why: whyWrong },
+    right: { lines: rightLines, why: whyRight },
+  };
+}
+
+export function assertTrapHasContrast(script) {
+  const traps = (script?.scenes || []).filter((s) => s?.type === 'trap');
+  for (const scene of traps) {
+    const w = scene?.wrong?.lines?.length || 0;
+    const r = scene?.right?.lines?.length || 0;
+    if (!w || !r) {
+      throw new Error(
+        `场景 ${scene?.id || 'trap'} 缺少对错例句（wrong=${w} right=${r}）`,
+      );
+    }
+  }
+}
+
 export function normalizeStoryboard(raw, fallbackTitle) {
   const title = String(raw?.title || fallbackTitle || '错题讲解').trim();
   const mnemonic = String(raw?.mnemonic || '').trim();
@@ -173,14 +308,19 @@ export function normalizeStoryboard(raw, fallbackTitle) {
       if (type === 'intro' && !scene.subtitle && mnemonic) {
         scene.subtitle = mnemonic;
       }
+      const narration = normalizeNarration(s.narration, scene, mnemonic);
+      const extra =
+        type === 'trap' ? normalizeTrapScene(scene, narration) : {};
       return {
         ...scene,
+        ...extra,
         id: String(s.id || `s${i + 1}`),
         type,
-        narration: normalizeNarration(s.narration, scene, mnemonic),
+        narration,
       };
     }),
   };
   assertScenesHaveNarration(normalized);
+  assertTrapHasContrast(normalized);
   return normalized;
 }
