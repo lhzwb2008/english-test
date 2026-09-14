@@ -4,6 +4,7 @@ import { listBots } from './qwen/botRegistry.mjs';
 import filesRouter from './routes/files.mjs';
 import chatRouter from './routes/chat.mjs';
 import grammarRouter from './routes/grammar.mjs';
+import requestLogsRouter from './routes/requestLogs.mjs';
 import { resumeInterruptedJobs } from './lib/grammarVideoPipeline.mjs';
 import { requestLogMiddleware, pruneOldLogs } from './lib/requestLog.mjs';
 
@@ -29,6 +30,7 @@ app.get('/health', (_req, res) => {
       'POST /v1/grammar/video  (knowledge | homework)',
       'GET /v1/grammar/video/:jobId',
       'GET /v1/grammar/video/:jobId/file',
+      'POST /v1/request-logs/ingest  (图片批改等 Coze 请求副本)',
     ],
     text_model: process.env.QWEN_TEXT_MODEL || 'qwen3.8-max',
   });
@@ -37,6 +39,7 @@ app.get('/health', (_req, res) => {
 app.use('/v1/files', filesRouter);
 app.use('/v3/chat', chatRouter);
 app.use('/v1/grammar', grammarRouter);
+app.use('/v1/request-logs', requestLogsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ code: 4040, msg: 'not found' });

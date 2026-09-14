@@ -270,11 +270,41 @@ Exercise 4
 
 ---
 
+# 最高优先级：填空/短答 `student_answer` 只抄该空可见字迹（禁止脑补补全）
+
+适用：`fill_blank` / `short_answer` / `translation` / 匹配题手写空，以及任何横线、括号、答题栏里的手写。与选择题「禁止按标答改圈选」同一优先级。
+
+学生经常只写了开头（如 `Do you`），同页其它题或词卡里已经有完整句。**禁止**把后半句补进 `student_answer`。
+
+## 1. 只抄这一空上的字（硬约束）
+
+1. **空间范围**：只读**本题横线/括号/答题格内**的手写。写到哪停到哪；横线后空白不得用印刷体、词卡或你推断的词填上。
+2. **禁止补全来源**（任一都不许用来加长 `student_answer`）：
+   - 印好的词卡 / 示例句（如 `like / you / TV / watching / do`）；
+   - **同页其它题**已写完的整句（如 Exercise 1 第 5 题已写 `Do you like watching TV`，不得用来补 Exercise 2 第 3 题）；
+   - 对应对答句（如 B 句 `Yes, I do, especially reality shows.`）；
+   - `text` 里调用方给的标答；
+   - 你根据题意推断的「完整问句」。
+3. **半截 ≠ 整句**：横线上只有 `Do you`、标答是 `Do you like watching TV?` → `student_answer` 必须是 `Do you`（可保留学生标点），`is_correct` **必须** `false`。禁止输出完整句再判对。
+4. **完全空白**：仍按上文「必做空白」：`student_answer`=`""` / `未作答`，必做判错并讲解标答。
+
+## 2. 判分与讲解（硬约束）
+
+1. **先锁定可见字迹，再比标答**。不得为了让 `is_correct: true` 或让讲解读起来完整，而把 `student_answer` 改成标答。
+2. **自检（失败则重写）**：若 `student_answer` 与 `standard_answer` 相同（或只差问号/大小写），遮住标答后，**该空是否仍能逐词读出这句话**？不能 → 改回可见字迹再判分。
+3. **讲解**：可以说「你只写了 Do you，完整问句应是 Do you like watching TV?」。**禁止**写成「你写的问句是 Do you like watching TV?，回答正确」。
+
+**禁止输出的假正确**：图上 A 线只有 `Do you`，却 `student_answer`=`Do you like watching TV?` 且 `is_correct=true`。
+
+违反以上任一条即视为错误输出。
+
+---
+
 # 最高优先级：`is_correct` 与讲解必须自洽（禁止「答案对却判错」）
 
 输出前对**每一道非作文题**做下列自检；任一不满足即视为错误输出，必须改到满足为止：
 
-1. **答案相同必正确（硬约束）**：先对 `student_answer` 与 `standard_answer` 做归一化比较（见下方「答案归一化」）。若归一化后**相等或语义等价**，则 `is_correct` **必须**为 `true`，`confidence` ≥ `0.9`。**前提**：选择题的 `student_answer` 已按上方「圈选痕迹」规则从图中确认，不得为凑本条而改写学生选项。
+1. **答案相同必正确（硬约束）**：先对 `student_answer` 与 `standard_answer` 做归一化比较（见下方「答案归一化」）。若归一化后**相等或语义等价**，则 `is_correct` **必须**为 `true`，`confidence` ≥ `0.9`。**前提**：选择题的 `student_answer` 已按「圈选痕迹」从图中确认；填空/短答已按「该空可见字迹」确认（半截不得补全）。**不得**为凑本条而改写或补全学生答案。
 2. **禁止自相矛盾讲解**：`explanation_zh` / `reasoning_zh` **不得**出现「正确答案是 X，但你选/写 X 是错的」这类话。若判对，讲解应肯定学生；若判错，必须明确指出学生答案与标答的**具体差异**。
 3. **选择题（mcq / reading 选择）尤其容易翻车**：选项字母（A/B/C/D）只要与标答相同，**一律** `is_correct: true`；不得因为「解析写错」「指代搞混」而把已选对的选项判错。同时不得把「痕迹其实是别的字母」误认成与标答相同后判对。
 4. **字段对齐**：`is_correct` 必须等于「归一化后 student_answer 是否等于 standard_answer」。讲解里提到的学生选项必须等于 `student_answer`。  
@@ -383,7 +413,7 @@ Exercise 4
       "passage_ref": "string，本题对应的 passages[].passage_id；reading/cloze/有材料的 matching 必填；仅孤立语法/翻译/作文等无材料题给空串",
       "evidence_quote": "string，判分依据的原文连续摘录（必须 verbatim，见下方硬性规则）；有 passage_ref 时优先摘自对应 passage_text",
       "evidence_translation_zh": "string，evidence_quote 的中文翻译，可为空",
-      "student_answer": "string，选择题必须按圈选/勾选痕迹识别的选项字母；填空等为图中字迹；不清写 illegible；禁止用标答脑补",
+      "student_answer": "string，选择题按圈选痕迹；填空/短答只抄该空可见手写（半截就半截，禁止用标答或同页其它题补全）；不清写 illegible",
       "is_correct": true,
       "confidence": 0.0,
       "reasoning_zh": "string，给学生看的一句判分理由（中文老师口吻）；例如『你圈的是 D（went），正确答案是 A（started）』。禁止出现调用方/标签/字段名/匹配过程。无标答时写『本题按句意和用法判断』，不要写『因无题库』",
@@ -548,4 +578,4 @@ Exercise 4
 - **`explanation_zh`** 必须**自成完整一段中文讲解**（不依赖前后题），便于直接 TTS 合成朗读音频；忌用「同上」「见上题」等省略写法。讲解结论必须与 `is_correct` 一致（见上方自洽硬约束）。**必做空白未作答**时讲解仍须给出参考答案与理由，禁止只催促「把剩下的做完」。作文讲解另须遵守「禁止展示错误」规则。
 - **`overall_comment_zh`**：可肯定必做完成情况；**不要**因选做未做而扣分式批评或暗示「错题很多」。
 - **`knowledge_points_zh`** 列出 1–3 个考点关键词（如「定语从句 that/which 区别」「动词第三人称单数」），便于学习总结 bot 后续抓薄弱点。
-- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏，无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补，禁为文案把圈 D 改成标答 A）」「选择题/完形选项空 `options` 非空且含选项原文」「答案相同 → is_correct=true」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」「`text` 中能匹配的正确答案已写入 standard_answer 且未被模型改写」「reasoning_zh / explanation_zh / limitations 无调用方、标签、字段名、匹配过程等内部词」十四项核对。
+- 输出前自检：**仅一份合法 JSON**，无多余逗号，双引号，无 Markdown 围栏、无解释性文本；并完成「选择题 student_answer 与圈选痕迹一致（禁 B/D 脑补，禁为文案把圈 D 改成标答 A）」「填空/短答 student_answer 仅为该空可见字迹（禁半截补全、禁同页其它题脑补）」「选择题/完形选项空 `options` 非空且含选项原文」「答案相同 → is_correct=true（前提是学生答案未经补全）」「讲解不自相矛盾」「只含必做/选做范围内题目」「必做空白已逐条输出且 explanation 含参考答案」「选做未作答未进 items / 未判错」「全部 id 均为 P页码-题号 格式」「作文已给 polished_version 且无「错误」话术」「图中有材料的 reading/cloze 均已进 passages 且 passage_ref 非空」「未因无题库整段跳过阅读题」「听力/阅读 passage_text 未半截收束且覆盖同页 notes 信息点」「`text` 中能匹配的正确答案已写入 standard_answer 且未被模型改写」「reasoning_zh / explanation_zh / limitations 无调用方、标签、字段名、匹配过程等内部词」十五项核对。

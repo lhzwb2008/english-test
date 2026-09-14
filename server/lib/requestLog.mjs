@@ -52,6 +52,7 @@ function shouldSkipPath(urlPath) {
   const p = String(urlPath || '').split('?')[0];
   if (SKIP_EXACT.has(p)) return true;
   if (/^\/v1\/grammar\/video\/[^/]+\/file$/.test(p)) return true;
+  if (p === '/v1/request-logs/ingest') return true;
   return false;
 }
 
@@ -247,11 +248,21 @@ function collectDataUrls(value, out = [], depth = 0) {
 export function maybeSaveMedia(req, reqId) {
   /** @type {{ filename: string, buffer: Buffer }[]} */
   const candidates = [];
-  if (req.file?.buffer?.length) {
-    candidates.push({
-      filename: req.file.originalname || `upload${extFromMime(req.file.mimetype, '.bin')}`,
-      buffer: req.file.buffer,
-    });
+  const addFile = (file) => {
+    if (file?.buffer?.length) {
+      candidates.push({
+        filename: file.originalname || `upload${extFromMime(file.mimetype, '.bin')}`,
+        buffer: file.buffer,
+      });
+    }
+  };
+  addFile(req.file);
+  if (Array.isArray(req.files)) {
+    for (const f of req.files) addFile(f);
+  } else if (req.files && typeof req.files === 'object') {
+    for (const group of Object.values(req.files)) {
+      for (const f of Array.isArray(group) ? group : [group]) addFile(f);
+    }
   }
   if (req.body && typeof req.body === 'object') {
     const urls = collectDataUrls(req.body);
@@ -262,6 +273,49 @@ export function maybeSaveMedia(req, reqId) {
       });
     });
   }
+  if (!candidates.length) return { has_media: false };
+  return persistMediaCandidates(reqId, candidates);
+}
+
+/**
+ * 把图片/音频样本写入当天目录（受每日名额限制），并记一条 JSONL。
+ * 供图片批改 ingest / 本地复现脚本使用（业务直连 Coze 时也可 POST 一份副本）。
+ * @param {{
+ *   kind?: string,
+ *   bot_id?: string,
+ *   user_text?: string,
+ *   answer?: unknown,
+ *   files?: { filename?: string, buffer?: Buffer }[],
+ * }} sample
+ */
+export function writeHomeworkSample(sample = {}) {
+  if (!enabled()) return { id: null, media: { saved: false, reason: 'disabled' } };
+  const id = genId('req_');
+  const files = Array.isArray(sample.files) ? sample.files : [];
+  const candidates = files
+    .filter((f) => f?.buffer?.length)
+    .map((f, i) => ({
+      filename: f.filename || `sample_${i}.bin`,
+      buffer: f.buffer,
+    }));
+  const media = persistMediaCandidates(id, candidates);
+  writeRequestLog({
+    id,
+    ts: new Date().toISOString(),
+    method: 'SAMPLE',
+    path: `/internal/${sample.kind || 'image_homework'}`,
+    extra: {
+      kind: sample.kind || 'image_homework',
+      bot_id: sample.bot_id || '',
+      user_text: sample.user_text || '',
+      answer: sample.answer ?? null,
+    },
+    media,
+  });
+  return { id, media };
+}
+
+function persistMediaCandidates(reqId, candidates) {
   if (!candidates.length) return { has_media: false };
 
   const tooLarge = candidates.find((c) => c.buffer.length > maxMediaBytes());

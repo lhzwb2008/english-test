@@ -82,7 +82,7 @@ tail -n 5 /opt/qwen-oral-proxy/server/data/request-logs/$(date +%F).jsonl
 ls /opt/qwen-oral-proxy/server/data/request-logs/media/$(date +%F)/ 2>/dev/null | head
 ```
 
-请求日志默认开启。文本入参/出参都会记（脱敏、截断）。**图片和音频每天最多保存 10 份完整文件**到 `media/日期/`，超出名额的只记文件名和大小，方便复现又不撑爆磁盘。启动和写入时自动删除超过 **7 天** 的 JSONL 与媒体。
+请求日志默认开启。文本入参/出参都会记（脱敏、截断）。**图片和音频每天最多保存 10 份完整文件**到 `media/日期/`，超出名额的只记文件名和大小，方便复现又不撑爆磁盘。启动和写入时自动删除超过 **7 天** 的 JSONL 与媒体。图片批改走 Coze、不经过本代理时，业务侧可把当次 `text` + 图 + 模型 JSON 副本 `POST /v1/request-logs/ingest`（字段 `user_text`/`text`、`answer`、`bot_id`，文件字段名 `file`）。
 
 ## 环境变量（`.env`，参考 `.env.example`）
 
