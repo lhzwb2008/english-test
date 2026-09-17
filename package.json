@@ -20,6 +20,8 @@
     "coze:debug-oral": "node scripts/debug-oral-audio.mjs",
     "qwen:serve": "node server/index.mjs",
     "qwen:debug-oral": "node scripts/debug-qwen-oral-proxy.mjs",
+    "qwen:ssh": "bash scripts/qwen-remote.sh",
+    "qwen:sync": "bash scripts/qwen-remote.sh sync",
     "video:case": "node scripts/run-homework-video-case.mjs",
     "video:stability": "node scripts/test-video-stability.mjs"
   },

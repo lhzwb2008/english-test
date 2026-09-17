@@ -26,6 +26,7 @@ This is `english-coze-mvp` — a prompt-engineering & bot-management toolkit for
 ### Gotchas
 
 - **`.env` setup**: The `COZE_API_TOKEN` environment variable should be written into `/workspace/.env`. The file is `.gitignore`-d.
+- **Qwen 生产机 SSH**：复制 `.deploy.env.example` → `.deploy.env`，填写 `DEPLOY_USER` / `DEPLOY_PASSWORD`（该文件已 gitignore，Cursor 无法代填密码）。`npm run qwen:ssh` 登录；`npm run qwen:sync` 用 rsync 同步后执行远端 `deploy/deploy.sh`。
 - **No lint, build, or test system**: There is no ESLint, TypeScript, build step, or automated test suite. The codebase is plain Node.js ESM (`.mjs` files); verification is done by manually pushing prompts and trying the bots in the Coze console.
 - **Python is optional**: Only needed for `npm run coze:export-builtin` (Excel → Markdown export). The exported file is already committed.
 
