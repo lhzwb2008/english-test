@@ -200,7 +200,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 
 输入：知识点 + 学生情况 + **讲解风格**。输出按风格组织的讲解 Markdown，以及结构化题目（含答案）。
 
-**学生特点必跟**：只看 `student_profile.traits`。学习历史里的 PET/KET **不会**再把讲解锁成考试腔。有 traits 时服务端会编译 `trait_voice`（必须执行的口吻清单），输出含 `voice_adaptation_zh` / `voice_tags`，方便看出差异。无 traits 时按小学高年级默认。
+**学生特点只影响写法**：只看 `student_profile.traits`，服务端编译成 `trait_voice`（篇幅、场景、先讲什么）。学习历史里的 PET/KET **不会**再把讲解锁成考试腔。特点原文不会再送给模型，讲解正文禁止向学生复述性格或基础评价。`voice_adaptation_zh` / `voice_tags` 只给系统看，不要展示给学生。无 traits 时按小学高年级默认。
 
 **出题难度对标课程材料**：请传 `textbook` + `unit_ref`（Allen 已加）。Think 2 的总结就出 Think 2 / B1 题，PET 就出 PET 题。学生档案里的年级、「目前学 THINK1」只影响口吻，**不会**把题目降到更低教材。
 
@@ -244,7 +244,7 @@ curl -sS -X POST 'http://101.201.237.149:8000/v1/grammar/assess' \
 | `data.knowledge_point` | string | 回显知识点 |
 | `data.explanation_style` | string | 实际使用的风格（服务端裁定后回写） |
 | `data.explanation_markdown` | string | 讲解全文（Markdown，结构随风格变化） |
-| `data.voice_adaptation_zh` | string | 有 traits 时：一句话说明本版如何贴合该生 |
+| `data.voice_adaptation_zh` | string | 有 traits 时：给系统看的写法说明，不要展示给学生 |
 | `data.voice_tags` | string[] | 有 traits 时回写：如 `teen_fun` / `short_attention` / `exam_voice` |
 | `data.questions` | array | 题目列表（题型与风格无关） |
 | `data.material` | object | 有 `textbook` 等时回写：`textbook` / `unit_ref` / `cefr` / `label_zh` |

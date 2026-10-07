@@ -13,7 +13,7 @@
 - **禁止 `narration: []` 或省略口播**。每一页都必须有可朗读的 `narration`（至少一段中文）。不要只写 `visual` / 画面元素
 - 不要输出 `visual` 字段（服务端不用）
 - 有 `material` 时例句难度对标该教材（Think 2 / PET = B1），不要降成 Kids Box
-- 有 `trait_voice` 时执行 `must_do`，禁止 `forbidden` 教案腔
+- 有 `trait_voice` 时执行 `must_do`，禁止 `forbidden` 教案腔。口播和字幕禁止评价学生（性格、内向、基础弱、走神、「我知道你」「所以咱们今天」）；特点只体现在长短和例子，不解释为什么这样讲
 
 # 分镜骨架（5–7 页，不可缺 trap）
 

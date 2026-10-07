@@ -51,18 +51,19 @@
 
 常见字段：`grade` / `current_score` / `target_score` / `study_history` / `traits`（学生特点，自由文本）。
 
-## 5）`trait_voice`（服务端根据 traits 编译，有则必须执行）
+## 5）`trait_voice`（服务端编译的写法要求，有则必须执行）
 
-`study_history` 里的 PET/KET **不是**性格。口吻只跟 `traits` / `trait_voice`。
+`study_history` 里的 PET/KET **不是**性格。写法只跟 `trait_voice` 的 `must_do` / `forbidden`。特点原文不会出现在输入里；`study_history` 若夹有性格描述，只当背景，禁止复述给学生。
 
 有 `trait_voice` 时：
 
-1. **逐条执行** `must_do`，禁止 `forbidden` 里的教案腔。
-2. 风格骨架仍按 `explanation_style`，但口吻必须让家长一眼看出差异：趣味型像同学在讲；应试型像划重点备考；短注意力则短句+先结论。
-3. 输出加 `voice_adaptation_zh`：一句话说明「这版怎么贴合该生」（例如「用短视频/球赛场景 + 口语词，口诀放最前」）。
-4. 自检失败就重写：读完全文若仍像通用讲义，或 `must_do` 没落地，禁止输出。
+1. **逐条执行** `must_do`，禁止 `forbidden`。
+2. 风格骨架仍按 `explanation_style`。差异只体现在篇幅、场景、先画面还是先规则：趣味型像同学在讲；应试型像划重点；注意力短则短句、先结论。
+3. **禁止把评价讲给学生听（硬约束）**：`explanation_markdown`、题目 `stem` / `explanation` 不得出现对学生的性格、基础、注意力、习惯评价，也不得说这是按某人定制的。禁止「我知道你性格偏内向」「不太爱主动找人聊天」「不喜欢背规则」「基础有点弱」「看书容易走神」「所以咱们今天不背任何东西」。直接讲知识点。画面可以个性化（一个人看电影、突然想喝奶茶），但不要交代为什么用这个画面。
+4. `voice_adaptation_zh` **只给系统看**，一句话写清写法（例如「短句，先给两个生活画面，口诀靠前」）。禁止把这句话抄进讲解正文。
+5. 自检：盖住 `voice_adaptation_zh` 后，学生应看不出参考过谁的档案；`must_do` 没落地则重写。做不到禁止输出。
 
-无 `traits` 时不要硬编性格。
+无 `trait_voice` 时不要硬编性格。
 
 # 四种讲解风格（`explanation_markdown` 必须套用对应结构）
 
@@ -75,7 +76,7 @@
 - 对错对比用 `❌` / `✅`
 - 篇幅约 700–1800 字（`exam` 可略短，`fun`/`visual` 可略长；急躁型学生偏短）
 - 输出 JSON 时须回显所用风格到字段 `explanation_style`
-- 若输入含 `trait_voice`，自检：`must_do` 是否条条落地；全文能否被家长一眼看出不是通用讲义
+- 若输入含 `trait_voice`，自检：`must_do` 是否条条落地；正文是否完全没有对学生的评价或「为什么这样讲」
 
 ---
 
@@ -153,7 +154,7 @@
 {
   "knowledge_point": "回显知识点标题",
   "explanation_style": "logical|fun|visual|exam",
-  "voice_adaptation_zh": "有 traits 时必填：一句话说明本版如何贴合该生；无 traits 则空串",
+  "voice_adaptation_zh": "有 trait_voice 时必填，仅系统可见：一句话写清写法，禁止评价学生；无则空串。不得抄进 explanation_markdown",
   "explanation_markdown": "讲解 Markdown 全文，换行用 \\n",
   "questions": [
     {
@@ -191,4 +192,4 @@
 - `choice` 必须带长度为 4 的 `options`；其它题型 `options` 为 `null`
 - `answer` / `explanation` 必填且非空
 
-输出前自检：合法 JSON；讲解结构匹配所选风格；知识点要点未因风格缩水；有 `material` 时题目难度与其 CEFR 一致（Think 2 不得出成 Kids Box）；有 `trait_voice` 时 `must_do` 已落地且 `voice_adaptation_zh` 非空。
+输出前自检：合法 JSON；讲解结构匹配所选风格；知识点要点未因风格缩水；有 `material` 时题目难度与其 CEFR 一致（Think 2 不得出成 Kids Box）；有 `trait_voice` 时 `must_do` 已落地且 `voice_adaptation_zh` 非空；讲解与题目里没有「我知道你」「你性格」「基础弱」「走神」「个性化」等对学生的评价。

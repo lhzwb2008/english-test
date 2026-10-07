@@ -35,9 +35,9 @@ export function inferStyleFromTraits(traits, studyHistory = '') {
 }
 
 /**
+ * 编译结果只含写法要求，不含档案原文。原文不得再送给模型，避免被写进给学生看的讲解。
  * @param {Record<string, unknown> | undefined} studentProfile
  * @returns {null | {
- *   traits: string,
  *   tags: string[],
  *   must_do: string[],
  *   forbidden: string[],
@@ -49,13 +49,26 @@ export function buildTraitVoice(studentProfile) {
   if (!traits) return null;
 
   const tags = [];
-  const must = [];
+  const must = [
+    '特点只决定篇幅、场景和先讲什么；讲解、题目、解析、口播都写成普通老师本来就这么讲',
+    '禁止向学生评价性格、基础、注意力或学习习惯，也禁止解释为什么今天这样讲',
+  ];
   const forbidden = [
     '本节我们学习',
     '同学们大家好',
     '作为老师',
     '该题考查',
     '综上所述',
+    '我知道你',
+    '你性格',
+    '性格偏',
+    '基础有点弱',
+    '基础比较弱',
+    '容易走神',
+    '根据你的情况',
+    '针对你',
+    '为你定制',
+    '个性化',
   ];
 
   if (/趣味|有趣|吸引|流行语|共鸣|青少年|好玩/.test(traits)) {
@@ -92,16 +105,15 @@ export function buildTraitVoice(studentProfile) {
   if (/流行语|青少年/.test(traits)) {
     must.push('题目解析也用同学口吻，禁止「该题考查…」');
   }
-  if (!must.length) {
-    must.push(`把「${traits}」写进开篇和至少两条例句场景，读起来不能像通用讲义`);
+  if (!tags.length) {
+    must.push('用周末、作业、同学这类生活场景举例；不要解释为什么选这些场景');
   }
 
   return {
-    traits,
     tags,
     must_do: must,
     forbidden,
     visible_check:
-      '换一个没有这些特点的学生来读，应能明显感到这版不是通用讲义。做不到就重写。',
+      '学生读完全文，不应发现这是按档案写的。出现「我知道你」「你性格」「基础弱」「走神」「所以咱们今天」这类评价或解释，必须删掉再重写。',
   };
 }

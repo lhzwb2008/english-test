@@ -547,6 +547,14 @@ function normalizeStudentProfile(raw) {
   };
 }
 
+/** 送给模型的档案去掉特点原文，避免被写进给学生看的讲解。 */
+function profileForModel(profile) {
+  if (!profile || typeof profile !== 'object') return profile;
+  const copy = { ...profile };
+  delete copy.traits;
+  return copy;
+}
+
 /**
  * POST /v1/grammar/assess
  * 单元学习数据 → 总评 + 知识点列表
@@ -659,7 +667,7 @@ router.post('/drill', async (req, res) => {
     knowledge_point: knowledgePoint,
     explanation_style: explanationStyle,
     material: material || undefined,
-    student_profile: studentProfile,
+    student_profile: profileForModel(studentProfile),
     has_student_traits: Boolean(traitVoice),
     trait_voice: traitVoice || undefined,
     focus_points: focusPoints.length ? focusPoints : undefined,
@@ -751,7 +759,7 @@ function parseDrillLikeInput(body) {
       knowledge_point: knowledgePoint,
       explanation_style: explanationStyle,
       material: material || undefined,
-      student_profile: studentProfile,
+      student_profile: profileForModel(studentProfile),
       trait_voice: traitVoice || undefined,
       has_student_traits: Boolean(traitVoice),
       focus_points: focusPoints.length ? focusPoints : undefined,
@@ -843,7 +851,7 @@ function parseHomeworkVideoInput(body) {
           ) || undefined,
         lines: lines.length ? lines : undefined,
       },
-      student_profile: studentProfile,
+      student_profile: profileForModel(studentProfile),
       trait_voice: buildTraitVoice(studentProfile) || undefined,
       storyboard:
         src.storyboard && typeof src.storyboard === 'object'
