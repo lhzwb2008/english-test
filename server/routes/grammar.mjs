@@ -922,13 +922,13 @@ router.post('/video', (req, res) => {
 
 /**
  * GET /v1/grammar/video/:jobId
- * 查询任务状态与成片 URL（约 48h 有效）
+ * 查询任务状态与成片 URL（固定地址，可反复播放）
  */
 router.get('/video/:jobId', (req, res) => {
   cleanupExpiredJobs();
   const job = getJob(req.params.jobId);
   if (!job) {
-    return res.status(404).json({ code: 4040, msg: '任务不存在或已过期清理' });
+    return res.status(404).json({ code: 4040, msg: '任务不存在' });
   }
   const view = publicJobView(job);
   if (view.video_url && view.video_url.startsWith('/')) {
@@ -940,13 +940,13 @@ router.get('/video/:jobId', (req, res) => {
 
 /**
  * GET /v1/grammar/video/:jobId/file
- * 下载/播放成片（本地临时文件，约 48h）
+ * 下载/播放成片（本地文件；OSS 成片请直接用 video_url）
  */
 router.get('/video/:jobId/file', (req, res) => {
   cleanupExpiredJobs();
   const job = getJob(req.params.jobId);
   if (!job) {
-    return res.status(404).json({ code: 4040, msg: '任务不存在或已过期清理' });
+    return res.status(404).json({ code: 4040, msg: '任务不存在' });
   }
   if (job.status !== 'succeeded' || !job.video_path) {
     return res.status(409).json({
@@ -955,9 +955,6 @@ router.get('/video/:jobId/file', (req, res) => {
       status: job.status,
       progress: job.progress,
     });
-  }
-  if (job.expires_at && Date.parse(job.expires_at) < Date.now()) {
-    return res.status(410).json({ code: 4100, msg: '视频已过期（约 48 小时）' });
   }
   if (!fs.existsSync(job.video_path)) {
     return res.status(404).json({ code: 4040, msg: '视频文件缺失' });

@@ -1,6 +1,6 @@
 /**
  * 阿里云 OSS 上传（正式 Bucket，供终端播放）
- * Bucket 私有时用签名 URL；查询接口可按 oss_key 刷新签名。
+ * 成片对象为 public-read，返回不带签名的固定 URL，可反复播放。
  */
 import fs from 'node:fs';
 import OSS from 'ali-oss';
@@ -48,43 +48,19 @@ function objectPrefix() {
   return (process.env.OSS_PREFIX || 'wenbo').replace(/^\/+|\/+$/g, '');
 }
 
-function urlMode() {
-  return (process.env.OSS_URL_MODE || 'signed').toLowerCase();
-}
-
-function signedSeconds() {
-  const n = Number(process.env.OSS_SIGNED_URL_SECONDS || 7 * 24 * 3600);
-  return Number.isFinite(n) && n > 60 ? Math.floor(n) : 7 * 24 * 3600;
-}
-
 /**
+ * 固定播放地址，不带 Expires / Signature。
  * @param {string} key
- * @returns {{ url: string, expires_at: string | null }}
+ * @returns {{ url: string, expires_at: null }}
  */
 export function buildObjectUrl(key) {
-  const client = createClient();
-  const mode = urlMode();
-  if (mode === 'public') {
-    const publicBase = (process.env.OSS_PUBLIC_BASE_URL || '').replace(/\/$/, '');
-    if (publicBase) {
-      return { url: `${publicBase}/${key}`, expires_at: null };
-    }
-    const bucket = required('OSS_BUCKET');
-    const ep = (
-      process.env.OSS_PUBLIC_ENDPOINT ||
-      'oss-cn-shanghai.aliyuncs.com'
-    ).replace(/^https?:\/\//, '');
-    return { url: `https://${bucket}.${ep}/${key}`, expires_at: null };
-  }
-
-  const seconds = signedSeconds();
-  const url = client.signatureUrl(key, {
-    expires: seconds,
-  });
-  return {
-    url,
-    expires_at: new Date(Date.now() + seconds * 1000).toISOString(),
-  };
+  const clean = String(key || '').replace(/^\/+/, '');
+  const bucket = required('OSS_BUCKET');
+  const ep = (
+    process.env.OSS_PUBLIC_ENDPOINT ||
+    'oss-cn-shanghai.aliyuncs.com'
+  ).replace(/^https?:\/\//, '');
+  return { url: `https://${bucket}.${ep}/${clean}`, expires_at: null };
 }
 
 /**
@@ -103,8 +79,10 @@ export async function uploadFileToOss(localPath, objectKey) {
       'Content-Type':
         key.endsWith('.mp4') ? 'video/mp4' : 'application/octet-stream',
       'Content-Disposition': 'inline',
+      'x-oss-object-acl': 'public-read',
     },
   });
+  await client.putACL(key, 'public-read');
   const built = buildObjectUrl(key);
   return { key, ...built };
 }

@@ -124,8 +124,8 @@ export function updateJob(jobId, patch) {
  */
 export function publicJobView(job) {
   let videoUrl = job.video_url;
-  let expiresAt = job.expires_at;
-  // 私有 Bucket：每次查询刷新签名，避免存库里的 URL 过期
+  let expiresAt = null;
+  // 成片是固定公网地址，查询时去掉历史签名参数
   if (job.oss_key && ossConfigured()) {
     try {
       const built = buildObjectUrl(job.oss_key);
@@ -153,40 +153,9 @@ export function publicJobView(job) {
 }
 
 /**
- * 过期清理：删除超过 expires_at 或超过 TTL 的产物
+ * 已生成的成片和任务记录保留，不按签名有效期或 48 小时删除。
  */
-export function cleanupExpiredJobs() {
-  ensureDirs();
-  const now = Date.now();
-  for (const name of fs.readdirSync(DATA_DIR)) {
-    if (!name.endsWith('.json')) continue;
-    const job = getJob(name.replace(/\.json$/, ''));
-    if (!job) continue;
-    const exp = job.expires_at ? Date.parse(job.expires_at) : NaN;
-    const expired =
-      (Number.isFinite(exp) && exp < now) ||
-      (job.status === 'succeeded' &&
-        job.finished_at &&
-        now - Date.parse(job.finished_at) > 48 * 3600 * 1000);
-    if (!expired) continue;
-    try {
-      if (job.work_dir && fs.existsSync(job.work_dir)) {
-        fs.rmSync(job.work_dir, { recursive: true, force: true });
-      }
-      if (job.video_path && fs.existsSync(job.video_path)) {
-        fs.unlinkSync(job.video_path);
-      }
-    } catch {
-      /* ignore */
-    }
-    try {
-      fs.unlinkSync(jobPath(job.job_id));
-    } catch {
-      /* ignore */
-    }
-    memory.delete(job.job_id);
-  }
-}
+export function cleanupExpiredJobs() {}
 
 export function videoWorkRoot() {
   return WORK_ROOT;
